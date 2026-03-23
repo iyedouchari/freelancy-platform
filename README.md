@@ -1,1 +1,1 @@
-# freelancyy-platform
+# freelancy-platform
