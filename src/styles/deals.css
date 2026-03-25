@@ -1,0 +1,201 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.deals-container {
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+  padding: 0 40px 60px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.deals-header {
+  padding: 44px 0 32px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.deals-header h1 {
+  font-size: 2.4rem;
+  font-weight: 800;
+  letter-spacing: -1px;
+  color: #0f172a;
+}
+
+.fh-btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  background: #fff;
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-family: 'Inter', sans-serif;
+}
+.fh-btn-back:hover { border-color: #4f6ce8; color: #162f6b; }
+
+.deals-section {
+  margin: 36px 0 0;
+}
+
+.deals-section h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.deals-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* CARD */
+.fh-deal-card {
+  background: linear-gradient(135deg, #fafbff, #f5f7ff);
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 36px 40px;
+  animation: fadeUp 0.4s ease both;
+  transition: all 0.3s;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+}
+.fh-deal-card:hover {
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+  transform: translateY(-2px);
+}
+.fh-deal-card:nth-child(1) { animation-delay: 0.05s; }
+.fh-deal-card:nth-child(2) { animation-delay: 0.12s; }
+.fh-deal-card:nth-child(3) { animation-delay: 0.19s; }
+
+.fh-deal-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.fh-deal-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: #0f172a;
+}
+.fh-deal-client { color: #64748b; font-size: 1rem; margin-top: 4px; }
+
+/* BADGE */
+.fh-badge {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.fh-badge-progress  { background: #dcfce7; color: #16a34a; }
+.fh-badge-submitted { background: #fef3c7; color: #b45309; }
+.fh-badge-review    { background: #dbeafe; color: #1d4ed8; }
+.fh-badge-done      { background: #f0fdf4; color: #15803d; }
+
+/* DESCRIPTION */
+.fh-deal-description {
+  margin-top: 18px;
+  padding: 18px 22px;
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  border-radius: 14px;
+  font-size: 1rem;
+  color: #475569;
+  line-height: 1.7;
+  border-left: 4px solid #4f6ce8;
+}
+
+/* LOCATION */
+.fh-deal-location {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 0.95rem;
+  color: #64748b;
+}
+
+/* STATS */
+.fh-deal-stats { display: flex; gap: 48px; margin-top: 24px; flex-wrap: wrap; }
+.fh-stat-label {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.fh-stat-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+.fh-stat-value.fh-green { color: #16a34a; }
+.fh-stat-currency { font-size: 0.95rem; color: #64748b; margin-right: 3px; }
+.fh-stat-date { font-size: 1.05rem; font-weight: 600; padding-top: 4px; }
+
+/* FOOTER */
+.fh-deal-footer { margin-top: 20px; }
+.fh-days-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+  color: #64748b;
+  font-weight: 500;
+  padding: 8px 16px;
+  background: #f8fafc;
+  border-radius: 10px;
+}
+.fh-days-pill.urgent {
+  color: #dc2626;
+  font-weight: 700;
+  background: #fef2f2;
+}
+
+/* BUTTONS */
+.fh-btn-solid {
+  padding: 14px 28px;
+  background: linear-gradient(135deg, #162f6b, #2a52be);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 20px rgba(22, 47, 107, 0.25);
+  text-decoration: none;
+}
+.fh-btn-solid:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(22, 47, 107, 0.4);
+}
+
+/* EMPTY */
+.fh-empty { text-align: center; padding: 80px 0; color: #64748b; }
+.fh-empty-icon { font-size: 3rem; margin-bottom: 16px; }
+.fh-empty-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #0f172a;
+}
