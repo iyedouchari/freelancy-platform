@@ -269,15 +269,15 @@ export default function FreelancerProfile({ onBack }) {
     setShowEdit(false);
   };
 
-  const handleShareProfile = async () => {
+ const handleShareProfile = async () => {
   const profileSlug = profile.name.toLowerCase().replace(/\s+/g, "-");
-  const profileUrl = '${window.location.origin}/profile/${profileSlug}';
+  const profileUrl = `${window.location.origin}/profile/${profileSlug}`;
 
   try {
     await navigator.clipboard.writeText(profileUrl);
-    alert(' Lien copié !\n${profileUrl}');
+    alert(`✓ Lien copié !\n${profileUrl}`);
   } catch {
-    alert('Lien : ${profileUrl}');
+    alert(`Lien : ${profileUrl}`);
   }
 };
 
