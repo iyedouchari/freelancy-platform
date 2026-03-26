@@ -94,7 +94,7 @@ const App = () => (
     <Route path="/register" element={<Register />} />
     <Route path="/app" element={<FreelancerRoute />} />
     <Route path="/client" element={<ClientRoute />} />
+    <Route path="/profile/:name" element={<FreelancerProfile onBack={() => window.history.back()} />} />
   </Routes>
 );
-
 export default App;
