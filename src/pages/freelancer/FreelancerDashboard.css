@@ -1,0 +1,117 @@
+.freelancer-dashboard-page {
+  position: relative;
+}
+
+.freelancer-dashboard-hero,
+.freelancer-dashboard-detail-hero {
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 28px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(240, 244, 255, 0.95));
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+}
+
+.freelancer-dashboard-hero {
+  padding: 32px;
+}
+
+.freelancer-dashboard-detail-hero {
+  padding: 28px;
+}
+
+.freelancer-dashboard-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.95fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.freelancer-dashboard-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.freelancer-dashboard-eyebrow {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #1f3f8a;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.freelancer-dashboard-copy h1 {
+  font-size: clamp(2.1rem, 3vw, 3rem);
+  line-height: 1.05;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.freelancer-dashboard-copy p {
+  max-width: 680px;
+  color: #475569;
+  font-size: 1.02rem;
+  line-height: 1.8;
+}
+
+.freelancer-dashboard-metrics {
+  display: grid;
+  gap: 14px;
+}
+
+.freelancer-dashboard-metric-card {
+  padding: 18px 20px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #f8fafc, #eef2ff);
+  border: 1px solid #dbe3f1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.freelancer-dashboard-metric-card span {
+  display: block;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.freelancer-dashboard-metric-card strong {
+  display: block;
+  margin-top: 8px;
+  color: #0f172a;
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.freelancer-dashboard-metric-card small {
+  display: block;
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.freelancer-dashboard-empty {
+  border-radius: 24px;
+  border: 1px dashed #cbd5e1;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+@media (max-width: 960px) {
+  .freelancer-dashboard-hero-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .freelancer-dashboard-hero,
+  .freelancer-dashboard-detail-hero {
+    padding: 24px;
+    border-radius: 24px;
+  }
+}

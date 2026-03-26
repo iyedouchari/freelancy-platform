@@ -220,6 +220,50 @@ const Onboarding = ({ onComplete }) => {
   );
 };
 
+const RegistrationSuccess = ({ title, message, onLogin }) => (
+  <div className="auth-page">
+    <div className="auth-branding">
+      <div className="auth-branding-content">
+        <Link to="/" className="auth-branding-logo">
+          <div className="auth-branding-logo-icon">Fy</div>
+          <span>Freelancy</span>
+        </Link>
+        <h2 className="auth-branding-title">
+          Votre inscription est <span>bien enregistree</span>
+        </h2>
+        <p className="auth-branding-desc">
+          Le compte a ete cree avec succes. Vous pouvez maintenant revenir a la connexion pour
+          acceder a la plateforme.
+        </p>
+      </div>
+      <div className="auth-branding-shapes">
+        <div className="auth-shape auth-shape-1" />
+        <div className="auth-shape auth-shape-2" />
+        <div className="auth-shape auth-shape-3" />
+      </div>
+    </div>
+
+    <div className="auth-form-side">
+      <div className="auth-form-container auth-success-card">
+        <div className="auth-success-check">✓</div>
+        <div className="auth-form-header">
+          <h1 className="auth-title">{title}</h1>
+          <p className="auth-subtitle">{message}</p>
+        </div>
+
+        <div className="auth-success-actions">
+          <button type="button" className="auth-submit" onClick={onLogin}>
+            <span>Aller a la connexion</span>
+          </button>
+          <p className="auth-footer-link">
+            <Link to="/">Retour a l'accueil</Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 const Register = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -229,6 +273,7 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(null);
   const navigate = useNavigate();
 
   const handleSubmit = (e) => {
@@ -240,19 +285,45 @@ const Register = () => {
     if (role === "freelancer") {
       setShowOnboarding(true);
     } else {
-      navigate("/app");
+      localStorage.removeItem("app_role");
+      localStorage.setItem("client_name", name.trim());
+      localStorage.setItem("client_email", email.trim().toLowerCase());
+      localStorage.removeItem("client_entry_page");
+      setRegistrationSuccess({
+        title: "Inscription client reussie",
+        message:
+          "Votre compte client a ete cree avec succes. Connectez-vous quand vous etes pret a publier vos demandes.",
+      });
     }
   };
 
   const handleOnboardingComplete = (data) => {
+    localStorage.removeItem("app_role");
     localStorage.setItem("freelancer_fields", JSON.stringify(data.fields));
     localStorage.setItem("freelancer_bio", data.bio);
     localStorage.setItem("freelancer_name", name);
+    localStorage.setItem("freelancer_email", email.trim().toLowerCase());
+    localStorage.removeItem("client_entry_page");
     if (data.profileImage) {
       localStorage.setItem("freelancer_image", data.profileImage);
     }
-    navigate("/app");
+    setShowOnboarding(false);
+    setRegistrationSuccess({
+      title: "Inscription freelancer reussie",
+      message:
+        "Votre profil freelancer est pret. Connectez-vous pour commencer a explorer les projets.",
+    });
   };
+
+  if (registrationSuccess) {
+    return (
+      <RegistrationSuccess
+        title={registrationSuccess.title}
+        message={registrationSuccess.message}
+        onLogin={() => navigate("/login")}
+      />
+    );
+  }
 
   if (showOnboarding) {
     return <Onboarding onComplete={handleOnboardingComplete} />;

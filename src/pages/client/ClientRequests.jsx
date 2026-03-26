@@ -1,204 +1,349 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { format } from "../../utils/format";
+import ClientCreateRequest from "./ClientCreateRequest";
+import "./ClientRequests.css";
 
-const ClientRequests = () => {
-  const [projectRequests] = useState([
-    // Non-Negotiable Requests
-    {
-      id: 1,
-      title: "E-Commerce Platform Development",
-      budget: "$5,000 - $8,000",
-      deadline: "2 months",
-      negotiable: false,
-      description: "Build a complete e-commerce platform with payment integration",
-      requirements: ["React", "Node.js", "MongoDB", "Stripe integration"],
-      skills: ["Frontend", "Backend", "Database Design"],
-      category: "Web Development"
-    },
-    {
-      id: 2,
-      title: "Mobile App Redesign",
-      budget: "$3,000 - $4,500",
-      deadline: "6 weeks",
-      negotiable: false,
-      description: "Complete redesign of existing mobile app UI/UX",
-      requirements: ["Figma", "React Native", "iOS", "Android"],
-      skills: ["UI/UX Design", "Mobile Development"],
-      category: "Mobile App"
-    },
-    {
-      id: 3,
-      title: "API Development & Documentation",
-      budget: "$2,500 - $3,500",
-      deadline: "3 weeks",
-      negotiable: false,
-      description: "Create RESTful API with comprehensive documentation",
-      requirements: ["Node.js", "Express", "PostgreSQL", "OpenAPI/Swagger"],
-      skills: ["Backend Development", "API Design"],
-      category: "Backend"
-    },
-    // Negotiable Requests
-    {
-      id: 4,
-      title: "Social Media Analytics Dashboard",
-      budget: "$2,000 - $5,000",
-      deadline: "Flexible",
-      negotiable: true,
-      description: "Interactive dashboard for tracking social media metrics with charts and graphs",
-      requirements: ["React", "Chart.js/D3.js", "REST API integration"],
-      skills: ["Frontend", "Data Visualization"],
-      category: "Web Development"
-    },
-    {
-      id: 5,
-      title: "Logo Design & Branding Package",
-      budget: "$800 - $2,500",
-      deadline: "Negotiable",
-      negotiable: true,
-      description: "Complete branding package including logo, color palette, and guidelines",
-      requirements: ["Adobe Creative Suite", "Design portfolio"],
-      skills: ["Graphic Design", "Branding"],
-      category: "Design"
-    },
-    {
-      id: 6,
-      title: "WordPress Plugin Development",
-      budget: "$1,500 - $4,000",
-      deadline: "4-8 weeks",
-      negotiable: true,
-      description: "Custom WordPress plugin for advanced filtering and content management",
-      requirements: ["PHP", "WordPress", "JavaScript"],
-      skills: ["WordPress Development", "Plugin Development"],
-      category: "Web Development"
-    },
-    {
-      id: 7,
-      title: "SEO Optimization & Strategy",
-      budget: "$1,200 - $3,000",
-      deadline: "Ongoing (Monthly)",
-      negotiable: true,
-      description: "Website SEO audit and implementation of optimization strategy",
-      requirements: ["SEO tools", "Content optimization", "Technical SEO"],
-      skills: ["SEO", "Content Marketing"],
-      category: "Digital Marketing"
-    },
-    {
-      id: 8,
-      title: "Cloud Migration & DevOps Setup",
-      budget: "$3,000 - $6,000",
-      deadline: "6-8 weeks",
-      negotiable: true,
-      description: "Migrate existing application to cloud and set up CI/CD pipeline",
-      requirements: ["AWS/Google Cloud", "Docker", "Kubernetes", "CI/CD"],
-      skills: ["DevOps", "Cloud Infrastructure"],
-      category: "Infrastructure"
+export default function ClientRequests({
+  requests,
+  onCreateRequest,
+  onUpdateRequest,
+  onAcceptProposal,
+  onViewFreelancerProfile,
+}) {
+  const [search, setSearch] = useState("");
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState(requests[0]?.id ?? null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showFreelancers, setShowFreelancers] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  const filteredRequests = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return requests.filter((request) => {
+      if (!query) {
+        return true;
+      }
+
+      return (
+        request.title.toLowerCase().includes(query) ||
+        request.category.toLowerCase().includes(query) ||
+        request.skills.some((skill) => skill.toLowerCase().includes(query))
+      );
+    });
+  }, [requests, search]);
+
+  useEffect(() => {
+    if (filteredRequests.length === 0) {
+      setSelectedRequestId(null);
+      return;
     }
-  ]);
 
-  const nonNegotiableRequests = projectRequests.filter(r => !r.negotiable);
-  const negotiableRequests = projectRequests.filter(r => r.negotiable);
+    const stillVisible = filteredRequests.some((request) => request.id === selectedRequestId);
+    if (!stillVisible) {
+      setSelectedRequestId(filteredRequests[0].id);
+    }
+  }, [filteredRequests, selectedRequestId]);
 
-  const RequestCard = ({ request }) => (
-    <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-      <div className="flex justify-between items-start mb-3">
-        <h3 className="text-lg font-semibold text-gray-800">{request.title}</h3>
-        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-          request.negotiable 
-            ? 'bg-blue-100 text-blue-800' 
-            : 'bg-red-100 text-red-800'
-        }`}>
-          {request.negotiable ? 'NEGOTIABLE' : 'NON-NEGOTIABLE'}
-        </span>
-      </div>
-      
-      <p className="text-gray-600 text-sm mb-4">{request.description}</p>
-      
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div>
-          <p className="text-xs text-gray-500 uppercase tracking-wide">Budget</p>
-          <p className="text-lg font-bold text-green-600">{request.budget}</p>
-        </div>
-        <div>
-          <p className="text-xs text-gray-500 uppercase tracking-wide">Deadline</p>
-          <p className="text-lg font-bold text-purple-600">{request.deadline}</p>
-        </div>
-      </div>
+  useEffect(() => {
+    setIsEditing(false);
+    setShowFreelancers(false);
+  }, [selectedRequestId]);
 
-      <div className="mb-4">
-        <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Category</p>
-        <span className="inline-block px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm">
-          {request.category}
-        </span>
-      </div>
+  const selectedRequest =
+    requests.find((request) => request.id === selectedRequestId) ?? filteredRequests[0] ?? null;
 
-      <div className="mb-4">
-        <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Skills Required</p>
-        <div className="flex flex-wrap gap-2">
-          {request.skills.map((skill, idx) => (
-            <span key={idx} className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
-              {skill}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <div className="mb-4">
-        <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Technologies</p>
-        <div className="flex flex-wrap gap-2">
-          {request.requirements.map((req, idx) => (
-            <span key={idx} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-              {req}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition-colors">
-        View Details
-      </button>
-    </div>
+  const stats = useMemo(
+    () => ({
+      total: requests.length,
+      withProposals: requests.filter((request) => request.proposals.length > 0).length,
+      withoutProposals: requests.filter((request) => request.proposals.length === 0).length,
+    }),
+    [requests]
   );
+
+  const handleCreateRequest = (payload) => {
+    const createdRequest = onCreateRequest?.(payload);
+    if (!createdRequest) {
+      return;
+    }
+
+    setShowCreateForm(false);
+    setSelectedRequestId(createdRequest.id);
+    setNotice("La demande a ete creee. Elle reste modifiable tant qu'aucun accord n'est accepte.");
+  };
+
+  const handleUpdateRequest = (payload) => {
+    if (!selectedRequest) {
+      return;
+    }
+
+    const updatedRequest = onUpdateRequest?.(selectedRequest.id, payload);
+    if (!updatedRequest) {
+      return;
+    }
+
+    setIsEditing(false);
+    setNotice("La demande a ete mise a jour avec succes.");
+  };
+
+  const handleAcceptProposal = (proposal) => {
+    if (!selectedRequest) {
+      return;
+    }
+
+    onAcceptProposal?.(selectedRequest.id, proposal.id);
+  };
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        {/* Non-Negotiable Section */}
-        <div className="mb-12">
-          <div className="flex items-center mb-6">
-            <div className="h-1 w-1 rounded-full bg-red-600 mr-3"></div>
-            <h2 className="text-3xl font-bold text-gray-800">Non-Negotiable Requests</h2>
-            <span className="ml-4 px-4 py-1 bg-red-50 text-red-700 rounded-full text-sm font-semibold">
-              {nonNegotiableRequests.length} Projects
-            </span>
+    <div className="client-requests-page">
+      <div className="client-requests-shell">
+        <header className="client-requests-header">
+          <div className="client-requests-copy">
+            <span className="client-requests-eyebrow">Demandes client</span>
+            <h1>Creer et piloter uniquement les demandes encore en attente d'acceptation</h1>
+            <p>
+              Cette page regroupe vos demandes ouvertes. Vous pouvez les modifier tant qu'un
+              freelance n'a pas ete retenu, consulter les profils proposes et choisir la bonne
+              collaboration au bon moment.
+            </p>
           </div>
-          <p className="text-gray-600 mb-6">These project requirements are fixed and non-negotiable. All specifications must be met as stated.</p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {nonNegotiableRequests.map(request => (
-              <RequestCard key={request.id} request={request} />
-            ))}
+
+          <div className="client-requests-stat-grid">
+            <div className="client-requests-stat-card">
+              <span>Demandes en attente</span>
+              <strong>{stats.total}</strong>
+              <small>encore modifiables</small>
+            </div>
+            <div className="client-requests-stat-card">
+              <span>Avec propositions</span>
+              <strong>{stats.withProposals}</strong>
+              <small>freelancers deja interesses</small>
+            </div>
+            <div className="client-requests-stat-card">
+              <span>Sans proposition</span>
+              <strong>{stats.withoutProposals}</strong>
+              <small>en attente de reponse</small>
+            </div>
           </div>
+        </header>
+
+        <div className="client-requests-toolbar">
+          <label className="client-requests-search">
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Rechercher une demande, categorie ou competence"
+            />
+          </label>
+
+          <button
+            type="button"
+            className={`client-requests-create-btn ${showCreateForm ? "active" : ""}`}
+            onClick={() => setShowCreateForm((current) => !current)}
+          >
+            {showCreateForm ? "Fermer la creation" : "Creer une nouvelle demande"}
+          </button>
         </div>
 
-        {/* Negotiable Section */}
-        <div>
-          <div className="flex items-center mb-6">
-            <div className="h-1 w-1 rounded-full bg-blue-600 mr-3"></div>
-            <h2 className="text-3xl font-bold text-gray-800">Negotiable Requests</h2>
-            <span className="ml-4 px-4 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-semibold">
-              {negotiableRequests.length} Projects
-            </span>
+        {notice && <div className="client-requests-notice">{notice}</div>}
+
+        {showCreateForm && (
+          <div className="client-requests-create-panel">
+            <ClientCreateRequest
+              onCreateRequest={handleCreateRequest}
+              onCancel={() => setShowCreateForm(false)}
+              submitLabel="Publier la demande"
+              note="Votre projet sera ajoute a la liste des demandes en attente."
+            />
           </div>
-          <p className="text-gray-600 mb-6">These projects have flexible terms. Budget, timeline, and some requirements can be negotiated with the right candidate.</p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {negotiableRequests.map(request => (
-              <RequestCard key={request.id} request={request} />
-            ))}
-          </div>
+        )}
+
+        <div className="client-requests-layout">
+          <section className="client-requests-list">
+            {filteredRequests.length === 0 ? (
+              <div className="client-requests-empty">
+                <strong>Aucune demande correspondante</strong>
+                <p>Essayez une autre recherche ou publiez une nouvelle demande.</p>
+              </div>
+            ) : (
+              filteredRequests.map((request) => (
+                <button
+                  type="button"
+                  key={request.id}
+                  className={`client-request-card ${
+                    selectedRequestId === request.id ? "active" : ""
+                  }`}
+                  onClick={() => setSelectedRequestId(request.id)}
+                >
+                  <div className="client-request-card-top">
+                    <span className="client-request-status">En attente</span>
+                    <span className="client-request-posted">{format(request.postedAt, "relative")}</span>
+                  </div>
+                  <h2>{request.title}</h2>
+                  <p>{request.description}</p>
+                  <div className="client-request-card-meta">
+                    <span>{request.category}</span>
+                    <strong>{format(request.budget)} DT</strong>
+                    <span>{request.proposals.length} proposition(s)</span>
+                  </div>
+                </button>
+              ))
+            )}
+          </section>
+
+          <aside className="client-request-details">
+            {selectedRequest ? (
+              <>
+                <div className="client-request-detail-card">
+                  <div className="client-request-detail-top">
+                    <div>
+                      <span className="client-request-detail-eyebrow">Demande en attente</span>
+                      <h2>{selectedRequest.title}</h2>
+                    </div>
+                    <span className="client-request-status">En attente</span>
+                  </div>
+
+                  <p className="client-request-detail-description">{selectedRequest.description}</p>
+
+                  <div className="client-request-detail-grid">
+                    <div>
+                      <span>Budget</span>
+                      <strong>{format(selectedRequest.budget)} DT</strong>
+                    </div>
+                    <div>
+                      <span>Date limite</span>
+                      <strong>{format(selectedRequest.deadline, "date")}</strong>
+                    </div>
+                    <div>
+                      <span>Categorie</span>
+                      <strong>{selectedRequest.category}</strong>
+                    </div>
+                    <div>
+                      <span>Propositions</span>
+                      <strong>{selectedRequest.proposals.length}</strong>
+                    </div>
+                  </div>
+
+                  <div className="client-request-skills-block">
+                    <span>Competences demandees</span>
+                    <div className="client-request-skills">
+                      {selectedRequest.skills.map((skill) => (
+                        <span key={skill}>{skill}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="client-request-detail-actions">
+                    <button type="button" onClick={() => setIsEditing((current) => !current)}>
+                      {isEditing ? "Fermer la modification" : "Modifier cette demande"}
+                    </button>
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={() => setShowFreelancers((current) => !current)}
+                    >
+                      {showFreelancers
+                        ? "Masquer les freelancers proposes"
+                        : "Voir les freelancers proposes"}
+                    </button>
+                  </div>
+
+                  <div className="client-request-modifiable-note">
+                    Cette demande reste modifiable tant qu'aucun freelance n'est accepte.
+                  </div>
+                </div>
+
+                {isEditing && (
+                  <div className="client-request-detail-card">
+                    <ClientCreateRequest
+                      onCreateRequest={handleUpdateRequest}
+                      onCancel={() => setIsEditing(false)}
+                      initialValues={selectedRequest}
+                      eyebrow="Modification"
+                      title="Ajuster la demande avant acceptation"
+                      submitLabel="Enregistrer les modifications"
+                      note="Les changements seront visibles tant que la demande reste en attente."
+                    />
+                  </div>
+                )}
+
+                <div className="client-request-detail-card">
+                  <div className="client-request-proposals-head">
+                    <div>
+                      <span className="client-request-detail-eyebrow">Freelancers proposes</span>
+                      <h3>Profils interesses par cette demande</h3>
+                    </div>
+                    <span className="client-request-proposals-count">
+                      {selectedRequest.proposals.length} profil
+                      {selectedRequest.proposals.length > 1 ? "s" : ""}
+                    </span>
+                  </div>
+
+                  {!showFreelancers ? (
+                    <div className="client-request-proposals-closed">
+                      <p>
+                        Utilisez le bouton ci-dessus pour afficher les freelancers qui ont propose
+                        de collaborer sur ce projet.
+                      </p>
+                    </div>
+                  ) : selectedRequest.proposals.length === 0 ? (
+                    <div className="client-request-proposals-empty">
+                      Aucun freelance ne s'est encore positionne sur cette demande.
+                    </div>
+                  ) : (
+                    <div className="client-request-proposals-list">
+                      {selectedRequest.proposals.map((proposal) => (
+                        <article key={proposal.id} className="client-request-proposal">
+                          <div className="client-request-proposal-top">
+                            <div>
+                              <h4>{proposal.freelancerName}</h4>
+                              <p>{proposal.title}</p>
+                            </div>
+                            <div className="client-request-proposal-rating">
+                              {proposal.rating.toFixed(1)}
+                            </div>
+                          </div>
+
+                          <p className="client-request-proposal-summary">{proposal.summary}</p>
+
+                          <div className="client-request-proposal-meta">
+                            <span>Offre {format(proposal.rate)} DT</span>
+                            <span>Livraison {proposal.deliveryDays} jours</span>
+                          </div>
+
+                          <div className="client-request-proposal-actions">
+                            <button
+                              type="button"
+                              className="ghost"
+                              onClick={() => onViewFreelancerProfile?.(proposal.freelancerId)}
+                            >
+                              Voir le profil et ajouter un feedback
+                            </button>
+                            <button
+                              type="button"
+                              className="primary"
+                              onClick={() => handleAcceptProposal(proposal)}
+                            >
+                              Accepter ce freelance
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="client-requests-empty">
+                <strong>Aucune demande selectionnee</strong>
+                <p>Choisissez un projet a gauche pour afficher ses details.</p>
+              </div>
+            )}
+          </aside>
         </div>
       </div>
     </div>
   );
-};
-
-export default ClientRequests;
+}

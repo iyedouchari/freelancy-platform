@@ -1,19 +1,25 @@
 import { useRef, useState } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import FreelancerDashboard from "./pages/freelancer/FreelancerDashboard";
-import FreelancerProfile from "./components/FreelancerProfile";
-import Deals from "./pages/shared/Deals";
+import FreelancerDeals from "./pages/freelancer/FreelancerDeals";
+import FreelancerProfile from "./pages/freelancer/FreelancerProfile";
+import ClientShell from "./pages/client/ClientShell";
 import Landing from "./pages/public/Landing";
 import Login from "./pages/public/Login";
 import Register from "./pages/public/Register";
 import Workspace from "./pages/shared/Workspace";
+import { activeDeals } from "./data/deals";
 
-/* Inner app shell — keeps the existing state-based navigation for the logged-in area */
-const AppShell = () => {
+function getStoredRole() {
+  return localStorage.getItem("app_role");
+}
+
+const FreelancerShell = () => {
   const dashboardRef = useRef(null);
-  const [page, setPage] = useState("dashboard"); // profile | dashboard | deals | workspace
+  const [page, setPage] = useState("dashboard");
+  const [selectedDealId, setSelectedDealId] = useState(activeDeals[0]?.id ?? null);
 
   const goToDashboard = () => {
     dashboardRef.current?.goDashboard?.();
@@ -22,7 +28,15 @@ const AppShell = () => {
 
   const goToDeals = () => setPage("deals");
   const goToProfile = () => setPage("profile");
-  const goToWorkspace = () => setPage("workspace");
+
+  const goToWorkspace = (dealId) => {
+    if (dealId) {
+      setSelectedDealId(dealId);
+    }
+    setPage("workspace");
+  };
+
+  const activeNavPage = page === "workspace" ? "deals" : page;
 
   return (
     <div className="app-shell">
@@ -30,23 +44,26 @@ const AppShell = () => {
         onDashboard={goToDashboard}
         onProfile={goToProfile}
         onDeals={goToDeals}
-        activePage={page}
+        activePage={activeNavPage}
       />
       <main className="app-main">
-        {page === "profile" && (
-          <FreelancerProfile onBack={() => setPage("dashboard")} />
-        )}
         {page === "dashboard" && (
           <FreelancerDashboard ref={dashboardRef} />
         )}
         {page === "deals" && (
-          <Deals
+          <FreelancerDeals
             onBack={() => setPage("dashboard")}
             onOpenWorkspace={goToWorkspace}
           />
         )}
+        {page === "profile" && (
+          <FreelancerProfile onBack={() => setPage("dashboard")} />
+        )}
         {page === "workspace" && (
-          <Workspace onBack={() => setPage("deals")} />
+          <Workspace
+            dealId={selectedDealId}
+            onBack={() => setPage("deals")}
+          />
         )}
       </main>
       <Footer />
@@ -54,12 +71,29 @@ const AppShell = () => {
   );
 };
 
+const FreelancerRoute = () => {
+  if (getStoredRole() === "client") {
+    return <Navigate to="/client" replace />;
+  }
+
+  return <FreelancerShell />;
+};
+
+const ClientRoute = () => {
+  if (getStoredRole() === "freelancer") {
+    return <Navigate to="/app" replace />;
+  }
+
+  return <ClientShell />;
+};
+
 const App = () => (
   <Routes>
     <Route path="/" element={<Landing />} />
     <Route path="/login" element={<Login />} />
     <Route path="/register" element={<Register />} />
-    <Route path="/app" element={<AppShell />} />
+    <Route path="/app" element={<FreelancerRoute />} />
+    <Route path="/client" element={<ClientRoute />} />
   </Routes>
 );
 

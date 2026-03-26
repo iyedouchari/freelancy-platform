@@ -4,6 +4,7 @@ import FiltersBar from "../../components/FiltersBar";
 import ProjectCard from "../../components/ProjectCard";
 import ProjectDetails from "../../components/ProjectDetails";
 import { format } from "../../utils/format";
+import "./FreelancerDashboard.css";
 
 const CATEGORIES = [
   "Développement Web",
@@ -346,6 +347,41 @@ const FreelancerDashboard = forwardRef((_, ref) => {
   const selectedProject =
     filteredProjects.find((p) => p.id === selectedProjectId) ?? filteredProjects[0];
 
+  const dashboardMetrics = useMemo(() => {
+    const urgentProjects = filteredProjects.filter((project) => {
+      const diff = new Date(project.deadline) - new Date();
+      return diff <= 1000 * 60 * 60 * 24 * 45;
+    }).length;
+    const averageBudget =
+      filteredProjects.length > 0
+        ? Math.round(
+            filteredProjects.reduce((sum, project) => sum + project.budget, 0) /
+              filteredProjects.length
+          )
+        : 0;
+    const negotiableProjects = filteredProjects.filter(
+      (project) => project.type === "Négociable"
+    ).length;
+
+    return [
+      {
+        label: "Opportunites",
+        value: filteredProjects.length,
+        hint: "projets visibles",
+      },
+      {
+        label: "Budget moyen",
+        value: `${format(averageBudget)} $`,
+        hint: "sur la selection",
+      },
+      {
+        label: "Negociables",
+        value: negotiableProjects,
+        hint: `${urgentProjects} echeances proches`,
+      },
+    ];
+  }, [filteredProjects]);
+
   const openDetails = (id) => {
     setSelectedProjectId(id);
     setViewMode("details");
@@ -372,12 +408,10 @@ const FreelancerDashboard = forwardRef((_, ref) => {
 
   if (viewMode === "details" && selectedProject) {
     return (
-      <div className="layout-shell py-10">
+      <div className="layout-shell py-10 freelancer-dashboard-page">
         <div className="content-area space-y-8">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-primary-50 via-white to-sky-50 border border-slate-200/60 shadow-soft p-6">
-            <div className="absolute -left-10 -top-16 h-40 w-40 bg-primary-200/30 blur-3xl" />
-            <div className="absolute -right-16 -bottom-12 h-44 w-44 bg-sky-200/30 blur-3xl" />
-            <div className="relative flex items-center justify-between flex-wrap gap-4">
+          <div className="freelancer-dashboard-detail-hero">
+            <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-primary-700 uppercase tracking-wide">
                   Détail du projet
@@ -408,15 +442,30 @@ const FreelancerDashboard = forwardRef((_, ref) => {
   }
 
   return (
-    <div className="layout-shell py-10">
+    <div className="layout-shell py-10 freelancer-dashboard-page">
       <div className="content-area space-y-6">
-        <header className="space-y-1">
-          <h1 className="page-title text-4xl text-slate-900">Espace Freelance</h1>
-          <p className="text-slate-600 text-base">
-            Parcourez les projets qui correspondent à votre expertise. Filtrez par catégorie, budget,
-            type et date limite.
-          </p>
-        </header>
+        <section className="freelancer-dashboard-hero">
+          <div className="freelancer-dashboard-hero-grid">
+            <div className="freelancer-dashboard-copy">
+              <span className="freelancer-dashboard-eyebrow">Tableau de bord</span>
+              <h1>Projets a cibler selon votre expertise</h1>
+              <p>
+                Parcourez les projets qui correspondent a votre expertise. Filtrez par categorie,
+                budget, type et date limite depuis votre page dashboard dediee.
+              </p>
+            </div>
+
+            <div className="freelancer-dashboard-metrics">
+              {dashboardMetrics.map((metric) => (
+                <div key={metric.label} className="freelancer-dashboard-metric-card">
+                  <span>{metric.label}</span>
+                  <strong>{metric.value}</strong>
+                  <small>{metric.hint}</small>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
         <CategorySelector
           categories={CATEGORIES}
@@ -438,7 +487,7 @@ const FreelancerDashboard = forwardRef((_, ref) => {
 
         <div className="grid gap-5 grid-cols-1">
           {filteredProjects.length === 0 && (
-            <div className="glass-card p-6 text-slate-600">
+            <div className="glass-card p-6 text-slate-600 freelancer-dashboard-empty">
               Aucun projet ne correspond à ces filtres pour l'instant.
             </div>
           )}

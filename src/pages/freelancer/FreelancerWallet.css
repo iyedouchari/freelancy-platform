@@ -1,0 +1,291 @@
+.freelancer-wallet-page {
+  min-height: 100vh;
+  padding: 40px 24px 64px;
+}
+
+.freelancer-wallet-shell {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.freelancer-wallet-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.95fr);
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.freelancer-wallet-copy,
+.freelancer-wallet-stats,
+.freelancer-wallet-balance-card,
+.freelancer-wallet-payout-card,
+.freelancer-wallet-history {
+  border-radius: 28px;
+  border: 1px solid #e2e8f0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(243, 247, 255, 0.95));
+  box-shadow: 0 16px 42px rgba(15, 23, 42, 0.07);
+}
+
+.freelancer-wallet-copy {
+  padding: 32px;
+}
+
+.freelancer-wallet-eyebrow,
+.freelancer-wallet-section-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #1f3f8a;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.freelancer-wallet-copy h1 {
+  margin-top: 18px;
+  color: #0f172a;
+  font-size: clamp(2rem, 3vw, 2.9rem);
+  line-height: 1.08;
+  font-weight: 800;
+}
+
+.freelancer-wallet-copy p {
+  margin-top: 14px;
+  color: #475569;
+  line-height: 1.8;
+}
+
+.freelancer-wallet-stats {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+}
+
+.freelancer-wallet-stat-card {
+  padding: 18px 20px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #f8fafc, #eef2ff);
+  border: 1px solid #dbe3f1;
+}
+
+.freelancer-wallet-stat-card span,
+.freelancer-wallet-card-label {
+  display: block;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.freelancer-wallet-stat-card strong {
+  display: block;
+  margin-top: 8px;
+  color: #0f172a;
+  font-size: 1.7rem;
+  font-weight: 800;
+}
+
+.freelancer-wallet-stat-card small {
+  display: block;
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.freelancer-wallet-panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.freelancer-wallet-balance-card,
+.freelancer-wallet-payout-card,
+.freelancer-wallet-history {
+  padding: 28px;
+}
+
+.freelancer-wallet-balance-card strong {
+  display: block;
+  margin-top: 12px;
+  color: #0f172a;
+  font-size: clamp(2.2rem, 4vw, 3.5rem);
+  line-height: 1;
+  font-weight: 800;
+}
+
+.freelancer-wallet-balance-card p {
+  margin-top: 12px;
+  color: #475569;
+  line-height: 1.75;
+}
+
+.freelancer-wallet-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.freelancer-wallet-badges span {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #1f3f8a;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.freelancer-wallet-payout-card h2,
+.freelancer-wallet-history h2 {
+  color: #0f172a;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.freelancer-wallet-payout-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 0;
+  border-top: 1px solid #e2e8f0;
+}
+
+.freelancer-wallet-payout-row:first-of-type {
+  margin-top: 18px;
+}
+
+.freelancer-wallet-payout-row span {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.freelancer-wallet-payout-row strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.freelancer-wallet-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.freelancer-wallet-section-head p {
+  color: #64748b;
+  max-width: 420px;
+}
+
+.freelancer-wallet-transaction-list {
+  display: grid;
+  gap: 16px;
+}
+
+.freelancer-wallet-transaction {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 20px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.freelancer-wallet-transaction-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.freelancer-wallet-direction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 78px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.freelancer-wallet-direction.is-credit {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.freelancer-wallet-direction.is-debit {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.freelancer-wallet-transaction-main h3 {
+  color: #0f172a;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.freelancer-wallet-transaction-main p,
+.freelancer-wallet-transaction-side span {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 0.92rem;
+}
+
+.freelancer-wallet-transaction-side {
+  text-align: right;
+}
+
+.freelancer-wallet-transaction-side strong {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.freelancer-wallet-transaction-side .is-credit {
+  color: #15803d;
+}
+
+.freelancer-wallet-transaction-side .is-debit {
+  color: #b91c1c;
+}
+
+@media (max-width: 960px) {
+  .freelancer-wallet-header,
+  .freelancer-wallet-panels {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .freelancer-wallet-page {
+    padding: 28px 18px 48px;
+  }
+
+  .freelancer-wallet-copy,
+  .freelancer-wallet-stats,
+  .freelancer-wallet-balance-card,
+  .freelancer-wallet-payout-card,
+  .freelancer-wallet-history {
+    border-radius: 22px;
+  }
+
+  .freelancer-wallet-transaction {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .freelancer-wallet-transaction-side {
+    text-align: left;
+  }
+}

@@ -2,6 +2,17 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "../../styles/landing.css";
 
+const CLIENT_LOGIN = {
+  email: "iyed@gmail.com",
+  password: "iyed",
+  name: "Iyed",
+};
+
+function formatFreelancerName(email) {
+  const username = email.split("@")[0] || "freelancer";
+  return username.charAt(0).toUpperCase() + username.slice(1);
+}
+
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -10,6 +21,26 @@ const Login = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (
+      normalizedEmail === CLIENT_LOGIN.email &&
+      password === CLIENT_LOGIN.password
+    ) {
+      localStorage.setItem("app_role", "client");
+      localStorage.setItem("client_name", CLIENT_LOGIN.name);
+      localStorage.setItem("client_email", CLIENT_LOGIN.email);
+      localStorage.setItem("client_entry_page", "workspace");
+      navigate("/client");
+      return;
+    }
+
+    localStorage.setItem("app_role", "freelancer");
+    localStorage.setItem(
+      "freelancer_name",
+      localStorage.getItem("freelancer_name") || formatFreelancerName(normalizedEmail)
+    );
+    localStorage.removeItem("client_entry_page");
     navigate("/app");
   };
 
