@@ -56,15 +56,14 @@
   line-height: 1.8;
 }
 
-.client-dashboard-hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 24px;
+.client-dashboard-note {
+  max-width: 680px;
+  padding: 16px 18px;
+  border: 1px solid #dbe3f1;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #f8fbff, #eef2ff);
 }
 
-.client-dashboard-hero-actions button,
-.client-dashboard-panel-head button,
 .client-dashboard-deal-meta button {
   display: inline-flex;
   align-items: center;
@@ -75,7 +74,6 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.client-dashboard-hero-actions .primary,
 .client-dashboard-deal-meta button {
   border: none;
   background: linear-gradient(135deg, #162f6b, #2a52be);
@@ -83,15 +81,6 @@
   box-shadow: 0 12px 28px rgba(22, 47, 107, 0.22);
 }
 
-.client-dashboard-hero-actions .secondary,
-.client-dashboard-panel-head button {
-  border: 1px solid #dbe3f1;
-  background: #fff;
-  color: #334155;
-}
-
-.client-dashboard-hero-actions button:hover,
-.client-dashboard-panel-head button:hover,
 .client-dashboard-deal-meta button:hover {
   transform: translateY(-1px);
 }

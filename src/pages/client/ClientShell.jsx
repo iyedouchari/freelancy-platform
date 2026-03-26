@@ -179,7 +179,6 @@ export default function ClientShell() {
           <ClientDashboard
             deals={deals}
             pendingRequestsCount={requests.length}
-            onOpenRequests={() => setPage("requests")}
             onOpenWorkspace={openWorkspace}
           />
         )}

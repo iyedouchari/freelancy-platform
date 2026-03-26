@@ -8,12 +8,10 @@ function parseDealTotal(value) {
 export default function ClientDashboard({
   deals,
   pendingRequestsCount,
-  onOpenRequests,
   onOpenWorkspace,
 }) {
   const activeDeals = deals.filter((deal) => deal.daysLeft !== null);
   const completedDeals = deals.filter((deal) => deal.daysLeft === null);
-  const featuredDeal = activeDeals[0] ?? completedDeals[0] ?? null;
   const committedBudget = deals.reduce((sum, deal) => sum + parseDealTotal(deal.total), 0);
 
   return (
@@ -27,17 +25,10 @@ export default function ClientDashboard({
               Ce dashboard regroupe les deals valides par vous et par les freelancers. Les
               demandes encore en attente restent gerees a part dans la page demandes.
             </p>
-
-            <div className="client-dashboard-hero-actions">
-              <button type="button" className="secondary" onClick={onOpenRequests}>
-                Voir mes demandes en attente
-              </button>
-              {featuredDeal && (
-                <button type="button" className="primary" onClick={() => onOpenWorkspace?.(featuredDeal)}>
-                  Ouvrir le workspace actif
-                </button>
-              )}
-            </div>
+            <p className="client-dashboard-note">
+              Les demandes en attente se gerent depuis l'onglet Demandes. Les espaces de travail
+              actifs restent accessibles directement dans la liste ci-dessous.
+            </p>
           </div>
 
           <div className="client-dashboard-stat-grid">
@@ -70,9 +61,6 @@ export default function ClientDashboard({
               <span className="client-dashboard-panel-eyebrow">Collaborations en cours</span>
               <h2>Deals acceptes deja au travail</h2>
             </div>
-            <button type="button" onClick={onOpenRequests}>
-              Gerer les demandes en attente
-            </button>
           </div>
 
           {activeDeals.length === 0 ? (
