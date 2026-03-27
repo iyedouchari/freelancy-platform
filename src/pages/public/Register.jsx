@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { authService } from "../../services/authService";
 import "../../styles/landing.css";
 
 const CATEGORIES = [
@@ -274,47 +275,85 @@ const Register = () => {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!role) return alert("Veuillez choisir votre rôle.");
+    setError("");
+
+    if (!role) return alert("Veuillez choisir votre role.");
     if (password !== confirmPassword) return alert("Les mots de passe ne correspondent pas.");
-    if (!acceptTerms) return alert("Veuillez accepter les conditions d'utilisation.");
+    if (!acceptTerms) return alert("Veuillez accepter les conditions d utilisation.");
 
     if (role === "freelancer") {
       setShowOnboarding(true);
-    } else {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { user } = await authService.register({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+        role: "client",
+      });
+
       localStorage.removeItem("app_role");
-      localStorage.setItem("client_name", name.trim());
-      localStorage.setItem("client_email", email.trim().toLowerCase());
+      localStorage.setItem("client_name", user?.name || name.trim());
+      localStorage.setItem("client_email", user?.email || email.trim().toLowerCase());
       localStorage.removeItem("client_entry_page");
       setRegistrationSuccess({
         title: "Inscription client reussie",
         message:
           "Votre compte client a ete cree avec succes. Connectez-vous quand vous etes pret a publier vos demandes.",
       });
+    } catch (submitError) {
+      setError(submitError.message || "Impossible de creer le compte.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleOnboardingComplete = (data) => {
-    localStorage.removeItem("app_role");
-    localStorage.setItem("freelancer_fields", JSON.stringify(data.fields));
-    localStorage.setItem("freelancer_bio", data.bio);
-    localStorage.setItem("freelancer_name", name);
-    localStorage.setItem("freelancer_email", email.trim().toLowerCase());
-    localStorage.removeItem("client_entry_page");
-    if (data.profileImage) {
-      localStorage.setItem("freelancer_image", data.profileImage);
-    }
-    setShowOnboarding(false);
-    setRegistrationSuccess({
-      title: "Inscription freelancer reussie",
-      message:
-        "Votre profil freelancer est pret. Connectez-vous pour commencer a explorer les projets.",
-    });
-  };
+  const handleOnboardingComplete = async (data) => {
+    setError("");
+    setIsSubmitting(true);
 
+    try {
+      const { user } = await authService.register({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+        role: "freelancer",
+        bio: data.bio,
+        fields: data.fields,
+        profileImage: data.profileImage,
+      });
+
+      localStorage.removeItem("app_role");
+      localStorage.setItem("freelancer_fields", JSON.stringify(user?.fields || data.fields));
+      localStorage.setItem("freelancer_bio", user?.bio || data.bio);
+      localStorage.setItem("freelancer_name", user?.name || name.trim());
+      localStorage.setItem("freelancer_email", user?.email || email.trim().toLowerCase());
+      localStorage.removeItem("client_entry_page");
+      if (user?.profileImage || data.profileImage) {
+        localStorage.setItem("freelancer_image", user?.profileImage || data.profileImage);
+      }
+      setShowOnboarding(false);
+      setRegistrationSuccess({
+        title: "Inscription freelancer reussie",
+        message:
+          "Votre profil freelancer est pret. Connectez-vous pour commencer a explorer les projets.",
+      });
+    } catch (submitError) {
+      setError(submitError.message || "Impossible de creer le compte.");
+      setShowOnboarding(false);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   if (registrationSuccess) {
     return (
       <RegistrationSuccess
@@ -514,8 +553,14 @@ const Register = () => {
               </span>
             </label>
 
-            <button type="submit" className="auth-submit">
-              <span>Créer mon compte</span>
+            {error && (
+              <p className="auth-subtitle" style={{ color: "#b42318", marginTop: 0 }}>
+                {error}
+              </p>
+            )}
+
+            <button type="submit" className="auth-submit" disabled={isSubmitting}>
+              <span>{isSubmitting ? "Creation..." : "Creer mon compte"}</span>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="5" y1="12" x2="19" y2="12" />
                 <polyline points="12 5 19 12 12 19" />

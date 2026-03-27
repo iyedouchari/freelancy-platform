@@ -1,0 +1,26 @@
+[
+  {
+    "id": "65802ae7-c1b4-4026-93da-dfeacf395e31",
+    "name": "QA",
+    "email": "qa_1774563834843@example.com",
+    "passwordHash": "$2a$10$nyGStBtVGQKiqPQzq/l/yOLBkBLKPDZMFjYPir.9U7u95xGb9LqGm",
+    "role": "client",
+    "bio": "",
+    "fields": [],
+    "profileImage": null,
+    "createdAt": "2026-03-26T22:23:55.033Z",
+    "updatedAt": "2026-03-26T22:23:55.033Z"
+  },
+  {
+    "id": "faef50a1-254d-4021-a868-82108b1c6c24",
+    "name": "Smoke",
+    "email": "ok_1774564280435@example.com",
+    "passwordHash": "$2a$10$a.DP9oE.13lKoXtwlv/FZO7ijatTCHEsj7jukJpsMkm5kC3HP7Yla",
+    "role": "freelancer",
+    "bio": "",
+    "fields": [],
+    "profileImage": null,
+    "createdAt": "2026-03-26T22:31:20.637Z",
+    "updatedAt": "2026-03-26T22:31:20.637Z"
+  }
+]

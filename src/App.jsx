@@ -72,7 +72,13 @@ const FreelancerShell = () => {
 };
 
 const FreelancerRoute = () => {
-  if (getStoredRole() === "client") {
+  const role = getStoredRole();
+
+  if (!role) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (role === "client") {
     return <Navigate to="/client" replace />;
   }
 
@@ -80,7 +86,13 @@ const FreelancerRoute = () => {
 };
 
 const ClientRoute = () => {
-  if (getStoredRole() === "freelancer") {
+  const role = getStoredRole();
+
+  if (!role) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (role === "freelancer") {
     return <Navigate to="/app" replace />;
   }
 
