@@ -269,19 +269,17 @@ export default function FreelancerProfile({ onBack }) {
     setShowEdit(false);
   };
 
-  const handleShareProfile = async () => {
-    const shareValue = `${profile.name} - ${profile.title}`;
-    if (!navigator.clipboard?.writeText) {
-      alert("Le profil est pret a etre partage.");
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(shareValue);
-      alert("Les informations du profil ont ete copiees.");
-    } catch {
-      alert("Le profil est pret a etre partage.");
-    }
-  };
+ const handleShareProfile = async () => {
+  const profileSlug = profile.name.toLowerCase().replace(/\s+/g, "-");
+  const profileUrl = `${window.location.origin}/profile/${profileSlug}`;
+
+  try {
+    await navigator.clipboard.writeText(profileUrl);
+    alert(`✓ Lien copié !\n${profileUrl}`);
+  } catch {
+    alert(`Lien : ${profileUrl}`);
+  }
+};
 
   if (showEdit) {
     return (

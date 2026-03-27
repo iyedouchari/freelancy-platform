@@ -26,10 +26,7 @@ const Landing = () => (
     <section className="hero-section" id="hero">
       <div className="hero-inner">
         <div>
-          <div className="hero-badge">
-            <span className="hero-badge-dot" />
-            Plateforme Freelance 2026
-          </div>
+         
           <h1 className="hero-title">
             Trouvez les<br />
             meilleurs <span>freelancers</span><br />
@@ -42,15 +39,8 @@ const Landing = () => (
           </p>
           <div className="hero-actions">
             <Link to="/register" className="hero-btn-primary">Démarrer votre projet</Link>
-            <a href="#how" className="hero-btn-secondary">Comment ça marche</a>
           </div>
-          <div className="hero-features">
-            <span><span className="feat-icon">⚡</span> Livraison rapide</span>
-            <span>·</span>
-            <span><span className="feat-icon">🔒</span> Paiements sécurisés</span>
-            <span>·</span>
-            <span><span className="feat-icon">🏆</span> Talents de premier plan</span>
-          </div>
+          
         </div>
         <div className="hero-visual">
           <div className="hero-blob" />
