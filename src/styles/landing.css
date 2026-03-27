@@ -1326,4 +1326,57 @@
   .auth-social-btns {
     flex-direction: column;
   }
+  /* ─── Workspace — Ajouts Module 4 (Paiement) ─────────────────────────────────
+   À AJOUTER à la fin de src/styles/landing.css
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Boutons paiement dans le panneau Actions */
+.workspace-pay-btn {
+  margin-top: 10px;
+  font-weight: 700;
+}
+
+.workspace-pay-btn.is-advance {
+  background: linear-gradient(135deg, #0f766e, #14b8a6) !important;
+  box-shadow: 0 8px 20px rgba(15,118,110,0.25) !important;
+}
+
+.workspace-pay-btn.is-advance:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(15,118,110,0.35) !important;
+}
+
+.workspace-pay-btn.is-final {
+  background: linear-gradient(135deg, #1d4ed8, #4f46e5) !important;
+  box-shadow: 0 8px 20px rgba(29,78,216,0.25) !important;
+}
+
+.workspace-pay-btn.is-final:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(29,78,216,0.35) !important;
+}
+
+/* Indicateur statut paiement */
+.workspace-pay-status {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.workspace-pay-status.is-done {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.workspace-pay-status.is-done.is-final {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
 }

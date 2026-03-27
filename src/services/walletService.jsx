@@ -2,3 +2,4 @@
 export const walletService = {
   balance: async () => 0,
 };
+
