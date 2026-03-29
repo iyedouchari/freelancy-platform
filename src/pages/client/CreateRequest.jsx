@@ -1,1 +1,1 @@
-export { default } from "./ClientCreateRequest";
+export { default } from "../ClientCreateRequest";

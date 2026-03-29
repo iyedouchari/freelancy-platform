@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import Footer from "../../components/Footer";
 import Navbar from "../../components/Navbar";
-import PaymentModal from "../../components/PaymentModal";
 import {
   createClientDealFromRequest,
   createClientRequest,
@@ -51,6 +50,7 @@ function loadFeedbackDirectory() {
     if (!stored) {
       return initialFreelancerFeedbackById;
     }
+
     return { ...initialFreelancerFeedbackById, ...JSON.parse(stored) };
   } catch {
     return initialFreelancerFeedbackById;
@@ -66,9 +66,6 @@ export default function ClientShell() {
   const [selectedFreelancerId, setSelectedFreelancerId] = useState(null);
   const [feedbackDirectory, setFeedbackDirectory] = useState(loadFeedbackDirectory);
 
-  // ─── Module 4 : état PaymentModal ─────────────────────────────────────────
-  const [paymentModal, setPaymentModal] = useState({ open: false, deal: null });
-
   const clientName = useMemo(() => resolveClientName(), []);
   const activeDealsCount = deals.filter((deal) => deal.daysLeft !== null).length;
   const completedDealsCount = deals.filter((deal) => deal.daysLeft === null).length;
@@ -82,7 +79,9 @@ export default function ClientShell() {
         ? dealOrId
         : deals.find((deal) => deal.id === dealOrId) ?? deals[0] ?? null;
 
-    if (!resolvedDeal) return;
+    if (!resolvedDeal) {
+      return;
+    }
 
     setSelectedDeal(resolvedDeal);
     setPage("workspace");
@@ -104,7 +103,10 @@ export default function ClientShell() {
 
     setRequests((current) =>
       current.map((item) => {
-        if (item.id !== requestId) return item;
+        if (item.id !== requestId) {
+          return item;
+        }
+
         updatedRequest = updateClientRequest(item, payload);
         return updatedRequest;
       })
@@ -113,40 +115,22 @@ export default function ClientShell() {
     return updatedRequest;
   };
 
-  // ─── Module 4 : accepter une proposition → ouvrir modale acompte ──────────
   const handleAcceptProposal = (requestId, proposalId) => {
     const request = requests.find((item) => item.id === requestId);
     const proposal = request?.proposals.find((item) => item.id === proposalId);
 
-    if (!request || !proposal) return null;
+    if (!request || !proposal) {
+      return null;
+    }
 
     const createdDeal = createClientDealFromRequest(request, proposal);
 
     setDeals((current) => [createdDeal, ...current]);
     setRequests((current) => current.filter((item) => item.id !== requestId));
     setSelectedDeal(createdDeal);
-
-    // Ouvre la modale de paiement acompte 20%
-    setPaymentModal({ open: true, deal: createdDeal });
+    setPage("dashboard");
 
     return createdDeal;
-  };
-
-  // ─── Module 4 : succès paiement acompte ───────────────────────────────────
-  const handlePaymentSuccess = () => {
-    setPaymentModal({ open: false, deal: null });
-    setPage("dashboard");
-  };
-
-  // ─── Module 4 : mise à jour deal après paiement final (depuis Workspace) ──
-  const handleDealUpdate = (dealStatusUpdate) => {
-    setDeals((current) =>
-      current.map((d) =>
-        d.id === dealStatusUpdate.dealId
-          ? { ...d, status: "Complete", statusType: "done", daysLeft: null }
-          : d
-      )
-    );
   };
 
   const handleAddFeedback = (freelancerId, payload) => {
@@ -233,7 +217,6 @@ export default function ClientShell() {
           <Workspace
             deal={selectedDeal}
             onBack={() => setPage("dashboard")}
-            onDealUpdate={handleDealUpdate}
             viewerRole="client"
             participantName={clientName}
             backLabel="Retour au tableau de bord client"
@@ -242,18 +225,6 @@ export default function ClientShell() {
       </main>
 
       <Footer />
-
-      {/* ─── Module 4 : PaymentModal acompte ─────────────────────────────── */}
-      <PaymentModal
-        isOpen={paymentModal.open}
-        phase="advance"
-        deal={paymentModal.deal}
-        onSuccess={handlePaymentSuccess}
-        onClose={() => {
-          setPaymentModal({ open: false, deal: null });
-          setPage("dashboard");
-        }}
-      />
     </div>
   );
 }

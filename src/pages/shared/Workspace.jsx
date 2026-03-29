@@ -1,14 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { activeDeals, completedDeals, findDealById } from "../../data/deals";
-import PaymentModal from "../../components/PaymentModal";
 import "../../styles/landing.css";
- 
-// ─── Utilitaires ─────────────────────────────────────────────────────────────
- 
+
 function formatTime(date) {
   return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
- 
+
 function createSystemMessage(text) {
   return {
     id: `system-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -17,56 +14,70 @@ function createSystemMessage(text) {
     time: formatTime(new Date()),
   };
 }
- 
+
 function getParticipantName(viewerRole, explicitName) {
-  if (explicitName) return explicitName;
-  if (viewerRole === "client") return localStorage.getItem("client_name") || "Iyed";
+  if (explicitName) {
+    return explicitName;
+  }
+
+  if (viewerRole === "client") {
+    return localStorage.getItem("client_name") || "Iyed";
+  }
+
   return localStorage.getItem("freelancer_name") || "Freelancer";
 }
- 
-// ─── WorkspaceChat (inchangé) ─────────────────────────────────────────────────
- 
+
 function WorkspaceChat({ participantName, roomCode, dealTitle, conversationTarget }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const bottomRef = useRef(null);
   const fileRef = useRef(null);
- 
+
   useEffect(() => {
     if (!participantName || !roomCode) {
       setMessages([]);
       return;
     }
+
     setMessages([
       createSystemMessage(`${participantName} a rejoint la salle ${roomCode}.`),
       createSystemMessage(`Le suivi est ouvert pour ${dealTitle}.`),
     ]);
   }, [dealTitle, participantName, roomCode]);
- 
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
- 
+
   const sendMessage = () => {
     if (!input.trim()) return;
+
     setMessages((prev) => [
       ...prev,
       { id: Date.now(), type: "me", text: input.trim(), time: formatTime(new Date()) },
     ]);
     setInput("");
   };
- 
+
   const handleFile = (event) => {
     const file = event.target.files[0];
     if (!file) return;
+
     const fileUrl = URL.createObjectURL(file);
     setMessages((prev) => [
       ...prev,
-      { id: Date.now(), type: "me", isFile: true, fileName: file.name, fileUrl, time: formatTime(new Date()) },
+      {
+        id: Date.now(),
+        type: "me",
+        isFile: true,
+        fileName: file.name,
+        fileUrl,
+        time: formatTime(new Date()),
+      },
     ]);
     event.target.value = "";
   };
- 
+
   return (
     <div className="workspace-chat">
       <div className="workspace-chat-header">
@@ -75,10 +86,11 @@ function WorkspaceChat({ participantName, roomCode, dealTitle, conversationTarge
         </svg>
         <div className="workspace-chat-title-block">
           <span>Chat du projet</span>
-          <small>Salle {roomCode} · {participantName}</small>
+          <small>
+            Salle {roomCode} · {participantName}
+          </small>
         </div>
       </div>
- 
       <div className="workspace-chat-messages">
         {messages.length === 0 ? (
           <div className="workspace-chat-empty">
@@ -99,7 +111,10 @@ function WorkspaceChat({ participantName, roomCode, dealTitle, conversationTarge
               ) : (
                 <>
                   {message.isFile ? (
-                    <div className="workspace-file-msg" onClick={() => message.fileUrl && window.open(message.fileUrl, "_blank")}>
+                    <div
+                      className="workspace-file-msg"
+                      onClick={() => message.fileUrl && window.open(message.fileUrl, "_blank")}
+                    >
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                         <polyline points="14 2 14 8 20 8" />
@@ -117,7 +132,6 @@ function WorkspaceChat({ participantName, roomCode, dealTitle, conversationTarge
         )}
         <div ref={bottomRef} />
       </div>
- 
       <div className="workspace-chat-input">
         <input type="file" ref={fileRef} style={{ display: "none" }} onChange={handleFile} />
         <button className="workspace-attach-btn" onClick={() => fileRef.current?.click()} title="Joindre un fichier">
@@ -130,8 +144,8 @@ function WorkspaceChat({ participantName, roomCode, dealTitle, conversationTarge
           type="text"
           placeholder="Ecrire un message..."
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          onChange={(event) => setInput(event.target.value)}
+          onKeyDown={(event) => event.key === "Enter" && sendMessage()}
         />
         <button className="workspace-send-btn" onClick={sendMessage}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -143,9 +157,7 @@ function WorkspaceChat({ participantName, roomCode, dealTitle, conversationTarge
     </div>
   );
 }
- 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
- 
+
 function getWorkspaceMeta(viewerRole, selectedDeal) {
   if (viewerRole === "client") {
     return {
@@ -155,6 +167,7 @@ function getWorkspaceMeta(viewerRole, selectedDeal) {
       actionLabel: "Partager un fichier projet",
     };
   }
+
   return {
     counterpartLabel: "Client",
     counterpartName: selectedDeal.client || "Client confirme",
@@ -162,74 +175,34 @@ function getWorkspaceMeta(viewerRole, selectedDeal) {
     actionLabel: "Soumettre une livraison",
   };
 }
- 
-// Statuts qui permettent le paiement final (quand le freelancer a livré)
-const FINAL_PAYMENT_STATUSES = ["Soumis", "En Revision"];
-// Statuts qui permettent l'acompte (deal actif mais acompte pas encore payé)
-const ADVANCE_PAYMENT_STATUSES = ["En Cours"];
- 
-// ─── Composant principal ──────────────────────────────────────────────────────
- 
+
 export default function Workspace({
   dealId,
   deal,
   onBack,
-  onDealUpdate,           // callback → Membre 3 pour changer l'état du deal
   viewerRole = "freelancer",
   participantName: participantNameProp,
   backLabel = "Retour a mes accords",
 }) {
   const uploadRef = useRef(null);
- 
-  const [currentDeal, setCurrentDeal] = useState(
-    deal ?? findDealById(dealId) ?? activeDeals[0] ?? completedDeals[0] ?? null
-  );
- 
-  const [paymentModal, setPaymentModal] = useState({ open: false, phase: "advance" });
-  const [paymentDonePhases, setPaymentDonePhases] = useState([]); // ["advance", "final"]
- 
-  if (!currentDeal) return null;
- 
+  const selectedDeal = deal ?? findDealById(dealId) ?? activeDeals[0] ?? completedDeals[0] ?? null;
+
+  if (!selectedDeal) {
+    return null;
+  }
+
   const participantName = getParticipantName(viewerRole, participantNameProp);
-  const roomCode = currentDeal.roomCode ?? `deal-room-${currentDeal.id ?? "default"}`;
-  const workspaceMeta = getWorkspaceMeta(viewerRole, currentDeal);
- 
-  // ─── Logique boutons de paiement (client uniquement) ────────────────────────
-  const isClient = viewerRole === "client";
-  const isDone    = currentDeal.statusType === "done" || currentDeal.daysLeft === null;
- 
-  const canPayAdvance =
-    isClient &&
-    !isDone &&
-    !paymentDonePhases.includes("advance") &&
-    ADVANCE_PAYMENT_STATUSES.includes(currentDeal.status);
- 
-  const canPayFinal =
-    isClient &&
-    !isDone &&
-    !paymentDonePhases.includes("final") &&
-    FINAL_PAYMENT_STATUSES.includes(currentDeal.status);
- 
-  // ─── Handler succès paiement ─────────────────────────────────────────────────
-  const handlePaymentSuccess = (result) => {
-    const phase = paymentModal.phase;
-    setPaymentDonePhases((prev) => [...prev, phase]);
- 
-    // Si paiement final → le deal passe en "Complete"
-    if (phase === "final" && result?.dealStatusUpdate) {
-      const updatedDeal = { ...currentDeal, status: "Complete", statusType: "done", daysLeft: null };
-      setCurrentDeal(updatedDeal);
-      // ← Point d'intégration Membre 3 : informer le parent
-      onDealUpdate?.(result.dealStatusUpdate);
-    }
- 
-    setPaymentModal({ open: false, phase: "advance" });
+  const roomCode = selectedDeal?.roomCode ?? `deal-room-${selectedDeal?.id ?? "default"}`;
+  const workspaceMeta = getWorkspaceMeta(viewerRole, selectedDeal);
+
+  const handleBack = () => {
+    onBack?.();
   };
- 
+
   return (
     <div className="workspace-page">
       <div className="workspace-back-row">
-        <button className="workspace-back-btn" onClick={() => onBack?.()}>
+        <button className="workspace-back-btn" onClick={handleBack}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="19" y1="12" x2="5" y2="12" />
             <polyline points="12 19 5 12 12 5" />
@@ -237,26 +210,25 @@ export default function Workspace({
           {backLabel}
         </button>
       </div>
- 
+
       <div className="workspace-layout">
-        {/* ─── Panneau gauche ─────────────────────────────────────────────── */}
         <div className="workspace-details">
           <div className="workspace-deal-card">
-            <div className="workspace-deal-badge">{currentDeal.status}</div>
-            <h2 className="workspace-deal-title">{currentDeal.title}</h2>
-            <p className="workspace-deal-description">{currentDeal.description}</p>
- 
+            <div className="workspace-deal-badge">{selectedDeal.status}</div>
+            <h2 className="workspace-deal-title">{selectedDeal.title}</h2>
+            <p className="workspace-deal-description">{selectedDeal.description}</p>
+
             <div className="workspace-deal-info-grid">
               <div className="workspace-deal-info">
                 <div className="workspace-deal-info-label">{workspaceMeta.counterpartLabel}</div>
                 <div className="workspace-deal-status">{workspaceMeta.counterpartName}</div>
               </div>
- 
+
               <div className="workspace-deal-info">
                 <div className="workspace-deal-info-label">Montant total</div>
-                <div className="workspace-deal-amount">{currentDeal.total} DT</div>
+                <div className="workspace-deal-amount">{selectedDeal.total} DT</div>
               </div>
- 
+
               <div className="workspace-deal-info">
                 <div className="workspace-deal-info-label">Date limite</div>
                 <div className="workspace-deal-deadline">
@@ -266,18 +238,19 @@ export default function Workspace({
                     <line x1="8" y1="2" x2="8" y2="6" />
                     <line x1="3" y1="10" x2="21" y2="10" />
                   </svg>
-                  {currentDeal.deadline}
+                  {selectedDeal.deadline}
                 </div>
                 <div className="workspace-days-left">
-                  {currentDeal.daysLeft === null
+                  {selectedDeal.daysLeft === null
                     ? "Projet finalise"
-                    : `${currentDeal.daysLeft} jour${currentDeal.daysLeft !== 1 ? "s" : ""} restant${currentDeal.daysLeft !== 1 ? "s" : ""}`}
+                    : `${selectedDeal.daysLeft} jour${selectedDeal.daysLeft !== 1 ? "s" : ""} restant${
+                        selectedDeal.daysLeft !== 1 ? "s" : ""
+                      }`}
                 </div>
               </div>
             </div>
           </div>
- 
-          {/* ─── Actions ─────────────────────────────────────────────────── */}
+
           <div className="workspace-actions-card">
             <h3>Actions</h3>
             <div className="workspace-session-meta">
@@ -288,8 +261,6 @@ export default function Workspace({
               <span>Salle active</span>
               <strong>{roomCode}</strong>
             </div>
- 
-            {/* Bouton action principal (upload fichier) */}
             <button className="workspace-action-btn" onClick={() => uploadRef.current?.click()}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
@@ -299,64 +270,16 @@ export default function Workspace({
               {workspaceMeta.actionLabel}
             </button>
             <input type="file" ref={uploadRef} style={{ display: "none" }} />
- 
-            {/* ── Boutons paiement (Module 4 — client uniquement) ─────────── */}
-            {canPayAdvance && (
-              <button
-                className="workspace-action-btn workspace-pay-btn is-advance"
-                onClick={() => setPaymentModal({ open: true, phase: "advance" })}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                  <line x1="1" y1="10" x2="23" y2="10" />
-                </svg>
-                Payer l'acompte (20%)
-              </button>
-            )}
- 
-            {canPayFinal && (
-              <button
-                className="workspace-action-btn workspace-pay-btn is-final"
-                onClick={() => setPaymentModal({ open: true, phase: "final" })}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                Valider la livraison (80%)
-              </button>
-            )}
- 
-            {/* Indicateur paiements complétés */}
-            {paymentDonePhases.includes("advance") && !paymentDonePhases.includes("final") && (
-              <div className="workspace-pay-status is-done">
-                ✓ Acompte 20% paye
-              </div>
-            )}
-            {paymentDonePhases.includes("final") && (
-              <div className="workspace-pay-status is-done is-final">
-                ✓ Deal finalise — paiement complet
-              </div>
-            )}
           </div>
         </div>
- 
-        {/* ─── Chat ────────────────────────────────────────────────────────── */}
+
         <WorkspaceChat
           participantName={participantName}
           roomCode={roomCode}
-          dealTitle={currentDeal.title}
+          dealTitle={selectedDeal.title}
           conversationTarget={workspaceMeta.conversationTarget}
         />
       </div>
- 
-      {/* ─── Module 4 : PaymentModal ──────────────────────────────────────── */}
-      <PaymentModal
-        isOpen={paymentModal.open}
-        phase={paymentModal.phase}
-        deal={currentDeal}
-        onSuccess={handlePaymentSuccess}
-        onClose={() => setPaymentModal({ open: false, phase: "advance" })}
-      />
     </div>
   );
 }
