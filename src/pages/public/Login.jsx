@@ -1,12 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { authService } from "../../services/authService";
 import "../../styles/landing.css";
-
-const CLIENT_LOGIN = {
-  email: "iyed@gmail.com",
-  password: "iyed",
-  name: "Iyed",
-};
 
 function formatFreelancerName(email) {
   const username = email.split("@")[0] || "freelancer";
@@ -17,36 +12,53 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const normalizedEmail = email.trim().toLowerCase();
+    setErrorMessage("");
+    setIsSubmitting(true);
 
-    if (
-      normalizedEmail === CLIENT_LOGIN.email &&
-      password === CLIENT_LOGIN.password
-    ) {
-      localStorage.setItem("app_role", "client");
-      localStorage.setItem("client_name", CLIENT_LOGIN.name);
-      localStorage.setItem("client_email", CLIENT_LOGIN.email);
-      localStorage.setItem("client_entry_page", "workspace");
-      navigate("/client");
-      return;
+    try {
+      const result = await authService.login({
+        email: normalizedEmail,
+        password,
+      });
+
+      const user = result?.user;
+      const token = result?.token;
+      const role = user?.role;
+
+      if (!user || !token || !role) {
+        throw new Error("Réponse de connexion invalide.");
+      }
+
+      localStorage.setItem("auth_token", token);
+      localStorage.setItem("app_role", role);
+
+      if (role === "client") {
+        localStorage.setItem("client_name", user.name || "Client");
+        localStorage.setItem("client_email", user.email || normalizedEmail);
+        localStorage.setItem("client_entry_page", "workspace");
+        navigate("/client");
+        return;
+      }
+
+      localStorage.setItem("freelancer_name", user.name || formatFreelancerName(normalizedEmail));
+      localStorage.removeItem("client_entry_page");
+      navigate("/app");
+    } catch (error) {
+      setErrorMessage(error.message || "Email ou mot de passe incorrect.");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    localStorage.setItem("app_role", "freelancer");
-    localStorage.setItem(
-      "freelancer_name",
-      localStorage.getItem("freelancer_name") || formatFreelancerName(normalizedEmail)
-    );
-    localStorage.removeItem("client_entry_page");
-    navigate("/app");
   };
 
   return (
     <div className="auth-page">
-      {/* Left side — branding panel */}
       <div className="auth-branding">
         <div className="auth-branding-content">
           <Link to="/" className="auth-branding-logo">
@@ -90,7 +102,6 @@ const Login = () => {
         </div>
       </div>
 
-      {/* Right side — form */}
       <div className="auth-form-side">
         <div className="auth-form-container">
           <div className="auth-form-header">
@@ -144,6 +155,10 @@ const Login = () => {
               </div>
             </div>
 
+            {errorMessage && (
+              <p style={{ color: "#d14343", fontSize: "14px", margin: "0 0 8px" }}>{errorMessage}</p>
+            )}
+
             <div className="auth-options">
               <label className="auth-remember">
                 <input type="checkbox" />
@@ -151,8 +166,8 @@ const Login = () => {
               </label>
             </div>
 
-            <button type="submit" className="auth-submit">
-              <span>Se connecter</span>
+            <button type="submit" className="auth-submit" disabled={isSubmitting}>
+              <span>{isSubmitting ? "Connexion..." : "Se connecter"}</span>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="5" y1="12" x2="19" y2="12" />
                 <polyline points="12 5 19 12 12 19" />

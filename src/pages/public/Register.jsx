@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { authService } from "../../services/authService";
 import "../../styles/landing.css";
 
 const CATEGORIES = [
@@ -274,26 +275,47 @@ const Register = () => {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!role) return alert("Veuillez choisir votre rôle.");
     if (password !== confirmPassword) return alert("Les mots de passe ne correspondent pas.");
+    if (password.length < 10) return alert("Le mot de passe doit contenir au moins 10 caracteres.");
     if (!acceptTerms) return alert("Veuillez accepter les conditions d'utilisation.");
 
-    if (role === "freelancer") {
-      setShowOnboarding(true);
-    } else {
-      localStorage.removeItem("app_role");
-      localStorage.setItem("client_name", name.trim());
-      localStorage.setItem("client_email", email.trim().toLowerCase());
-      localStorage.removeItem("client_entry_page");
-      setRegistrationSuccess({
-        title: "Inscription client reussie",
-        message:
-          "Votre compte client a ete cree avec succes. Connectez-vous quand vous etes pret a publier vos demandes.",
+    setErrorMessage("");
+    setIsSubmitting(true);
+
+    try {
+      await authService.register({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+        role,
       });
+
+      localStorage.removeItem("app_role");
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("client_entry_page");
+
+      if (role === "freelancer") {
+        setShowOnboarding(true);
+      } else {
+        localStorage.setItem("client_name", name.trim());
+        localStorage.setItem("client_email", email.trim().toLowerCase());
+        setRegistrationSuccess({
+          title: "Inscription client reussie",
+          message:
+            "Votre compte client a ete cree avec succes. Connectez-vous quand vous etes pret a publier vos demandes.",
+        });
+      }
+    } catch (error) {
+      setErrorMessage(error.message || "Echec de l'inscription.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -514,8 +536,12 @@ const Register = () => {
               </span>
             </label>
 
-            <button type="submit" className="auth-submit">
-              <span>Créer mon compte</span>
+            {errorMessage && (
+              <p style={{ color: "#d14343", fontSize: "14px", margin: "0 0 8px" }}>{errorMessage}</p>
+            )}
+
+            <button type="submit" className="auth-submit" disabled={isSubmitting}>
+              <span>{isSubmitting ? "Creation..." : "Créer mon compte"}</span>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="5" y1="12" x2="19" y2="12" />
                 <polyline points="12 5 19 12 12 19" />

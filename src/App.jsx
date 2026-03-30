@@ -12,8 +12,16 @@ import Register from "./pages/public/Register";
 import Workspace from "./pages/shared/Workspace";
 import { activeDeals } from "./data/deals";
 
-function getStoredRole() {
-  return localStorage.getItem("app_role");
+function getStoredSession() {
+  return {
+    role: localStorage.getItem("app_role"),
+    token: localStorage.getItem("auth_token"),
+  };
+}
+
+function isAuthenticated() {
+  const session = getStoredSession();
+  return Boolean(session.role && session.token);
 }
 
 const FreelancerShell = () => {
@@ -72,16 +80,36 @@ const FreelancerShell = () => {
 };
 
 const FreelancerRoute = () => {
-  if (getStoredRole() === "client") {
+  const session = getStoredSession();
+
+  if (!isAuthenticated()) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (session.role === "client") {
     return <Navigate to="/client" replace />;
+  }
+
+  if (session.role !== "freelancer" && session.role !== "admin") {
+    return <Navigate to="/login" replace />;
   }
 
   return <FreelancerShell />;
 };
 
 const ClientRoute = () => {
-  if (getStoredRole() === "freelancer") {
+  const session = getStoredSession();
+
+  if (!isAuthenticated()) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (session.role === "freelancer" || session.role === "admin") {
     return <Navigate to="/app" replace />;
+  }
+
+  if (session.role !== "client") {
+    return <Navigate to="/login" replace />;
   }
 
   return <ClientShell />;
@@ -97,4 +125,5 @@ const App = () => (
     <Route path="/profile/:name" element={<FreelancerProfile onBack={() => window.history.back()} />} />
   </Routes>
 );
+
 export default App;
