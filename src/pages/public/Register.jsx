@@ -267,7 +267,11 @@ const RegistrationSuccess = ({ title, message, onLogin }) => (
 
 const Register = () => {
   const [name, setName] = useState("");
+  const [company, setCompany] = useState("");
+  const [title, setTitle] = useState("");
+  const [location, setLocation] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState("");
@@ -289,10 +293,21 @@ const Register = () => {
     setErrorMessage("");
     setIsSubmitting(true);
 
+    const normalizedName = name.trim();
+    const normalizedCompany = company.trim();
+    const normalizedTitle = title.trim();
+    const normalizedLocation = location.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPhone = phone.trim();
+
     try {
       await authService.register({
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
+        name: normalizedName,
+        company: normalizedCompany,
+        title: normalizedTitle,
+        location: normalizedLocation,
+        email: normalizedEmail,
+        phone: normalizedPhone,
         password,
         role,
       });
@@ -304,8 +319,12 @@ const Register = () => {
       if (role === "freelancer") {
         setShowOnboarding(true);
       } else {
-        localStorage.setItem("client_name", name.trim());
-        localStorage.setItem("client_email", email.trim().toLowerCase());
+        localStorage.setItem("client_name", normalizedName);
+        localStorage.setItem("client_company", normalizedCompany);
+        localStorage.setItem("client_role_title", normalizedTitle);
+        localStorage.setItem("client_location", normalizedLocation);
+        localStorage.setItem("client_email", normalizedEmail);
+        localStorage.setItem("client_phone", normalizedPhone);
         setRegistrationSuccess({
           title: "Inscription client reussie",
           message:
@@ -320,11 +339,17 @@ const Register = () => {
   };
 
   const handleOnboardingComplete = (data) => {
+    const normalizedName = name.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+
     localStorage.removeItem("app_role");
     localStorage.setItem("freelancer_fields", JSON.stringify(data.fields));
     localStorage.setItem("freelancer_bio", data.bio);
-    localStorage.setItem("freelancer_name", name);
-    localStorage.setItem("freelancer_email", email.trim().toLowerCase());
+    localStorage.setItem("freelancer_name", normalizedName);
+    localStorage.setItem("freelancer_title", title.trim());
+    localStorage.setItem("freelancer_location", location.trim());
+    localStorage.setItem("freelancer_email", normalizedEmail);
+    localStorage.setItem("freelancer_phone", phone.trim());
     localStorage.removeItem("client_entry_page");
     if (data.profileImage) {
       localStorage.setItem("freelancer_image", data.profileImage);
@@ -454,6 +479,82 @@ const Register = () => {
                   placeholder="Votre nom et prénom"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="auth-field">
+                <label className="auth-label">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 7h18" />
+                    <path d="M5 7V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2" />
+                    <rect x="3" y="7" width="18" height="13" rx="2" />
+                  </svg>
+                  Entreprise
+                </label>
+                <input
+                  className="auth-input"
+                  type="text"
+                  placeholder="Nom de l'entreprise"
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="auth-fields-row">
+              <div className="auth-field">
+                <label className="auth-label">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="8" r="4" />
+                    <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                  </svg>
+                  Fonction
+                </label>
+                <input
+                  className="auth-input"
+                  type="text"
+                  placeholder="Ex: Product Owner"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="auth-field">
+                <label className="auth-label">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                    <circle cx="12" cy="9" r="2.5" />
+                  </svg>
+                  Localisation
+                </label>
+                <input
+                  className="auth-input"
+                  type="text"
+                  placeholder="Ville, Pays"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="auth-fields-row">
+              <div className="auth-field">
+                <label className="auth-label">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.87 19.87 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.87 19.87 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                  Telephone
+                </label>
+                <input
+                  className="auth-input"
+                  type="tel"
+                  placeholder="+216 XX XXX XXX"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                   required
                 />
               </div>

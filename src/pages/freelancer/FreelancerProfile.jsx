@@ -27,21 +27,93 @@ const ALL_FIELDS = [
   "Vidéo & Animation",
 ];
 
-function EditProfile({ profile, onSave, onCancel }) {
-  const [name, setName] = useState(profile.name);
-  const [title, setTitle] = useState(profile.title);
-  const [location, setLocation] = useState(profile.location);
-  const [bio, setBio] = useState(profile.bio);
-  const [email, setEmail] = useState(profile.email);
-  const [phone, setPhone] = useState(profile.phone);
-  const [fields, setFields] = useState(profile.fields || []);
-  const [profileImage, setProfileImage] = useState(profile.profileImage || null);
+const DEFAULT_STATS = {
+  freelancer: [
+    { label: "Avis", value: "142", delta: "+12%", accent: "indigo" },
+    { label: "Note moyenne", value: "4.8", delta: "+0.1", accent: "indigo" },
+    { label: "Taux de reussite", value: "97%", delta: "+2%", accent: "green" },
+  ],
+  client: [
+    { label: "Demandes", value: "0", delta: "Actif", accent: "indigo" },
+    { label: "Deals en cours", value: "0", delta: "En suivi", accent: "indigo" },
+    { label: "Deals termines", value: "0", delta: "Historique", accent: "green" },
+  ],
+};
+
+function readProfile(variant) {
+  if (variant === "client") {
+    return {
+      name: localStorage.getItem("client_name") || "Iyed",
+      company: localStorage.getItem("client_company") || "Iyed Studio",
+      title: localStorage.getItem("client_role_title") || "Product Owner",
+      location: localStorage.getItem("client_location") || "Lagos / Remote",
+      email: localStorage.getItem("client_email") || "iyed@gmail.com",
+      phone: localStorage.getItem("client_phone") || "+234 800 000 0000",
+      bio:
+        localStorage.getItem("client_bio") ||
+        "Je pilote des projets digitaux avec une attention forte sur la clarte du besoin, la qualite d'execution et le suivi avec les freelancers engages.",
+      fields: JSON.parse(
+        localStorage.getItem("client_sectors") ||
+          '["Developpement Web","UI/UX Design","Marketing Digital"]'
+      ),
+      profileImage: localStorage.getItem("client_image") || null,
+    };
+  }
+
+  return {
+    name: localStorage.getItem("freelancer_name") || "David Carter",
+    company: "",
+    title: localStorage.getItem("freelancer_title") || "Senior AI Engineer",
+    location: localStorage.getItem("freelancer_location") || "Remote / Tunis",
+    bio:
+      localStorage.getItem("freelancer_bio") ||
+      "Ingenieur IA passionne avec plus de 5 ans d'experience dans le developpement de solutions d'intelligence artificielle. Specialise en NLP, computer vision et automatisation intelligente. J'aide les entreprises a transformer leurs processus metier grace a l'IA.",
+    email: localStorage.getItem("freelancer_email") || "david.carter@email.com",
+    phone: localStorage.getItem("freelancer_phone") || "+216 XX XXX XXX",
+    fields: JSON.parse(
+      localStorage.getItem("freelancer_fields") ||
+        '["IA & Machine Learning", "Développement Web", "Data Science"]'
+    ),
+    profileImage: localStorage.getItem("freelancer_image") || null,
+  };
+}
+
+function persistProfile(variant, profile) {
+  const prefix = variant === "client" ? "client" : "freelancer";
+  localStorage.setItem(`${prefix}_name`, profile.name);
+  localStorage.setItem(`${prefix}_bio`, profile.bio);
+  localStorage.setItem(`${prefix}_email`, profile.email);
+  localStorage.setItem(`${prefix}_phone`, profile.phone);
+  localStorage.setItem(`${prefix}_location`, profile.location);
+  localStorage.setItem(`${prefix}_fields`, JSON.stringify(profile.fields));
+
+  if (variant === "client") {
+    localStorage.setItem("client_company", profile.company || "");
+    localStorage.setItem("client_role_title", profile.title);
+    localStorage.setItem("client_sectors", JSON.stringify(profile.fields));
+  } else {
+    localStorage.setItem("freelancer_title", profile.title);
+  }
+
+  if (profile.profileImage) {
+    localStorage.setItem(`${prefix}_image`, profile.profileImage);
+  } else {
+    localStorage.removeItem(`${prefix}_image`);
+  }
+}
+
+function EditProfile({ profile, onSave, onCancel, variant }) {
+  const [draft, setDraft] = useState(profile);
+  const isClient = variant === "client";
   const imageInputRef = useRef(null);
 
   const toggleField = (field) => {
-    setFields((current) =>
-      current.includes(field) ? current.filter((item) => item !== field) : [...current, field]
-    );
+    setDraft((current) => ({
+      ...current,
+      fields: current.fields.includes(field)
+        ? current.fields.filter((item) => item !== field)
+        : [...current.fields, field],
+    }));
   };
 
   const handleImageChange = (event) => {
@@ -54,13 +126,17 @@ function EditProfile({ profile, onSave, onCancel }) {
     }
 
     const reader = new FileReader();
-    reader.onloadend = () => setProfileImage(reader.result);
+    reader.onloadend = () =>
+      setDraft((current) => ({
+        ...current,
+        profileImage: reader.result,
+      }));
     reader.readAsDataURL(file);
     event.target.value = "";
   };
 
   const removeImage = () => {
-    setProfileImage(null);
+    setDraft((current) => ({ ...current, profileImage: null }));
     if (imageInputRef.current) {
       imageInputRef.current.value = "";
     }
@@ -68,7 +144,7 @@ function EditProfile({ profile, onSave, onCancel }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    onSave({ name, title, location, bio, email, phone, fields, profileImage });
+    onSave(draft);
   };
 
   return (
@@ -90,9 +166,9 @@ function EditProfile({ profile, onSave, onCancel }) {
           </h2>
 
           <div className="profile-image-upload">
-            <div className={`profile-image-preview ${profileImage ? "has-image" : ""}`}>
-              {profileImage ? (
-                <img src={profileImage} alt="Profile" />
+            <div className={`profile-image-preview ${draft.profileImage ? "has-image" : ""}`}>
+              {draft.profileImage ? (
+                <img src={draft.profileImage} alt="Profile" />
               ) : (
                 <div className="profile-image-placeholder">
                   <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -106,8 +182,8 @@ function EditProfile({ profile, onSave, onCancel }) {
             </div>
 
             <div className="profile-image-controls">
-              <span className={`profile-image-badge ${profileImage ? "is-active" : ""}`}>
-                {profileImage ? "Photo actuelle" : "Photo optionnelle"}
+              <span className={`profile-image-badge ${draft.profileImage ? "is-active" : ""}`}>
+                {draft.profileImage ? "Photo actuelle" : "Photo optionnelle"}
               </span>
               <div className="profile-image-info">
                 <h3>Choisissez une nouvelle photo</h3>
@@ -124,9 +200,9 @@ function EditProfile({ profile, onSave, onCancel }) {
                     <polyline points="17 8 12 3 7 8" />
                     <line x1="12" y1="3" x2="12" y2="15" />
                   </svg>
-                  {profileImage ? "Modifier la photo" : "Choisir une photo"}
+                  {draft.profileImage ? "Modifier la photo" : "Choisir une photo"}
                 </button>
-                {profileImage && (
+                {draft.profileImage && (
                   <button type="button" className="profile-image-remove" onClick={removeImage}>
                     Supprimer
                   </button>
@@ -141,8 +217,8 @@ function EditProfile({ profile, onSave, onCancel }) {
                 hidden
               />
               <div className="profile-image-specs">
-                <span className={`profile-image-spec ${profileImage ? "is-active" : ""}`}>
-                  {profileImage ? "Apercu pret" : "Aucune photo selectionnee"}
+                <span className={`profile-image-spec ${draft.profileImage ? "is-active" : ""}`}>
+                  {draft.profileImage ? "Apercu pret" : "Aucune photo selectionnee"}
                 </span>
                 <span className="profile-image-spec">JPG, PNG ou GIF</span>
                 <span className="profile-image-spec">Max 5 MB</span>
@@ -162,23 +238,61 @@ function EditProfile({ profile, onSave, onCancel }) {
           <div className="edit-profile-grid">
             <div className="edit-profile-field">
               <label>Nom complet</label>
-              <input type="text" value={name} onChange={(event) => setName(event.target.value)} placeholder="Votre nom" />
+              <input
+                type="text"
+                value={draft.name}
+                onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+                placeholder="Votre nom"
+              />
             </div>
+            {isClient && (
+              <div className="edit-profile-field">
+                <label>Entreprise</label>
+                <input
+                  type="text"
+                  value={draft.company || ""}
+                  onChange={(event) =>
+                    setDraft((current) => ({ ...current, company: event.target.value }))
+                  }
+                  placeholder="Nom de l'entreprise"
+                />
+              </div>
+            )}
             <div className="edit-profile-field">
-              <label>Titre professionnel</label>
-              <input type="text" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ex: Senior Developer" />
+              <label>{isClient ? "Fonction" : "Titre professionnel"}</label>
+              <input
+                type="text"
+                value={draft.title}
+                onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
+                placeholder={isClient ? "Ex: Product Owner" : "Ex: Senior Developer"}
+              />
             </div>
             <div className="edit-profile-field">
               <label>Localisation</label>
-              <input type="text" value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Ville, Pays" />
+              <input
+                type="text"
+                value={draft.location}
+                onChange={(event) => setDraft((current) => ({ ...current, location: event.target.value }))}
+                placeholder="Ville, Pays"
+              />
             </div>
             <div className="edit-profile-field">
               <label>Email</label>
-              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="votre@email.com" />
+              <input
+                type="email"
+                value={draft.email}
+                onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))}
+                placeholder="votre@email.com"
+              />
             </div>
             <div className="edit-profile-field">
-              <label>Téléphone</label>
-              <input type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+216 XX XXX XXX" />
+              <label>Telephone</label>
+              <input
+                type="tel"
+                value={draft.phone}
+                onChange={(event) => setDraft((current) => ({ ...current, phone: event.target.value }))}
+                placeholder="+216 XX XXX XXX"
+              />
             </div>
           </div>
         </div>
@@ -194,8 +308,8 @@ function EditProfile({ profile, onSave, onCancel }) {
           <textarea
             className="edit-profile-bio"
             rows={5}
-            value={bio}
-            onChange={(event) => setBio(event.target.value)}
+            value={draft.bio}
+            onChange={(event) => setDraft((current) => ({ ...current, bio: event.target.value }))}
             placeholder="Decrivez votre experience..."
           />
         </div>
@@ -205,17 +319,17 @@ function EditProfile({ profile, onSave, onCancel }) {
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
             </svg>
-            Domaines d'expertise
+            {isClient ? "Secteurs et besoins" : "Domaines d'expertise"}
           </h2>
           <div className="edit-profile-fields-grid">
             {ALL_FIELDS.map((field) => (
               <button
                 key={field}
                 type="button"
-                className={`edit-profile-field-btn ${fields.includes(field) ? "active" : ""}`}
+                className={`edit-profile-field-btn ${draft.fields.includes(field) ? "active" : ""}`}
                 onClick={() => toggleField(field)}
               >
-                {fields.includes(field) && <span className="edit-field-check">✓</span>}
+                {draft.fields.includes(field) && <span className="edit-field-check">✓</span>}
                 {field}
               </button>
             ))}
@@ -238,34 +352,15 @@ function EditProfile({ profile, onSave, onCancel }) {
   );
 }
 
-export default function FreelancerProfile({ onBack }) {
+export default function FreelancerProfile({ onBack, variant = "freelancer", stats }) {
   const [showEdit, setShowEdit] = useState(false);
-  const [profile, setProfile] = useState({
-    name: localStorage.getItem("freelancer_name") || "David Carter",
-    title: "Senior AI Engineer",
-    location: "Remote / Tunis",
-    bio:
-      localStorage.getItem("freelancer_bio") ||
-      "Ingenieur IA passionne avec plus de 5 ans d'experience dans le developpement de solutions d'intelligence artificielle. Specialise en NLP, computer vision et automatisation intelligente. J'aide les entreprises a transformer leurs processus metier grace a l'IA.",
-    email: "david.carter@email.com",
-    phone: "+216 XX XXX XXX",
-    fields: JSON.parse(
-      localStorage.getItem("freelancer_fields") ||
-        '["IA & Machine Learning", "Développement Web", "Data Science"]'
-    ),
-    profileImage: localStorage.getItem("freelancer_image") || null,
-  });
+  const isClient = variant === "client";
+  const [profile, setProfile] = useState(() => readProfile(variant));
+  const resolvedStats = stats?.length ? stats : DEFAULT_STATS[variant] || DEFAULT_STATS.freelancer;
 
   const handleSave = (updatedProfile) => {
     setProfile(updatedProfile);
-    localStorage.setItem("freelancer_name", updatedProfile.name);
-    localStorage.setItem("freelancer_bio", updatedProfile.bio);
-    localStorage.setItem("freelancer_fields", JSON.stringify(updatedProfile.fields));
-    if (updatedProfile.profileImage) {
-      localStorage.setItem("freelancer_image", updatedProfile.profileImage);
-    } else {
-      localStorage.removeItem("freelancer_image");
-    }
+    persistProfile(variant, updatedProfile);
     setShowEdit(false);
   };
 
@@ -285,7 +380,12 @@ export default function FreelancerProfile({ onBack }) {
     return (
       <div className="freelancer-profile-shell">
         <div className="freelancer-profile-content">
-          <EditProfile profile={profile} onSave={handleSave} onCancel={() => setShowEdit(false)} />
+          <EditProfile
+            profile={profile}
+            onSave={handleSave}
+            onCancel={() => setShowEdit(false)}
+            variant={variant}
+          />
         </div>
       </div>
     );
@@ -322,9 +422,13 @@ export default function FreelancerProfile({ onBack }) {
 
             <div className="profile-header-info">
               <h1 className="profile-name">{profile.name}</h1>
-              <p className="profile-title">{profile.title}</p>
+              <p className="profile-title">
+                {isClient && profile.company ? `${profile.title} - ${profile.company}` : profile.title}
+              </p>
               <div className="profile-tags-row">
-                <span className="profile-tag profile-tag-green">Disponible</span>
+                <span className="profile-tag profile-tag-green">
+                  {isClient ? "Compte client" : "Disponible"}
+                </span>
                 <span className="profile-tag profile-tag-gray">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
@@ -337,8 +441,10 @@ export default function FreelancerProfile({ onBack }) {
 
             <div className="profile-header-actions">
               <div className="profile-reputation-card">
-                <span className="profile-reputation-label">TOTAL REPUTATION</span>
-                <span className="profile-reputation-value">3 280 pts</span>
+                <span className="profile-reputation-label">
+                  {isClient ? "ACTIVITE CLIENT" : "TOTAL REPUTATION"}
+                </span>
+                <span className="profile-reputation-value">{isClient ? "Actif" : "3 280 pts"}</span>
               </div>
               <button type="button" className="profile-edit-btn" onClick={() => setShowEdit(true)}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -362,9 +468,15 @@ export default function FreelancerProfile({ onBack }) {
         </div>
 
         <div className="profile-stats-grid">
-          <StatsCard label="Avis" value="142" delta="+12%" accent="indigo" />
-          <StatsCard label="Note moyenne" value="4.8" delta="+0.1" accent="indigo" />
-          <StatsCard label="Taux de réussite" value="97%" delta="+2%" accent="green" />
+          {resolvedStats.map((item) => (
+            <StatsCard
+              key={item.label}
+              label={item.label}
+              value={item.value}
+              delta={item.delta}
+              accent={item.accent}
+            />
+          ))}
         </div>
 
         <div className="profile-section-card">
@@ -383,7 +495,7 @@ export default function FreelancerProfile({ onBack }) {
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4f6ce8" strokeWidth="2">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
             </svg>
-            Domaines d'expertise
+            {isClient ? "Secteurs et besoins" : "Domaines d'expertise"}
           </h2>
           <div className="profile-fields-wrap">
             {profile.fields.map((field) => (
