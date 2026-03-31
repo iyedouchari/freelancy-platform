@@ -1,6 +1,6 @@
 
 import { successResponse } from "../../utils/apiResponse.js";
-import * as walletService from "../wallet.service.js";
+import * as walletService from "./wallet.service.js";
 
 export const getwalletStatus = async (_req, res) => {
   return successResponse(res, {

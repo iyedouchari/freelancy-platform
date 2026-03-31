@@ -4,7 +4,7 @@ import { getwalletStatus } from "./wallet.controller.js";
 
 
 import { authMiddleware }  from "../../middleware/authMiddleware.js";
-import { getMyWallet, topupWallet, withdrawWallet } from "./wallet/wallet.controller.js";
+import { getMyWallet, topupWallet, withdrawWallet } from "./wallet.controller.js";
 import { validateTopup, validateWithdraw } from "./wallet.validation.js";
 
 const router = Router();

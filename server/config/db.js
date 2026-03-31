@@ -25,3 +25,6 @@ export const checkDatabaseConnection = async () => {
   await db.query("SELECT 1");
 };
 
+// Backward-compatible default export for modules that still import `db` directly.
+const db = getDb();
+export default db;
