@@ -11,6 +11,7 @@ function buildFormState(initialValues) {
     deadline: initialValues?.deadline ?? "",
     skillsInput: "",
     skills: initialValues?.skills ?? [],
+    negotiable: initialValues?.negotiable ?? null,
   };
 }
 
@@ -36,7 +37,8 @@ export default function ClientCreateRequest({
       form.category &&
       form.budget &&
       form.deadline &&
-      form.skills.length > 0
+      form.skills.length > 0 &&
+      form.negotiable !== null
     );
   }, [form]);
 
@@ -74,6 +76,7 @@ export default function ClientCreateRequest({
       budget: form.budget,
       deadline: form.deadline,
       skills: form.skills,
+      negotiable: form.negotiable,
     });
   };
 
@@ -147,6 +150,26 @@ export default function ClientCreateRequest({
             onChange={(event) => setForm((current) => ({ ...current, deadline: event.target.value }))}
           />
         </label>
+
+        <div className="client-create-request-field">
+          <span>Budget négociable</span>
+          <div className="client-create-request-toggle-group">
+            <button
+              type="button"
+              className={`client-create-request-toggle ${form.negotiable === true ? "active-yes" : ""}`}
+              onClick={() => setForm((c) => ({ ...c, negotiable: true }))}
+            >
+              ✓ Négociable
+            </button>
+            <button
+              type="button"
+              className={`client-create-request-toggle ${form.negotiable === false ? "active-no" : ""}`}
+              onClick={() => setForm((c) => ({ ...c, negotiable: false }))}
+            >
+              ✕ Non négociable
+            </button>
+          </div>
+        </div>
 
         <div className="client-create-request-field client-create-request-field-wide">
           <span>Competences attendues</span>
