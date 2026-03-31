@@ -1,3 +1,5 @@
+import { successResponse } from "../../utils/apiResponse.js";
+
 // ─── payment.controller.js ───────────────────────────────────────────────────
 // Reçoit req/res pour les endpoints /api/payments.
 

@@ -1,8 +1,4 @@
-// ─── wallet.service.js ────────────────────────────────────────────────────────
-// Logique métier du portefeuille : solde, topup, retrait.
-// Adapté au schéma du groupe.
-
-import * as walletRepo from "./wallet/wallet.repository.js";
+import * as walletRepo from "./wallet.repository.js";
 import { stripeDummy } from "../payments/payment.service.js";
 
 // ─── Lecture ──────────────────────────────────────────────────────────────────

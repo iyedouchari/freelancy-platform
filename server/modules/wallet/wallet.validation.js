@@ -28,3 +28,7 @@ export function validateWithdraw(req, res, next) {
 
   next();
 }
+
+export const validatewalletPayload = (payload) => {
+  return payload || {};
+};

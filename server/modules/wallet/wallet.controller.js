@@ -1,12 +1,13 @@
-// ─── wallet.controller.js ────────────────────────────────────────────────────
-// Reçoit req/res pour les endpoints /api/wallet.
 
+import { successResponse } from "../../utils/apiResponse.js";
 import * as walletService from "../wallet.service.js";
 
-/**
- * GET /api/wallet
- * Retourne le wallet + historique transactions de l'utilisateur connecté.
- */
+export const getwalletStatus = async (_req, res) => {
+  return successResponse(res, {
+    statusCode: 501,
+    message: "wallet module is scaffolded but not implemented yet.",
+  });
+};
 export async function getMyWallet(req, res) {
   try {
     const data = await walletService.getWalletWithTransactions(req.user.id);
