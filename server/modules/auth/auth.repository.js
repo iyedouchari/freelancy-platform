@@ -4,8 +4,17 @@ export const prepareAuthStorage = async () => {
   await ensureUsersTable();
 };
 
-export const insertAuthUser = async ({ name, email, passwordHash, role }) => {
-  return createUser({ name, email, passwordHash, role });
+export const insertAuthUser = async ({
+  name,
+  company,
+  title,
+  location,
+  email,
+  phone,
+  passwordHash,
+  role,
+}) => {
+  return createUser({ name, company, title, location, email, phone, passwordHash, role });
 };
 
 export const findAuthUserByEmail = async (email, { includePassword = false } = {}) => {

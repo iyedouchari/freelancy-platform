@@ -16,3 +16,5 @@ export const roleMiddleware = (...allowedRoles) => {
   };
 };
 
+export const authorize = roleMiddleware;
+

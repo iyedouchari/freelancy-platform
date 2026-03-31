@@ -6,7 +6,7 @@ const isEmail = (value) => {
 };
 
 const isStrongEnoughPassword = (value) => {
-  return typeof value === "string" && value.length >= 6;
+  return typeof value === "string" && value.length >= 10;
 };
 
 const sanitizeRole = (value) => {
@@ -22,7 +22,11 @@ const sanitizeRole = (value) => {
 
 export const validateRegisterPayload = (body) => {
   const name = String(body?.name || "").trim();
+  const company = String(body?.company || "").trim();
+  const title = String(body?.title || "").trim();
+  const location = String(body?.location || "").trim();
   const email = String(body?.email || "").trim().toLowerCase();
+  const phone = String(body?.phone || "").trim();
   const password = String(body?.password || "");
   const role = sanitizeRole(body?.role);
 
@@ -35,10 +39,22 @@ export const validateRegisterPayload = (body) => {
   }
 
   if (!isStrongEnoughPassword(password)) {
-    throw new AppError("Password must be at least 6 characters long.", 400, "PASSWORD_WEAK");
+    throw new AppError("Password must be at least 10 characters long.", 400, "PASSWORD_WEAK");
   }
 
-  return { name, email, password, role };
+  if (!title) {
+    throw new AppError("Professional title is required.", 400, "TITLE_REQUIRED");
+  }
+
+  if (!location) {
+    throw new AppError("Location is required.", 400, "LOCATION_REQUIRED");
+  }
+
+  if (!phone) {
+    throw new AppError("Phone is required.", 400, "PHONE_REQUIRED");
+  }
+
+  return { name, company, title, location, email, phone, password, role };
 };
 
 export const validateLoginPayload = (body) => {
@@ -55,4 +71,3 @@ export const validateLoginPayload = (body) => {
 
   return { email, password };
 };
-

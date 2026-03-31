@@ -16,7 +16,11 @@ const mapUserRow = (row, { includePassword = false } = {}) => {
   const user = {
     id: row.id,
     name: row.name,
+    company: row.company,
+    title: row.professional_title,
+    location: row.location,
     email: row.email,
+    phone: row.phone,
     role: normalizeRoleFromDb(row.role),
     createdAt: row.created_at,
     updatedAt: row.updated_at || null,
@@ -34,24 +38,56 @@ export const ensureUsersTable = async () => {
   await db.query(`
     CREATE TABLE IF NOT EXISTS users (
       id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(120) NOT NULL,
-      email VARCHAR(190) NOT NULL UNIQUE,
+      name VARCHAR(100) NOT NULL,
+      email VARCHAR(100) NOT NULL UNIQUE,
       password VARCHAR(255) NOT NULL,
-      role ENUM('FREELANCER', 'CLIENT', 'ADMIN') NOT NULL DEFAULT 'FREELANCER',
+      role ENUM('FREELANCER', 'CLIENT', 'ADMIN') NOT NULL,
+      company VARCHAR(120) DEFAULT NULL,
+      professional_title VARCHAR(120) DEFAULT NULL,
+      location VARCHAR(120) DEFAULT NULL,
+      phone VARCHAR(30) DEFAULT NULL,
+      bio VARCHAR(500) DEFAULT NULL,
+      avatar_url VARCHAR(500) DEFAULT NULL,
+      points INT NOT NULL DEFAULT 0,
+      is_suspended BOOLEAN NOT NULL DEFAULT FALSE,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      CONSTRAINT chk_email CHECK (email LIKE '%@%.%'),
+      CONSTRAINT chk_password CHECK (CHAR_LENGTH(password) >= 10)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
+
+  // Migration-safe additions for MySQL versions that do not support IF NOT EXISTS in ADD COLUMN.
+  const addColumnIfMissing = async (columnName, columnDefinition) => {
+    const [rows] = await db.query("SHOW COLUMNS FROM users LIKE ?", [columnName]);
+    if (rows.length === 0) {
+      await db.query(`ALTER TABLE users ADD COLUMN ${columnDefinition}`);
+    }
+  };
+
+  await addColumnIfMissing("company", "company VARCHAR(120) DEFAULT NULL");
+  await addColumnIfMissing(
+    "professional_title",
+    "professional_title VARCHAR(120) DEFAULT NULL",
+  );
+  await addColumnIfMissing("location", "location VARCHAR(120) DEFAULT NULL");
+  await addColumnIfMissing("phone", "phone VARCHAR(30) DEFAULT NULL");
 };
 
-export const createUser = async ({ name, email, passwordHash, role }) => {
+export const createUser = async ({
+  name,
+  company,
+  title,
+  location,
+  email,
+  phone,
+  passwordHash,
+  role,
+}) => {
   const db = getDb();
-  const [result] = await db.query("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)", [
-    name,
-    email,
-    passwordHash,
-    normalizeRoleForDb(role),
-  ]);
+  const [result] = await db.query(
+    "INSERT INTO users (name, company, professional_title, location, email, phone, password, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    [name, company || null, title, location, email, phone, passwordHash, normalizeRoleForDb(role)],
+  );
 
   return result.insertId;
 };
@@ -59,7 +95,7 @@ export const createUser = async ({ name, email, passwordHash, role }) => {
 export const findUserByEmail = async (email, { includePassword = false } = {}) => {
   const db = getDb();
   const [rows] = await db.query(
-    "SELECT id, name, email, role, password AS password_hash, created_at FROM users WHERE email = ? LIMIT 1",
+    "SELECT id, name, company, professional_title, location, email, phone, role, password AS password_hash, created_at FROM users WHERE email = ? LIMIT 1",
     [email],
   );
 
@@ -68,6 +104,9 @@ export const findUserByEmail = async (email, { includePassword = false } = {}) =
 
 export const findUserById = async (id) => {
   const db = getDb();
-  const [rows] = await db.query("SELECT id, name, email, role, created_at FROM users WHERE id = ? LIMIT 1", [id]);
+  const [rows] = await db.query(
+    "SELECT id, name, company, professional_title, location, email, phone, role, created_at FROM users WHERE id = ? LIMIT 1",
+    [id],
+  );
   return mapUserRow(rows[0]);
 };

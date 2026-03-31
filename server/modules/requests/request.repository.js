@@ -1,4 +1,6 @@
-import pool from "../../config/db.js";
+import { getDb } from "../../config/db.js";
+
+const pool = getDb();
 
 export const requestRepository = {
   // Créer une demande

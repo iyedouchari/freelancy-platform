@@ -10,3 +10,18 @@ export const getPagination = ({ page = 1, pageSize = 10 } = {}) => {
   };
 };
 
+export const paginate = (rows = [], total = 0, page = 1, limit = 10) => {
+  const { page: safePage, pageSize } = getPagination({ page, pageSize: limit });
+  const safeTotal = Number.parseInt(total, 10) || 0;
+
+  return {
+    data: rows,
+    pagination: {
+      total: safeTotal,
+      page: safePage,
+      limit: pageSize,
+      totalPages: Math.max(Math.ceil(safeTotal / pageSize), 1),
+    },
+  };
+};
+

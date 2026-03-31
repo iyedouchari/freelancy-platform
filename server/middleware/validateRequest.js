@@ -15,3 +15,5 @@ export const validateRequest = (validator, source = "body") => {
   };
 };
 
+export const validate = validateRequest;
+

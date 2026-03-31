@@ -41,13 +41,21 @@ const Login = () => {
 
       if (role === "client") {
         localStorage.setItem("client_name", user.name || "Client");
+        localStorage.setItem("client_company", user.company || "");
+        localStorage.setItem("client_role_title", user.title || "Product Owner");
+        localStorage.setItem("client_location", user.location || "Remote");
         localStorage.setItem("client_email", user.email || normalizedEmail);
+        localStorage.setItem("client_phone", user.phone || "");
         localStorage.setItem("client_entry_page", "workspace");
         navigate("/client");
         return;
       }
 
       localStorage.setItem("freelancer_name", user.name || formatFreelancerName(normalizedEmail));
+      localStorage.setItem("freelancer_title", user.title || "Freelancer");
+      localStorage.setItem("freelancer_location", user.location || "Remote");
+      localStorage.setItem("freelancer_email", user.email || normalizedEmail);
+      localStorage.setItem("freelancer_phone", user.phone || "");
       localStorage.removeItem("client_entry_page");
       navigate("/app");
     } catch (error) {

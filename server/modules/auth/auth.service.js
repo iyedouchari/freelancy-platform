@@ -10,7 +10,7 @@ const buildAuthResponse = (user) => {
   };
 };
 
-export const register = async ({ name, email, password, role }) => {
+export const register = async ({ name, company, title, location, email, phone, password, role }) => {
   const existingUser = await findAuthUserByEmail(email);
 
   if (existingUser) {
@@ -18,7 +18,16 @@ export const register = async ({ name, email, password, role }) => {
   }
 
   const passwordHash = await hashPassword(password);
-  const userId = await insertAuthUser({ name, email, passwordHash, role });
+  const userId = await insertAuthUser({
+    name,
+    company,
+    title,
+    location,
+    email,
+    phone,
+    passwordHash,
+    role,
+  });
   const user = await findAuthUserById(userId);
 
   return buildAuthResponse(user);

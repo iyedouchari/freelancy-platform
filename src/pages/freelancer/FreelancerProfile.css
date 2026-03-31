@@ -460,6 +460,49 @@
   box-shadow: 0 10px 36px rgba(22, 47, 107, 0.4);
 }
 
+.profile-contact-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.profile-contact-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: linear-gradient(135deg, #fafbff, #f5f7ff);
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s;
+}
+
+.profile-contact-item:hover {
+  border-color: #4f6ce8;
+  box-shadow: 0 4px 12px rgba(79, 108, 232, 0.1);
+}
+
+.profile-contact-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.profile-contact-value {
+  font-size: 1rem;
+  color: #162f6b;
+  font-weight: 500;
+  text-decoration: none;
+  word-break: break-word;
+  transition: color 0.3s;
+}
+
+.profile-contact-value:hover {
+  color: #4f6ce8;
+}
+
 @media (max-width: 900px) {
   .profile-header-content {
     flex-direction: column;

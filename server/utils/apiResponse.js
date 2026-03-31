@@ -14,3 +14,11 @@ export const errorResponse = (res, { statusCode = 500, message = "Something went
   });
 };
 
+export const sendSuccess = (res, data = null, message = "OK", statusCode = 200) => {
+  return successResponse(res, { statusCode, message, data });
+};
+
+export const sendError = (res, message = "Something went wrong", statusCode = 500, code = "INTERNAL_ERROR") => {
+  return errorResponse(res, { statusCode, message, code });
+};
+
