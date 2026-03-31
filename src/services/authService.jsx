@@ -1,106 +1,51 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
-const TOKEN_KEY = "auth_token";
-const AUTH_USER_KEY = "auth_user";
 
-async function request(path, options = {}) {
-  const token = localStorage.getItem(TOKEN_KEY);
-  const headers = {
-    "Content-Type": "application/json",
-    ...(options.headers || {}),
-  };
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+const parseErrorMessage = async (response) => {
+  try {
+    const payload = await response.json();
+    if (payload?.message) {
+      return payload.message;
+    }
+  } catch (_error) {
+    // Ignore invalid JSON and fall back to generic message.
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  return "Une erreur est survenue lors de l'authentification.";
+};
 
-  let payload = null;
+const API_UNREACHABLE_MESSAGE =
+  "Impossible de contacter l'API. Verifie que le serveur backend tourne avec: npm run dev:server";
+
+const sendAuthRequest = async (path, payload) => {
+  let response;
 
   try {
-    payload = await response.json();
-  } catch {
-    payload = null;
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (_error) {
+    throw new Error(API_UNREACHABLE_MESSAGE);
   }
 
   if (!response.ok) {
-    const message = payload?.message || "Request failed.";
+    const message = await parseErrorMessage(response);
     throw new Error(message);
   }
 
-  return payload;
-}
-
-function saveAuthSession(token, user) {
-  if (!token) return;
-  localStorage.setItem(TOKEN_KEY, token);
-  if (user) {
-    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
-  }
-}
+  const body = await response.json();
+  return body?.data || null;
+};
 
 export const authService = {
-  async register(userData) {
-    const payload = await request("/register", {
-      method: "POST",
-      body: JSON.stringify(userData),
-    });
-
-    saveAuthSession(payload?.token, payload?.user);
-    return payload;
+  login: async ({ email, password }) => {
+    return sendAuthRequest("/auth/login", { email, password });
   },
-
-  async login(credentials) {
-    const payload = await request("/login", {
-      method: "POST",
-      body: JSON.stringify(credentials),
-    });
-
-    saveAuthSession(payload?.token, payload?.user);
-    return payload;
+  register: async ({ name, email, password, role, ...profile }) => {
+    return sendAuthRequest("/auth/register", { name, email, password, role, ...profile });
   },
-
-  async getProfile() {
-    return request("/profile");
-  },
-
-  async getUsers() {
-    return request("/users");
-  },
-
-  async getUserById(id) {
-    return request(`/users/${id}`);
-  },
-
-  async createUser(data) {
-    return request("/users", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  },
-
-  async updateUser(id, data) {
-    return request(`/users/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
-  },
-
-  async deleteUser(id) {
-    return request(`/users/${id}`, { method: "DELETE" });
-  },
-
-  logout() {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(AUTH_USER_KEY);
-    localStorage.removeItem("app_role");
-    localStorage.removeItem("client_entry_page");
-  },
-
-  getToken() {
-    return localStorage.getItem(TOKEN_KEY);
-  },
+  logout: () => {},
 };

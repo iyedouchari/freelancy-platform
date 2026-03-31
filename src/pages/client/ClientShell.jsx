@@ -12,9 +12,9 @@ import {
 } from "../../data/clientData";
 import ClientDashboard from "./ClientDashboard";
 import ClientFreelancerProfile from "./ClientFreelancerProfile";
-import ClientProfile from "./ClientProfile";
 import ClientRequests from "./ClientRequests";
 import ClientWallet from "./ClientWallet";
+import FreelancerProfile from "../freelancer/FreelancerProfile";
 import Workspace from "../shared/Workspace";
 
 const FEEDBACK_STORAGE_KEY = "client_feedback_directory";
@@ -194,11 +194,29 @@ export default function ClientShell() {
         )}
 
         {page === "profile" && (
-          <ClientProfile
-            requestsCount={requests.length}
-            activeDealsCount={activeDealsCount}
-            completedDealsCount={completedDealsCount}
+          <FreelancerProfile
+            variant="client"
             onBack={() => setPage("dashboard")}
+            stats={[
+              {
+                label: "Demandes",
+                value: String(requests.length),
+                delta: "Actif",
+                accent: "indigo",
+              },
+              {
+                label: "Deals en cours",
+                value: String(activeDealsCount),
+                delta: "En suivi",
+                accent: "indigo",
+              },
+              {
+                label: "Deals termines",
+                value: String(completedDealsCount),
+                delta: "Historique",
+                accent: "green",
+              },
+            ]}
           />
         )}
 

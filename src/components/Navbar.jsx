@@ -40,6 +40,7 @@ const Navbar = ({
   const handlers = { onDashboard, onRequests, onWallet, onDeals };
 
   const handleLogout = () => {
+    localStorage.removeItem("auth_token");
     localStorage.removeItem("app_role");
     localStorage.removeItem("client_entry_page");
     navigate("/");

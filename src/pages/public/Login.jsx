@@ -3,48 +3,55 @@ import { Link, useNavigate } from "react-router-dom";
 import { authService } from "../../services/authService";
 import "../../styles/landing.css";
 
+function formatFreelancerName(email) {
+  const username = email.split("@")[0] || "freelancer";
+  return username.charAt(0).toUpperCase() + username.slice(1);
+}
+
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
+    const normalizedEmail = email.trim().toLowerCase();
+    setErrorMessage("");
     setIsSubmitting(true);
 
     try {
-      const normalizedEmail = email.trim().toLowerCase();
-      const { user } = await authService.login({
+      const result = await authService.login({
         email: normalizedEmail,
         password,
       });
 
-      const role = user?.role === "client" ? "client" : "freelancer";
+      const user = result?.user;
+      const token = result?.token;
+      const role = user?.role;
+
+      if (!user || !token || !role) {
+        throw new Error("Réponse de connexion invalide.");
+      }
+
+      localStorage.setItem("auth_token", token);
       localStorage.setItem("app_role", role);
 
       if (role === "client") {
-        localStorage.setItem("client_name", user?.name || "Client");
-        localStorage.setItem("client_email", user?.email || normalizedEmail);
+        localStorage.setItem("client_name", user.name || "Client");
+        localStorage.setItem("client_email", user.email || normalizedEmail);
         localStorage.setItem("client_entry_page", "workspace");
         navigate("/client");
         return;
       }
 
-      localStorage.setItem("freelancer_name", user?.name || "Freelancer");
-      localStorage.setItem("freelancer_email", user?.email || normalizedEmail);
-      localStorage.setItem("freelancer_bio", user?.bio || "");
-      localStorage.setItem("freelancer_fields", JSON.stringify(user?.fields || []));
-      if (user?.profileImage) {
-        localStorage.setItem("freelancer_image", user.profileImage);
-      }
+      localStorage.setItem("freelancer_name", user.name || formatFreelancerName(normalizedEmail));
       localStorage.removeItem("client_entry_page");
       navigate("/app");
-    } catch (submitError) {
-      setError(submitError.message || "Email ou mot de passe invalide.");
+    } catch (error) {
+      setErrorMessage(error.message || "Email ou mot de passe incorrect.");
     } finally {
       setIsSubmitting(false);
     }
@@ -52,7 +59,6 @@ const Login = () => {
 
   return (
     <div className="auth-page">
-      {/* Left side — branding panel */}
       <div className="auth-branding">
         <div className="auth-branding-content">
           <Link to="/" className="auth-branding-logo">
@@ -96,7 +102,6 @@ const Login = () => {
         </div>
       </div>
 
-      {/* Right side — form */}
       <div className="auth-form-side">
         <div className="auth-form-container">
           <div className="auth-form-header">
@@ -150,18 +155,16 @@ const Login = () => {
               </div>
             </div>
 
+            {errorMessage && (
+              <p style={{ color: "#d14343", fontSize: "14px", margin: "0 0 8px" }}>{errorMessage}</p>
+            )}
+
             <div className="auth-options">
               <label className="auth-remember">
                 <input type="checkbox" />
                 <span>Se souvenir de moi</span>
               </label>
             </div>
-
-            {error && (
-              <p className="auth-subtitle" style={{ color: "#b42318", marginTop: 0 }}>
-                {error}
-              </p>
-            )}
 
             <button type="submit" className="auth-submit" disabled={isSubmitting}>
               <span>{isSubmitting ? "Connexion..." : "Se connecter"}</span>
