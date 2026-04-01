@@ -123,7 +123,17 @@ export default function ClientShell() {
       return null;
     }
 
-    const createdDeal = createClientDealFromRequest(request, proposal);
+    const agreement = request.negotiable
+      ? {
+          price: Number(proposal.rate),
+          deadline: proposal.proposedDeadline ?? request.deadline,
+        }
+      : {
+          price: Number(request.budget),
+          deadline: request.deadline,
+        };
+
+    const createdDeal = createClientDealFromRequest(request, proposal, agreement);
 
     setDeals((current) => [createdDeal, ...current]);
     setRequests((current) => current.filter((item) => item.id !== requestId));
@@ -131,6 +141,35 @@ export default function ClientShell() {
     setPage("dashboard");
 
     return createdDeal;
+  };
+
+  const handleRejectProposal = (requestId, proposalId) => {
+    let updatedProposal = null;
+
+    setRequests((current) =>
+      current.map((request) => {
+        if (request.id !== requestId) {
+          return request;
+        }
+
+        return {
+          ...request,
+          proposals: request.proposals.map((proposal) => {
+            if (proposal.id !== proposalId) {
+              return proposal;
+            }
+
+            updatedProposal = {
+              ...proposal,
+              status: "rejected",
+            };
+            return updatedProposal;
+          }),
+        };
+      })
+    );
+
+    return updatedProposal;
   };
 
   const handleAddFeedback = (freelancerId, payload) => {
@@ -189,6 +228,7 @@ export default function ClientShell() {
             onCreateRequest={handleCreateRequest}
             onUpdateRequest={handleUpdateRequest}
             onAcceptProposal={handleAcceptProposal}
+            onRejectProposal={handleRejectProposal}
             onViewFreelancerProfile={openFreelancerProfile}
           />
         )}

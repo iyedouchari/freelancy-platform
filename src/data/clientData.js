@@ -212,7 +212,16 @@ export const clientSkillSuggestions = [
   "Analytics",
 ];
 
-function buildProposal({ id, freelancerId, rate, deliveryDays, summary }) {
+function buildProposal({
+  id,
+  freelancerId,
+  rate,
+  deliveryDays,
+  proposedDeadline,
+  summary,
+  status = "pending",
+  clientResponse = null,
+}) {
   const profile = freelancerDirectoryById[freelancerId];
 
   return {
@@ -223,7 +232,10 @@ function buildProposal({ id, freelancerId, rate, deliveryDays, summary }) {
     rating: profile.rating,
     rate,
     deliveryDays,
+    proposedDeadline,
     summary,
+    status,
+    clientResponse,
   };
 }
 
@@ -236,6 +248,7 @@ export const initialClientRequests = [
     category: "Developpement Web",
     budget: 6800,
     deadline: "2026-04-28",
+    negotiable: false,
     postedAt: "2026-03-23",
     status: "pending",
     skills: ["React", "Node.js", "Design System"],
@@ -243,18 +256,20 @@ export const initialClientRequests = [
       buildProposal({
         id: "prop-201-a",
         freelancerId: "lina-trabelsi",
-        rate: 6200,
+        rate: 6800,
         deliveryDays: 16,
+        proposedDeadline: "2026-04-28",
         summary:
-          "Je propose une refonte orientee experience employe avec audit UX, design system et implementation React progressive.",
+          "Je suis partante pour executer exactement le budget et la date fixe que vous avez poses, avec audit UX et implementation React progressive.",
       }),
       buildProposal({
         id: "prop-201-b",
         freelancerId: "ahmed-kacem",
-        rate: 6900,
+        rate: 6800,
         deliveryDays: 18,
+        proposedDeadline: "2026-04-28",
         summary:
-          "Je peux livrer le front, les formulaires RH et l'integration API en conservant vos flux internes existants.",
+          "Je peux reprendre le front RH en respectant vos conditions fixes de budget et d'echeance.",
       }),
     ],
   },
@@ -266,6 +281,7 @@ export const initialClientRequests = [
     category: "Developpement Web",
     budget: 4100,
     deadline: "2026-04-19",
+    negotiable: true,
     postedAt: "2026-03-21",
     status: "pending",
     skills: ["Next.js", "Copywriting", "Analytics"],
@@ -273,18 +289,26 @@ export const initialClientRequests = [
       buildProposal({
         id: "prop-202-a",
         freelancerId: "sarah-chen",
-        rate: 4500,
+        rate: 4100,
         deliveryDays: 11,
+        proposedDeadline: "2026-04-19",
         summary:
-          "Je prends la structure de page, le front Next.js et les optimisations conversion pour un lancement rapide.",
+          "Je peux reprendre votre brief tel quel et livrer la landing Next.js exactement avec le budget et la date demandes.",
       }),
       buildProposal({
         id: "prop-202-b",
         freelancerId: "yassine-ben-amor",
         rate: 3600,
         deliveryDays: 13,
+        proposedDeadline: "2026-04-22",
         summary:
-          "Je peux cadrer l'angle message, le SEO initial et la structure des sections pour soutenir l'acquisition.",
+          "Je propose une version plus orientee contenu et SEO, avec un budget plus leger mais une echeance un peu plus longue.",
+        clientResponse: {
+          responseType: "counter_offer",
+          price: 3900,
+          deadline: "2026-04-20",
+          status: "sent",
+        },
       }),
     ],
   },
@@ -296,6 +320,7 @@ export const initialClientRequests = [
     category: "Data Science",
     budget: 5200,
     deadline: "2026-05-03",
+    negotiable: true,
     postedAt: "2026-03-18",
     status: "pending",
     skills: ["Python", "Analytics", "Dashboarding"],
@@ -305,8 +330,56 @@ export const initialClientRequests = [
         freelancerId: "ahmed-kacem",
         rate: 5100,
         deliveryDays: 14,
+        proposedDeadline: "2026-05-01",
         summary:
           "Je peux monter le pipeline de donnees, les scripts d'automatisation et une vue exploitable pour les revues hebdomadaires.",
+      }),
+    ],
+  },
+  {
+    id: "req-204",
+    title: "Maquettes mobile pour onboarding assurance",
+    description:
+      "Concevoir un parcours mobile clair pour la souscription assurance avec checkpoints de confiance et recapitulatif final.",
+    category: "UI/UX Design",
+    budget: 2900,
+    deadline: "2026-04-26",
+    negotiable: false,
+    postedAt: "2026-03-27",
+    status: "pending",
+    skills: ["Figma", "Design System", "Mobile UX"],
+    proposals: [],
+  },
+  {
+    id: "req-205",
+    title: "Refonte du mini CRM commercial",
+    description:
+      "Moderniser un mini CRM commercial avec tableau de bord, fiches prospects, pipeline simple et meilleure qualite de saisie pour l'equipe vente.",
+    category: "Developpement Web",
+    budget: 5900,
+    deadline: "2026-05-08",
+    negotiable: true,
+    postedAt: "2026-03-29",
+    status: "pending",
+    skills: ["React", "Node.js", "Dashboarding"],
+    proposals: [
+      buildProposal({
+        id: "prop-205-a",
+        freelancerId: "lina-trabelsi",
+        rate: 5900,
+        deliveryDays: 17,
+        proposedDeadline: "2026-05-08",
+        summary:
+          "Je peux collaborer exactement sur le prix et la date limite de votre demande, avec un travail axe clarté du parcours commercial.",
+      }),
+      buildProposal({
+        id: "prop-205-b",
+        freelancerId: "ahmed-kacem",
+        rate: 6400,
+        deliveryDays: 20,
+        proposedDeadline: "2026-05-12",
+        summary:
+          "Je propose une contre-offre avec un budget un peu plus eleve et quelques jours de plus pour couvrir aussi l'integration API et les regles metier du pipeline.",
       }),
     ],
   },
@@ -339,6 +412,7 @@ export function createClientRequest(input) {
     category: input.category,
     budget: Number(input.budget),
     deadline: input.deadline,
+    negotiable: Boolean(input.negotiable),
     postedAt: new Date().toISOString().slice(0, 10),
     status: "pending",
     skills: input.skills,
@@ -354,15 +428,20 @@ export function updateClientRequest(request, input) {
     category: input.category,
     budget: Number(input.budget),
     deadline: input.deadline,
+    negotiable: Boolean(input.negotiable),
     skills: input.skills,
   };
 }
 
-export function createClientDealFromRequest(request, proposal) {
+export function createClientDealFromRequest(request, proposal, agreement = null) {
   const clientName = localStorage.getItem("client_name") || "Iyed";
+  const agreedPrice =
+    agreement?.price ?? (request.negotiable ? Number(proposal.rate) : Number(request.budget));
+  const agreedDeadline =
+    agreement?.deadline ?? (request.negotiable ? proposal.proposedDeadline : request.deadline);
   const daysLeft = Math.max(
     0,
-    Math.ceil((new Date(request.deadline) - new Date()) / (1000 * 60 * 60 * 24))
+    Math.ceil((new Date(agreedDeadline) - new Date()) / (1000 * 60 * 60 * 24))
   );
 
   return {
@@ -376,9 +455,9 @@ export function createClientDealFromRequest(request, proposal) {
     statusType: "progress",
     description: request.description,
     location: "A distance",
-    total: new Intl.NumberFormat("fr-FR").format(proposal.rate),
-    remaining: new Intl.NumberFormat("fr-FR").format(Math.round(proposal.rate * 0.65)),
-    deadline: new Date(request.deadline).toLocaleDateString("fr-FR", {
+    total: new Intl.NumberFormat("fr-FR").format(agreedPrice),
+    remaining: new Intl.NumberFormat("fr-FR").format(Math.round(agreedPrice * 0.65)),
+    deadline: new Date(agreedDeadline).toLocaleDateString("fr-FR", {
       day: "numeric",
       month: "short",
       year: "numeric",
@@ -388,7 +467,9 @@ export function createClientDealFromRequest(request, proposal) {
     roomCode: `${request.category.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()
       .toString()
       .slice(-5)}`,
-    progressLabel: "Accord accepte et passe dans le suivi actif",
+    progressLabel: request.negotiable
+      ? "Proposition freelancer acceptee et passe au suivi actif"
+      : "Freelance retenu sur vos termes fixes, passe au suivi actif",
     acceptedByClient: true,
     acceptedByFreelancer: true,
   };

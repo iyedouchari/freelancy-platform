@@ -9,8 +9,6 @@ import authRoutes from "./modules/auth/auth.routes.js";
 import chatRoutes from "./modules/chat/chat.routes.js";
 import dealRoutes from "./modules/deals/deal.routes.js";
 import paymentRoutes from "./modules/payments/payment.routes.js";
-import proposalRoutes from "./modules/proposals/proposal.routes.js";
-import requestRoutes from "./modules/requests/request.routes.js";
 import reviewRoutes from "./modules/reviews/review.routes.js";
 import userRoutes from "./modules/users/user.routes.js";
 import walletRoutes from "./modules/wallet/wallet.routes.js";
@@ -36,8 +34,6 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/requests", requestRoutes);
-app.use("/api/proposals", proposalRoutes);
 app.use("/api/deals", dealRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/chat", chatRoutes);

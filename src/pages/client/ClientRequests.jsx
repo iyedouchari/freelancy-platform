@@ -3,11 +3,68 @@ import { format } from "../../utils/format";
 import ClientCreateRequest from "./ClientCreateRequest";
 import "./ClientRequests.css";
 
+function getRequestTypeMeta(request) {
+  return request.negotiable
+    ? {
+        label: "Negociable",
+        tone: "is-negotiable",
+      }
+    : {
+        label: "Non negociable",
+        tone: "is-fixed",
+      };
+}
+
+function normalizeDate(value) {
+  if (!value) {
+    return "";
+  }
+
+  return new Date(value).toISOString().slice(0, 10);
+}
+
+function getProposalStatusMeta(status) {
+  if (status === "rejected") {
+    return { label: "Refusee", tone: "is-refused" };
+  }
+
+  return { label: "En attente", tone: "is-pending" };
+}
+
+function getProposalComparison(request, proposal) {
+  if (!request.negotiable) {
+    return {
+      label: "Comme la demande",
+      tone: "is-fixed",
+      description: "Le freelancer suit votre demande.",
+    };
+  }
+
+  const samePrice = Number(proposal.rate) === Number(request.budget);
+  const sameDeadline =
+    normalizeDate(proposal.proposedDeadline ?? request.deadline) === normalizeDate(request.deadline);
+
+  if (samePrice && sameDeadline) {
+    return {
+      label: "Comme votre demande",
+      tone: "is-match",
+      description: "Prix et date identiques a votre demande.",
+    };
+  }
+
+  return {
+    label: "Contre-offre freelancer",
+    tone: "is-counter",
+    description: "Le freelancer propose un prix ou une date differents.",
+  };
+}
+
 export default function ClientRequests({
   requests,
   onCreateRequest,
   onUpdateRequest,
   onAcceptProposal,
+  onRejectProposal,
   onViewFreelancerProfile,
 }) {
   const [search, setSearch] = useState("");
@@ -59,7 +116,7 @@ export default function ClientRequests({
       withProposals: requests.filter((request) => request.proposals.length > 0).length,
       withoutProposals: requests.filter((request) => request.proposals.length === 0).length,
     }),
-    [requests]
+    [requests],
   );
 
   const handleCreateRequest = (payload) => {
@@ -92,7 +149,25 @@ export default function ClientRequests({
       return;
     }
 
-    onAcceptProposal?.(selectedRequest.id, proposal.id);
+    const createdDeal = onAcceptProposal?.(selectedRequest.id, proposal.id);
+    if (!createdDeal) {
+      return;
+    }
+
+    setNotice("La proposition a ete acceptee.");
+  };
+
+  const handleRejectProposal = (proposal) => {
+    if (!selectedRequest) {
+      return;
+    }
+
+    const updatedProposal = onRejectProposal?.(selectedRequest.id, proposal.id);
+    if (!updatedProposal) {
+      return;
+    }
+
+    setNotice("La proposition du freelancer a ete refusee.");
   };
 
   return (
@@ -101,11 +176,10 @@ export default function ClientRequests({
         <header className="client-requests-header">
           <div className="client-requests-copy">
             <span className="client-requests-eyebrow">Demandes client</span>
-            <h1>Creer et piloter uniquement les demandes encore en attente d'acceptation</h1>
+            <h1>Comparez vite les propositions et decidez simplement</h1>
             <p>
-              Cette page regroupe vos demandes ouvertes. Vous pouvez les modifier tant qu'un
-              freelance n'a pas ete retenu, consulter les profils proposes et choisir la bonne
-              collaboration au bon moment.
+              L'interface montre clairement les demandes negociables et non negociables, ainsi que
+              les propositions envoyees exactement comme votre demande ou en contre-offre.
             </p>
           </div>
 
@@ -168,28 +242,38 @@ export default function ClientRequests({
                 <p>Essayez une autre recherche ou publiez une nouvelle demande.</p>
               </div>
             ) : (
-              filteredRequests.map((request) => (
-                <button
-                  type="button"
-                  key={request.id}
-                  className={`client-request-card ${
-                    selectedRequestId === request.id ? "active" : ""
-                  }`}
-                  onClick={() => setSelectedRequestId(request.id)}
-                >
-                  <div className="client-request-card-top">
-                    <span className="client-request-status">En attente</span>
-                    <span className="client-request-posted">{format(request.postedAt, "relative")}</span>
-                  </div>
-                  <h2>{request.title}</h2>
-                  <p>{request.description}</p>
-                  <div className="client-request-card-meta">
-                    <span>{request.category}</span>
-                    <strong>{format(request.budget)} DT</strong>
-                    <span>{request.proposals.length} proposition(s)</span>
-                  </div>
-                </button>
-              ))
+              filteredRequests.map((request) => {
+                const typeMeta = getRequestTypeMeta(request);
+
+                return (
+                  <button
+                    type="button"
+                    key={request.id}
+                    className={`client-request-card ${selectedRequestId === request.id ? "active" : ""}`}
+                    onClick={() => setSelectedRequestId(request.id)}
+                  >
+                    <div className="client-request-card-top">
+                      <span className="client-request-posted">{format(request.postedAt, "relative")}</span>
+                    </div>
+
+                    <div className="client-request-badge-row">
+                      <span className="client-request-status">En attente</span>
+                      <span className={`client-request-type-badge ${typeMeta.tone}`}>
+                        {typeMeta.label}
+                      </span>
+                    </div>
+
+                    <h2>{request.title}</h2>
+                    <p>{request.description}</p>
+
+                    <div className="client-request-card-meta">
+                      <span>{request.category}</span>
+                      <strong>{format(request.budget)} DT</strong>
+                      <span>{request.proposals.length} proposition(s)</span>
+                    </div>
+                  </button>
+                );
+              })
             )}
           </section>
 
@@ -202,7 +286,17 @@ export default function ClientRequests({
                       <span className="client-request-detail-eyebrow">Demande en attente</span>
                       <h2>{selectedRequest.title}</h2>
                     </div>
+                  </div>
+
+                  <div className="client-request-badge-row">
                     <span className="client-request-status">En attente</span>
+                    <span
+                      className={`client-request-type-badge ${
+                        getRequestTypeMeta(selectedRequest).tone
+                      }`}
+                    >
+                      {getRequestTypeMeta(selectedRequest).label}
+                    </span>
                   </div>
 
                   <p className="client-request-detail-description">{selectedRequest.description}</p>
@@ -251,7 +345,7 @@ export default function ClientRequests({
                   </div>
 
                   <div className="client-request-modifiable-note">
-                    Cette demande reste modifiable tant qu'aucun freelance n'est accepte.
+                    Cette demande reste modifiable tant qu'aucun accord n'est valide.
                   </div>
                 </div>
 
@@ -273,7 +367,7 @@ export default function ClientRequests({
                   <div className="client-request-proposals-head">
                     <div>
                       <span className="client-request-detail-eyebrow">Freelancers proposes</span>
-                      <h3>Profils interesses par cette demande</h3>
+                      <h3>Comprendre chaque proposition avant de choisir</h3>
                     </div>
                     <span className="client-request-proposals-count">
                       {selectedRequest.proposals.length} profil
@@ -284,8 +378,8 @@ export default function ClientRequests({
                   {!showFreelancers ? (
                     <div className="client-request-proposals-closed">
                       <p>
-                        Utilisez le bouton ci-dessus pour afficher les freelancers qui ont propose
-                        de collaborer sur ce projet.
+                        Ouvrez cette section pour comparer chaque proposition, voir le profil du
+                        freelancer et ajouter un feedback si besoin.
                       </p>
                     </div>
                   ) : selectedRequest.proposals.length === 0 ? (
@@ -294,43 +388,87 @@ export default function ClientRequests({
                     </div>
                   ) : (
                     <div className="client-request-proposals-list">
-                      {selectedRequest.proposals.map((proposal) => (
-                        <article key={proposal.id} className="client-request-proposal">
-                          <div className="client-request-proposal-top">
-                            <div>
-                              <h4>{proposal.freelancerName}</h4>
-                              <p>{proposal.title}</p>
+                      {selectedRequest.proposals.map((proposal) => {
+                        const proposalStatus = getProposalStatusMeta(proposal.status);
+                        const comparison = getProposalComparison(selectedRequest, proposal);
+                        const isPending = proposal.status === "pending";
+
+                        return (
+                          <article key={proposal.id} className="client-request-proposal">
+                            <div className="client-request-proposal-top">
+                              <div>
+                                <h4>{proposal.freelancerName}</h4>
+                                <p>{proposal.title}</p>
+                              </div>
+                              <div className="client-request-proposal-rating">
+                                {proposal.rating.toFixed(1)}
+                              </div>
                             </div>
-                            <div className="client-request-proposal-rating">
-                              {proposal.rating.toFixed(1)}
+
+                            <div className="client-request-proposal-flag-row">
+                              <span
+                                className={`client-request-proposal-kind ${comparison.tone}`}
+                              >
+                                {comparison.label}
+                              </span>
+                              <span
+                                className={`client-request-proposal-status ${proposalStatus.tone}`}
+                              >
+                                {proposalStatus.label}
+                              </span>
                             </div>
-                          </div>
 
-                          <p className="client-request-proposal-summary">{proposal.summary}</p>
+                            <p className="client-request-proposal-summary">{proposal.summary}</p>
+                            <p className="client-request-proposal-note">{comparison.description}</p>
 
-                          <div className="client-request-proposal-meta">
-                            <span>Offre {format(proposal.rate)} DT</span>
-                            <span>Livraison {proposal.deliveryDays} jours</span>
-                          </div>
+                            <div className="client-request-proposal-term-grid">
+                              <div className="client-request-proposal-term-card">
+                                <span>Votre demande</span>
+                                <strong>{format(selectedRequest.budget)} DT</strong>
+                                <small>{format(selectedRequest.deadline, "date")}</small>
+                              </div>
+                              <div className="client-request-proposal-term-card">
+                                <span>Proposition freelancer</span>
+                                <strong>{format(proposal.rate)} DT</strong>
+                                <small>{format(proposal.proposedDeadline, "date")}</small>
+                              </div>
+                            </div>
 
-                          <div className="client-request-proposal-actions">
-                            <button
-                              type="button"
-                              className="ghost"
-                              onClick={() => onViewFreelancerProfile?.(proposal.freelancerId)}
-                            >
-                              Voir le profil et ajouter un feedback
-                            </button>
-                            <button
-                              type="button"
-                              className="primary"
-                              onClick={() => handleAcceptProposal(proposal)}
-                            >
-                              Accepter ce freelance
-                            </button>
-                          </div>
-                        </article>
-                      ))}
+                            <div className="client-request-proposal-meta">
+                              <span>Livraison estimee {proposal.deliveryDays} jours</span>
+                            </div>
+
+                            <div className="client-request-proposal-actions">
+                              <button
+                                type="button"
+                                className="ghost"
+                                onClick={() => onViewFreelancerProfile?.(proposal.freelancerId)}
+                              >
+                                Voir le profil et ajouter un feedback
+                              </button>
+                            </div>
+
+                            {isPending && (
+                              <div className="client-request-proposal-decision-row">
+                                <button
+                                  type="button"
+                                  className="ghost danger"
+                                  onClick={() => handleRejectProposal(proposal)}
+                                >
+                                  Refuser
+                                </button>
+                                <button
+                                  type="button"
+                                  className="primary"
+                                  onClick={() => handleAcceptProposal(proposal)}
+                                >
+                                  Accepter
+                                </button>
+                              </div>
+                            )}
+                          </article>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
