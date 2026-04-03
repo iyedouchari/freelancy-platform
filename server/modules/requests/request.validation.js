@@ -1,55 +1,72 @@
-export const validaterequestPayload = (payload) => {
-  return payload || {};
-};
 import Joi from "joi";
 
-export const createRequestSchema = Joi.object({
-  title: Joi.string().min(5).max(150).required().messages({
-    "string.min": "Le titre doit contenir au moins 5 caractères",
-    "string.max": "Le titre ne peut pas dépasser 150 caractères",
-    "any.required": "Le titre est obligatoire",
+const requestStatuses = ["Ouverte", "En cours", "Fermee"];
+
+const requestBaseSchema = {
+  title: Joi.string().trim().max(255).required().messages({
+    "string.empty": "Le titre est requis",
+    "string.max": "Le titre ne peut pas dépasser 255 caractères",
+    "any.required": "Le titre est requis",
   }),
-  description: Joi.string().min(20).max(5000).required().messages({
-    "string.min": "La description doit contenir au moins 20 caractères",
-    "any.required": "La description est obligatoire",
+  description: Joi.string().trim().min(10).required().messages({
+    "string.empty": "La description est requise",
+    "string.min": "La description doit contenir au moins 10 caractères",
+    "any.required": "La description est requise",
   }),
-  category: Joi.string().required().messages({
-    "any.required": "La catégorie est obligatoire",
+  domain: Joi.string().trim().max(100).optional(),
+  category: Joi.string().trim().max(100).optional(),
+  budget: Joi.number().positive().required().messages({
+    "number.base": "Le budget doit etre un nombre",
+    "number.positive": "Le budget doit etre superieur a 0",
+    "any.required": "Le budget est requis",
   }),
-  subcategory: Joi.string().optional(),
-  budget_min: Joi.number().positive().optional(),
-  budget_max: Joi.number().positive().greater(Joi.ref("budget_min")).optional().messages({
-    "number.greater": "Le budget maximum doit être supérieur au budget minimum",
+  negotiable: Joi.boolean().default(true),
+  deadline: Joi.date().iso().required().messages({
+    "date.base": "Format de date invalide",
+    "date.format": "Format YYYY-MM-DD requis",
+    "any.required": "La date limite est requise",
   }),
-  budget_type: Joi.string().valid("fixed", "hourly").default("fixed"),
-  deadline: Joi.date().greater("now").optional().messages({
-    "date.greater": "La date limite doit être dans le futur",
-  }),
-  skills_required: Joi.array().items(Joi.string()).optional(),
-  attachments: Joi.array().items(Joi.string()).optional(),
-});
+  skills: Joi.array().items(Joi.string().trim().max(80)).default([]),
+};
+
+export const createRequestSchema = Joi.object(requestBaseSchema).or("domain", "category");
 
 export const updateRequestSchema = Joi.object({
-  title: Joi.string().min(5).max(150).optional(),
-  description: Joi.string().min(20).max(5000).optional(),
-  category: Joi.string().optional(),
-  subcategory: Joi.string().optional(),
-  budget_min: Joi.number().positive().optional(),
-  budget_max: Joi.number().positive().optional(),
-  budget_type: Joi.string().valid("fixed", "hourly").optional(),
-  deadline: Joi.date().greater("now").optional(),
-  skills_required: Joi.array().items(Joi.string()).optional(),
-  status: Joi.string().valid("open", "in_progress", "completed", "cancelled").optional(),
+  title: Joi.string().trim().max(255).optional(),
+  description: Joi.string().trim().min(10).optional(),
+  domain: Joi.string().trim().max(100).optional(),
+  category: Joi.string().trim().max(100).optional(),
+  budget: Joi.number().positive().optional(),
+  negotiable: Joi.boolean().optional(),
+  deadline: Joi.date().iso().optional(),
+  skills: Joi.array().items(Joi.string().trim().max(80)).optional(),
+  status: Joi.string().valid(...requestStatuses).optional(),
 });
 
-export const listRequestsSchema = Joi.object({
+export const filterRequestSchema = Joi.object({
+  domain: Joi.string().trim().max(100).optional(),
+  status: Joi.string().valid(...requestStatuses).optional(),
+  minBudget: Joi.number().positive().optional(),
+  maxBudget: Joi.number().positive().optional(),
+  negotiable: Joi.boolean().optional(),
   page: Joi.number().integer().min(1).default(1),
-  limit: Joi.number().integer().min(1).max(50).default(10),
-  category: Joi.string().optional(),
-  status: Joi.string().valid("open", "in_progress", "completed", "cancelled").optional(),
-  budget_min: Joi.number().positive().optional(),
-  budget_max: Joi.number().positive().optional(),
-  search: Joi.string().optional(),
-  sort: Joi.string().valid("created_at", "budget_max", "deadline").default("created_at"),
-  order: Joi.string().valid("asc", "desc").default("desc"),
+  limit: Joi.number().integer().min(1).max(100).default(10),
+  sortBy: Joi.string().valid("created_at", "budget", "deadline").default("created_at"),
+  sortOrder: Joi.string().valid("ASC", "DESC").default("DESC"),
+});
+
+export const idParamSchema = Joi.object({
+  id: Joi.number().integer().positive().required(),
+});
+
+export const changeStatusSchema = Joi.object({
+  status: Joi.string().valid(...requestStatuses).required(),
+});
+
+export const domainBodySchema = Joi.object({
+  domain: Joi.string().trim().min(1).max(100).required(),
+});
+
+export const domainParamSchema = Joi.object({
+  domain: Joi.string().trim().min(1).max(100).required(),
 });

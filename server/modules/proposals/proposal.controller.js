@@ -25,14 +25,14 @@ export const createProposal = async (req, res) => {
 };
 
 export const changeProposalStatus = async (req, res) => {
-  const proposal = await proposalService.changeStatus(
+  const result = await proposalService.changeStatus(
     req.params.id,
     req.body.status,
     req.user.id,
     req.user.role,
   );
 
-  return sendSuccess(res, proposal, "Statut de la proposition mis a jour.");
+  return sendSuccess(res, result, "Statut de la proposition mis a jour.");
 };
 
 export const sendClientProposalResponse = async (req, res) => {

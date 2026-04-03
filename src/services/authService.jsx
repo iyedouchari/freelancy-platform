@@ -22,13 +22,16 @@ const sendAuthRequest = async (path, payload) => {
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       method: "POST",
+      cache: "no-store",
       headers: {
         "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
       },
       body: JSON.stringify(payload),
     });
-  } catch (_error) {
-    throw new Error(API_UNREACHABLE_MESSAGE);
+  } catch (error) {
+    throw new Error(`${API_UNREACHABLE_MESSAGE}${error?.message ? ` (${error.message})` : ""}`);
   }
 
   if (!response.ok) {

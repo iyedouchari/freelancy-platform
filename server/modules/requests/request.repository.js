@@ -1,232 +1,466 @@
 import { getDb } from "../../config/db.js";
 
-const pool = getDb();
+const db = getDb();
+
+const addColumnIfMissing = async (tableName, columnName, columnDefinition) => {
+  const [rows] = await db.query(`SHOW COLUMNS FROM ${tableName} LIKE ?`, [columnName]);
+
+  if (rows.length === 0) {
+    await db.query(`ALTER TABLE ${tableName} ADD COLUMN ${columnDefinition}`);
+  }
+};
+
+const normalizeDate = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    return value.slice(0, 10);
+  }
+
+  return new Date(value).toISOString().slice(0, 10);
+};
+
+const normalizeTimestamp = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  return new Date(value).toISOString();
+};
+
+const parseSkills = (rawValue) => {
+  if (!rawValue) {
+    return [];
+  }
+
+  if (Array.isArray(rawValue)) {
+    return rawValue;
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const mapProposalRow = (row) => {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.proposal_id,
+    freelancerId: row.proposal_freelancer_id,
+    freelancerName: row.proposal_freelancer_name,
+    title: row.proposal_freelancer_title ?? "",
+    rating: row.proposal_freelancer_rating ?? 0,
+    rate: Number(row.proposal_price),
+    proposedPrice: Number(row.proposal_price),
+    proposedDeadline: normalizeDate(row.proposal_deadline),
+    deliveryDays: row.proposal_deadline
+      ? Math.max(
+          0,
+          Math.ceil(
+            (new Date(normalizeDate(row.proposal_deadline)) - new Date(normalizeDate(row.request_deadline))) /
+              (1000 * 60 * 60 * 24),
+          ),
+        )
+      : null,
+    summary: row.proposal_cover_letter ?? "",
+    coverLetter: row.proposal_cover_letter ?? "",
+    status: row.proposal_status,
+    createdAt: normalizeTimestamp(row.proposal_created_at),
+  };
+};
+
+const mapRequestRow = (row) => {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    clientId: row.client_id,
+    title: row.title,
+    description: row.description,
+    domain: row.domain,
+    category: row.domain,
+    budget: Number(row.budget),
+    negotiable: Boolean(row.negotiable),
+    deadline: normalizeDate(row.deadline),
+    status: row.status,
+    postedAt: normalizeDate(row.created_at),
+    createdAt: normalizeTimestamp(row.created_at),
+    skills: parseSkills(row.skills_json),
+    proposals: [],
+  };
+};
+
+const enrichRequestsWithProposals = async (requests, connection = db) => {
+  if (!requests.length) {
+    return requests;
+  }
+
+  const requestIds = requests.map((request) => request.id);
+  const placeholders = requestIds.map(() => "?").join(", ");
+  const [proposalRows] = await connection.query(
+    `
+      SELECT
+        p.id AS proposal_id,
+        p.request_id,
+        p.freelancer_id AS proposal_freelancer_id,
+        u.name AS proposal_freelancer_name,
+        u.professional_title AS proposal_freelancer_title,
+        0 AS proposal_freelancer_rating,
+        p.proposed_price AS proposal_price,
+        p.proposed_deadline_at AS proposal_deadline,
+        p.cover_letter AS proposal_cover_letter,
+        p.status AS proposal_status,
+        p.created_at AS proposal_created_at,
+        r.deadline AS request_deadline
+      FROM proposals p
+      JOIN users u ON u.id = p.freelancer_id
+      JOIN requests r ON r.id = p.request_id
+      WHERE p.request_id IN (${placeholders})
+      ORDER BY p.created_at DESC
+    `,
+    requestIds,
+  );
+
+  const proposalsByRequestId = new Map();
+
+  for (const row of proposalRows) {
+    const current = proposalsByRequestId.get(row.request_id) ?? [];
+    current.push(mapProposalRow(row));
+    proposalsByRequestId.set(row.request_id, current);
+  }
+
+  return requests.map((request) => ({
+    ...request,
+    proposals: proposalsByRequestId.get(request.id) ?? [],
+  }));
+};
+
+export const ensureRequestsTable = async () => {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS requests (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      client_id INT NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      description TEXT NOT NULL,
+      domain VARCHAR(100) NOT NULL,
+      budget DECIMAL(15,2) NOT NULL,
+      negotiable BOOLEAN NOT NULL DEFAULT TRUE,
+      deadline DATE DEFAULT NULL,
+      status ENUM('Ouverte','En cours','Fermee') NOT NULL DEFAULT 'Ouverte',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT fk_req_client FOREIGN KEY (client_id)
+        REFERENCES users(id) ON DELETE CASCADE,
+      CONSTRAINT chk_budget CHECK (budget > 0)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS freelancer_domains (
+      id_freelancer INT NOT NULL,
+      domain VARCHAR(50) NOT NULL,
+      PRIMARY KEY (id_freelancer, domain),
+      CONSTRAINT fk_fd_user FOREIGN KEY (id_freelancer)
+        REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+
+  await addColumnIfMissing(
+    "requests",
+    "skills_json",
+    "skills_json JSON DEFAULT NULL AFTER deadline",
+  );
+};
 
 export const requestRepository = {
-  // Créer une demande
-  async create(clientId, data) {
-    const {
-      title,
-      description,
-      category,
-      subcategory,
-      budget_min,
-      budget_max,
-      budget_type,
-      deadline,
-      skills_required,
-      attachments,
-    } = data;
-
-    const { rows } = await pool.query(
-      `INSERT INTO requests 
-        (client_id, title, description, category, subcategory, budget_min, budget_max, 
-         budget_type, deadline, skills_required, attachments, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'open')
-       RETURNING *`,
+  async create(data, connection = db) {
+    const [result] = await connection.query(
+      `
+        INSERT INTO requests (
+          client_id,
+          title,
+          description,
+          domain,
+          budget,
+          negotiable,
+          deadline,
+          skills_json
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `,
       [
-        clientId,
-        title,
-        description,
-        category,
-        subcategory ?? null,
-        budget_min ?? null,
-        budget_max ?? null,
-        budget_type ?? "fixed",
-        deadline ?? null,
-        skills_required ? JSON.stringify(skills_required) : null,
-        attachments ? JSON.stringify(attachments) : null,
-      ]
+        data.client_id,
+        data.title.trim(),
+        data.description.trim(),
+        (data.domain ?? data.category ?? "").trim(),
+        Number(data.budget),
+        Boolean(data.negotiable),
+        data.deadline || null,
+        JSON.stringify(Array.isArray(data.skills) ? data.skills : []),
+      ],
     );
 
-    return rows[0];
+    return result.insertId;
   },
 
-  // Trouver une demande par ID
-  async findById(id) {
-    const { rows } = await pool.query(
-      `SELECT r.*, 
-              u.full_name AS client_name, 
-              u.avatar_url AS client_avatar,
-              u.rating AS client_rating,
-              COUNT(DISTINCT p.id) AS proposals_count
-       FROM requests r
-       JOIN users u ON u.id = r.client_id
-       LEFT JOIN proposals p ON p.request_id = r.id
-       WHERE r.id = $1
-       GROUP BY r.id, u.full_name, u.avatar_url, u.rating`,
-      [id]
-    );
+  async findById(id, connection = db) {
+    const [rows] = await connection.query("SELECT * FROM requests WHERE id = ? LIMIT 1", [id]);
+    const mapped = mapRequestRow(rows[0]);
 
-    return rows[0] || null;
+    if (!mapped) {
+      return null;
+    }
+
+    const [enriched] = await enrichRequestsWithProposals([mapped], connection);
+    return enriched ?? null;
   },
 
-  // Lister les demandes avec filtres + pagination
-  async findAll({
-    page,
-    limit,
-    category,
-    status,
-    budget_min,
-    budget_max,
-    search,
-    sort,
-    order,
-  }) {
-    const offset = (page - 1) * limit;
-    const conditions = ["r.deleted_at IS NULL"];
-    const values = [];
-    let idx = 1;
+  async findAll(filters, connection = db) {
+    const {
+      domain,
+      status,
+      minBudget,
+      maxBudget,
+      negotiable,
+      page = 1,
+      limit = 10,
+      sortBy = "created_at",
+      sortOrder = "DESC",
+    } = filters;
 
-    if (category) {
-      conditions.push(`r.category = $${idx++}`);
-      values.push(category);
+    const whereClauses = [];
+    const params = [];
+
+    if (domain) {
+      whereClauses.push("domain = ?");
+      params.push(domain);
     }
 
     if (status) {
-      conditions.push(`r.status = $${idx++}`);
-      values.push(status);
+      whereClauses.push("status = ?");
+      params.push(status);
     }
 
-    if (budget_min) {
-      conditions.push(`r.budget_max >= $${idx++}`);
-      values.push(budget_min);
+    if (minBudget !== undefined) {
+      whereClauses.push("budget >= ?");
+      params.push(Number(minBudget));
     }
 
-    if (budget_max) {
-      conditions.push(`r.budget_min <= $${idx++}`);
-      values.push(budget_max);
+    if (maxBudget !== undefined) {
+      whereClauses.push("budget <= ?");
+      params.push(Number(maxBudget));
     }
 
-    if (search) {
-      conditions.push(`(r.title ILIKE $${idx} OR r.description ILIKE $${idx})`);
-      values.push(`%${search}%`);
-      idx++;
+    if (negotiable !== undefined) {
+      whereClauses.push("negotiable = ?");
+      params.push(Boolean(negotiable));
     }
 
-    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : "";
+    const offset = (page - 1) * limit;
+    const safeSortBy = ["created_at", "budget", "deadline"].includes(sortBy) ? sortBy : "created_at";
+    const safeSortOrder = String(sortOrder).toUpperCase() === "ASC" ? "ASC" : "DESC";
 
-    const allowedSort = {
-      created_at: "r.created_at",
-      budget_max: "r.budget_max",
-      deadline: "r.deadline",
-    };
+    const [countRows] = await connection.query(
+      `SELECT COUNT(*) AS total FROM requests ${whereSql}`,
+      params,
+    );
+    const [rows] = await connection.query(
+      `
+        SELECT *
+        FROM requests
+        ${whereSql}
+        ORDER BY ${safeSortBy} ${safeSortOrder}
+        LIMIT ? OFFSET ?
+      `,
+      [...params, Number(limit), Number(offset)],
+    );
 
-    const orderBy = `${
-      allowedSort[sort] || "r.created_at"
-    } ${order === "asc" ? "ASC" : "DESC"}`;
-
-    const countQuery = `SELECT COUNT(*) FROM requests r ${where}`;
-
-    const dataQuery = `
-      SELECT r.id, r.title, r.category, r.subcategory, r.budget_min, r.budget_max,
-             r.budget_type, r.deadline, r.status, r.skills_required, r.created_at,
-             u.full_name AS client_name, u.avatar_url AS client_avatar,
-             COUNT(DISTINCT p.id) AS proposals_count
-      FROM requests r
-      JOIN users u ON u.id = r.client_id
-      LEFT JOIN proposals p ON p.request_id = r.id
-      ${where}
-      GROUP BY r.id, u.full_name, u.avatar_url
-      ORDER BY ${orderBy}
-      LIMIT $${idx} OFFSET $${idx + 1}
-    `;
-
-    const [countResult, dataResult] = await Promise.all([
-      pool.query(countQuery, values),
-      pool.query(dataQuery, [...values, limit, offset]),
-    ]);
+    const enrichedRows = await enrichRequestsWithProposals(rows.map(mapRequestRow), connection);
 
     return {
-      total: parseInt(countResult.rows[0].count),
-      rows: dataResult.rows,
+      rows: enrichedRows,
+      total: Number(countRows[0]?.total ?? 0),
     };
   },
 
-  // Demandes d'un client spécifique
-  async findByClientId(clientId, { page, limit }) {
+  async findByClientId(clientId, { page = 1, limit = 10 } = {}, connection = db) {
     const offset = (page - 1) * limit;
-
-    const { rows } = await pool.query(
-      `SELECT r.*, COUNT(DISTINCT p.id) AS proposals_count
-       FROM requests r
-       LEFT JOIN proposals p ON p.request_id = r.id
-       WHERE r.client_id = $1 AND r.deleted_at IS NULL
-       GROUP BY r.id
-       ORDER BY r.created_at DESC
-       LIMIT $2 OFFSET $3`,
-      [clientId, limit, offset]
+    const [countRows] = await connection.query(
+      "SELECT COUNT(*) AS total FROM requests WHERE client_id = ?",
+      [clientId],
+    );
+    const [rows] = await connection.query(
+      `
+        SELECT *
+        FROM requests
+        WHERE client_id = ?
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
+      `,
+      [clientId, Number(limit), Number(offset)],
     );
 
-    return rows;
+    const enrichedRows = await enrichRequestsWithProposals(rows.map(mapRequestRow), connection);
+
+    return {
+      rows: enrichedRows,
+      total: Number(countRows[0]?.total ?? 0),
+    };
   },
 
-  // Mettre à jour une demande
-  async update(id, data) {
+  async update(id, data, connection = db) {
     const fields = [];
-    const values = [];
-    let idx = 1;
+    const params = [];
 
-    const allowed = [
-      "title",
-      "description",
-      "category",
-      "subcategory",
-      "budget_min",
-      "budget_max",
-      "budget_type",
-      "deadline",
-      "skills_required",
-      "status",
-    ];
-
-    for (const key of allowed) {
-      if (data[key] !== undefined) {
-        fields.push(`${key} = $${idx++}`);
-        values.push(
-          ["skills_required", "attachments"].includes(key) &&
-            Array.isArray(data[key])
-            ? JSON.stringify(data[key])
-            : data[key]
-        );
-      }
+    if (data.title !== undefined) {
+      fields.push("title = ?");
+      params.push(data.title.trim());
     }
 
-    if (!fields.length) return null;
+    if (data.description !== undefined) {
+      fields.push("description = ?");
+      params.push(data.description.trim());
+    }
 
-    fields.push(`updated_at = NOW()`);
-    values.push(id);
+    if (data.domain !== undefined || data.category !== undefined) {
+      fields.push("domain = ?");
+      params.push((data.domain ?? data.category ?? "").trim());
+    }
 
-    const { rows } = await pool.query(
-      `UPDATE requests SET ${fields.join(", ")} WHERE id = $${idx} RETURNING *`,
-      values
+    if (data.budget !== undefined) {
+      fields.push("budget = ?");
+      params.push(Number(data.budget));
+    }
+
+    if (data.negotiable !== undefined) {
+      fields.push("negotiable = ?");
+      params.push(Boolean(data.negotiable));
+    }
+
+    if (data.deadline !== undefined) {
+      fields.push("deadline = ?");
+      params.push(data.deadline || null);
+    }
+
+    if (data.status !== undefined) {
+      fields.push("status = ?");
+      params.push(data.status);
+    }
+
+    if (data.skills !== undefined) {
+      fields.push("skills_json = ?");
+      params.push(JSON.stringify(Array.isArray(data.skills) ? data.skills : []));
+    }
+
+    if (!fields.length) {
+      return 0;
+    }
+
+    params.push(id);
+    const [result] = await connection.query(
+      `UPDATE requests SET ${fields.join(", ")} WHERE id = ?`,
+      params,
     );
 
-    return rows[0] || null;
+    return result.affectedRows;
   },
 
-  // Soft delete
-  async softDelete(id) {
-    const { rows } = await pool.query(
-      `UPDATE requests 
-       SET deleted_at = NOW(), status = 'cancelled' 
-       WHERE id = $1 
-       RETURNING id`,
-      [id]
+  async remove(id, connection = db) {
+    const [result] = await connection.query(
+      "DELETE FROM requests WHERE id = ? AND status = 'Ouverte'",
+      [id],
     );
-
-    return rows[0] || null;
+    return result.affectedRows;
   },
 
-  // Vérifier propriétaire
-  async isOwner(requestId, clientId) {
-    const { rows } = await pool.query(
-      `SELECT id 
-       FROM requests 
-       WHERE id = $1 AND client_id = $2 AND deleted_at IS NULL`,
-      [requestId, clientId]
+  async isOwner(requestId, clientId, connection = db) {
+    const [rows] = await connection.query(
+      "SELECT id FROM requests WHERE id = ? AND client_id = ? LIMIT 1",
+      [requestId, clientId],
     );
-
     return rows.length > 0;
+  },
+
+  async markStatus(requestId, status, connection = db) {
+    const [result] = await connection.query(
+      "UPDATE requests SET status = ? WHERE id = ?",
+      [status, requestId],
+    );
+    return result.affectedRows;
+  },
+
+  async findDistinctDomains(connection = db) {
+    const [rows] = await connection.query(
+      "SELECT DISTINCT domain FROM requests ORDER BY domain ASC",
+    );
+    return rows.map((row) => row.domain);
+  },
+
+  async findFreelancerDomains(freelancerId, connection = db) {
+    const [rows] = await connection.query(
+      "SELECT domain FROM freelancer_domains WHERE id_freelancer = ? ORDER BY domain ASC",
+      [freelancerId],
+    );
+    return rows.map((row) => row.domain);
+  },
+
+  async addFreelancerDomain(freelancerId, domain, connection = db) {
+    await connection.query(
+      "INSERT IGNORE INTO freelancer_domains (id_freelancer, domain) VALUES (?, ?)",
+      [freelancerId, domain],
+    );
+  },
+
+  async removeFreelancerDomain(freelancerId, domain, connection = db) {
+    const [result] = await connection.query(
+      "DELETE FROM freelancer_domains WHERE id_freelancer = ? AND domain = ?",
+      [freelancerId, domain],
+    );
+    return result.affectedRows;
+  },
+
+  async findRequestsMatchingFreelancer(freelancerId, { page = 1, limit = 10 } = {}, connection = db) {
+    const offset = (page - 1) * limit;
+    const [countRows] = await connection.query(
+      `
+        SELECT COUNT(*) AS total
+        FROM requests r
+        JOIN freelancer_domains fd ON fd.domain = r.domain
+        WHERE fd.id_freelancer = ? AND r.status = 'Ouverte'
+      `,
+      [freelancerId],
+    );
+    const [rows] = await connection.query(
+      `
+        SELECT r.*
+        FROM requests r
+        JOIN freelancer_domains fd ON fd.domain = r.domain
+        WHERE fd.id_freelancer = ? AND r.status = 'Ouverte'
+        ORDER BY r.created_at DESC
+        LIMIT ? OFFSET ?
+      `,
+      [freelancerId, Number(limit), Number(offset)],
+    );
+
+    const enrichedRows = await enrichRequestsWithProposals(rows.map(mapRequestRow), connection);
+
+    return {
+      rows: enrichedRows,
+      total: Number(countRows[0]?.total ?? 0),
+    };
   },
 };

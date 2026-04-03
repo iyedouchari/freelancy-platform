@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:server": "node --watch server/server.js",
+    "dev:server": "node server/server.js",
     "start:server": "node server/server.js",
     "db:init": "node server/scripts/initDatabaseSchema.js",
     "build": "vite build",

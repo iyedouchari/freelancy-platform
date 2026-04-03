@@ -7,7 +7,10 @@ export const roleMiddleware = (...allowedRoles) => {
       return;
     }
 
-    if (!allowedRoles.includes(req.auth.role)) {
+    const normalizedRole = String(req.auth.role).toLowerCase();
+    const normalizedAllowedRoles = allowedRoles.map((role) => String(role).toLowerCase());
+
+    if (!normalizedAllowedRoles.includes(normalizedRole)) {
       next(new AppError("You are not allowed to access this resource.", 403, "FORBIDDEN"));
       return;
     }

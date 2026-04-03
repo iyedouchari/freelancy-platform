@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -10,7 +10,7 @@ import Landing from "./pages/public/Landing";
 import Login from "./pages/public/Login";
 import Register from "./pages/public/Register";
 import Workspace from "./pages/shared/Workspace";
-import { activeDeals } from "./data/deals";
+import { dealService } from "./services/dealService";
 
 function getStoredSession() {
   return {
@@ -27,7 +27,54 @@ function isAuthenticated() {
 const FreelancerShell = () => {
   const dashboardRef = useRef(null);
   const [page, setPage] = useState("dashboard");
-  const [selectedDealId, setSelectedDealId] = useState(activeDeals[0]?.id ?? null);
+  const [deals, setDeals] = useState([]);
+  const [selectedDeal, setSelectedDeal] = useState(null);
+  const [isLoadingDeals, setIsLoadingDeals] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadDeals = async () => {
+      setIsLoadingDeals(true);
+
+      try {
+        const dealRows = await dealService.listMine();
+        if (!isMounted) {
+          return;
+        }
+
+        setDeals(dealRows);
+        setSelectedDeal((current) => current ?? dealRows[0] ?? null);
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setDeals([]);
+      } finally {
+        if (isMounted) {
+          setIsLoadingDeals(false);
+        }
+      }
+    };
+
+    loadDeals();
+
+    const handleVisibilityRefresh = () => {
+      if (document.visibilityState === "visible") {
+        loadDeals();
+      }
+    };
+
+    window.addEventListener("focus", loadDeals);
+    document.addEventListener("visibilitychange", handleVisibilityRefresh);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("focus", loadDeals);
+      document.removeEventListener("visibilitychange", handleVisibilityRefresh);
+    };
+  }, []);
 
   const goToDashboard = () => {
     dashboardRef.current?.goDashboard?.();
@@ -37,9 +84,14 @@ const FreelancerShell = () => {
   const goToDeals = () => setPage("deals");
   const goToProfile = () => setPage("profile");
 
-  const goToWorkspace = (dealId) => {
-    if (dealId) {
-      setSelectedDealId(dealId);
+  const goToWorkspace = (dealOrId) => {
+    const resolvedDeal =
+      typeof dealOrId === "object"
+        ? dealOrId
+        : deals.find((deal) => deal.id === dealOrId) ?? deals[0] ?? null;
+
+    if (resolvedDeal) {
+      setSelectedDeal(resolvedDeal);
     }
     setPage("workspace");
   };
@@ -60,6 +112,8 @@ const FreelancerShell = () => {
         )}
         {page === "deals" && (
           <FreelancerDeals
+            deals={deals}
+            isLoading={isLoadingDeals}
             onBack={() => setPage("dashboard")}
             onOpenWorkspace={goToWorkspace}
           />
@@ -69,8 +123,9 @@ const FreelancerShell = () => {
         )}
         {page === "workspace" && (
           <Workspace
-            dealId={selectedDealId}
+            deal={selectedDeal}
             onBack={() => setPage("deals")}
+            viewerRole="freelancer"
           />
         )}
       </main>

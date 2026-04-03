@@ -1,21 +1,5 @@
-import { useState } from "react";
-import { activeDeals, completedDeals } from "../../data/deals";
+import { useMemo, useState } from "react";
 import "./FreelancerDeals.css";
-
-const tabConfig = {
-  active: {
-    label: `Accords en cours (${activeDeals.length})`,
-    title: "Accords en cours",
-    subtitle: "Suivez vos projets actifs et ouvrez leur espace de travail sans quitter l'espace freelance.",
-    items: activeDeals,
-  },
-  completed: {
-    label: `Completes (${completedDeals.length})`,
-    title: "Accords completes",
-    subtitle: "Retrouvez l'historique de vos collaborations finalisees et leurs resultats.",
-    items: completedDeals,
-  },
-};
 
 const PinIcon = () => (
   <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -94,8 +78,25 @@ function DealCard({ deal, onOpenWorkspace }) {
   );
 }
 
-export default function FreelancerDeals({ onBack, onOpenWorkspace }) {
+export default function FreelancerDeals({ deals = [], onBack, onOpenWorkspace, isLoading = false }) {
   const [tab, setTab] = useState("active");
+  const activeDeals = useMemo(() => deals.filter((deal) => deal.daysLeft !== null), [deals]);
+  const completedDeals = useMemo(() => deals.filter((deal) => deal.daysLeft === null), [deals]);
+  const tabConfig = {
+    active: {
+      label: `Accords en cours (${activeDeals.length})`,
+      title: "Accords en cours",
+      subtitle:
+        "Suivez vos vrais deals acceptes par le client et ouvrez leur espace de travail sans quitter l'espace freelance.",
+      items: activeDeals,
+    },
+    completed: {
+      label: `Completes (${completedDeals.length})`,
+      title: "Accords completes",
+      subtitle: "Retrouvez l'historique de vos vrais deals finalises.",
+      items: completedDeals,
+    },
+  };
   const currentTab = tabConfig[tab];
 
   return (
@@ -144,7 +145,12 @@ export default function FreelancerDeals({ onBack, onOpenWorkspace }) {
         </div>
 
         <div className="deals-grid">
-          {currentTab.items.length === 0 ? (
+          {isLoading ? (
+            <div className="fh-empty">
+              <div className="fh-empty-icon">...</div>
+              <p className="fh-empty-title">Chargement des accords reels</p>
+            </div>
+          ) : currentTab.items.length === 0 ? (
             <div className="fh-empty">
               <div className="fh-empty-icon">Aucun</div>
               <p className="fh-empty-title">Aucun accord a afficher</p>
