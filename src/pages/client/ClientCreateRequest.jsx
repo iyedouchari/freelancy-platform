@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { clientRequestCategories, clientSkillSuggestions } from "../../data/clientData";
+import { clientRequestCategories } from "../../data/clientData";
 import "./ClientCreateRequest.css";
 
 function buildFormState(initialValues) {
@@ -9,9 +9,7 @@ function buildFormState(initialValues) {
     category: initialValues?.category ?? clientRequestCategories[0],
     budget: initialValues?.budget ? String(initialValues.budget) : "",
     deadline: initialValues?.deadline ?? "",
-    skillsInput: "",
-    skills: initialValues?.skills ?? [],
-    negotiable: initialValues?.negotiable ?? null,
+    negotiable: initialValues?.negotiable ?? true,
   };
 }
 
@@ -32,50 +30,29 @@ export default function ClientCreateRequest({
 
   const canSubmit = useMemo(() => {
     return (
-      form.title.trim() &&
-      form.description.trim() &&
-      form.category &&
-      form.budget &&
-      form.deadline &&
-      form.skills.length > 0 &&
+      Boolean(form.title.trim()) &&
+      Boolean(form.description.trim()) &&
+      Boolean(form.category) &&
+      Number(form.budget) > 0 &&
+      Boolean(form.deadline) &&
       form.negotiable !== null
     );
   }, [form]);
 
-  const addSkill = (value) => {
-    const normalized = value.trim();
-    if (!normalized || form.skills.includes(normalized)) {
-      return;
-    }
-
-    setForm((current) => ({
-      ...current,
-      skills: [...current.skills, normalized],
-      skillsInput: "",
-    }));
-  };
-
-  const removeSkill = (skill) => {
-    setForm((current) => ({
-      ...current,
-      skills: current.skills.filter((item) => item !== skill),
-    }));
-  };
-
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     if (!canSubmit) {
       return;
     }
 
-    onCreateRequest?.({
+    await onCreateRequest?.({
       title: form.title,
       description: form.description,
       category: form.category,
       budget: form.budget,
       deadline: form.deadline,
-      skills: form.skills,
+      skills: [],
       negotiable: form.negotiable,
     });
   };
@@ -169,60 +146,6 @@ export default function ClientCreateRequest({
               ✕ Non négociable
             </button>
           </div>
-        </div>
-
-        <div className="client-create-request-field client-create-request-field-wide">
-          <span>Competences attendues</span>
-          <div className="client-create-request-skill-entry">
-            <input
-              type="text"
-              value={form.skillsInput}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, skillsInput: event.target.value }))
-              }
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === ",") {
-                  event.preventDefault();
-                  addSkill(form.skillsInput);
-                }
-              }}
-              placeholder="Ajoutez une competence et validez"
-            />
-            <button type="button" onClick={() => addSkill(form.skillsInput)}>
-              Ajouter
-            </button>
-          </div>
-
-          <div className="client-create-request-suggestions">
-            {clientSkillSuggestions.map((skill) => (
-              <button
-                key={skill}
-                type="button"
-                className={`client-create-request-chip ${
-                  form.skills.includes(skill) ? "active" : ""
-                }`}
-                onClick={() => addSkill(skill)}
-              >
-                {skill}
-              </button>
-            ))}
-          </div>
-
-          {form.skills.length > 0 && (
-            <div className="client-create-request-skills">
-              {form.skills.map((skill) => (
-                <button
-                  key={skill}
-                  type="button"
-                  className="client-create-request-skill"
-                  onClick={() => removeSkill(skill)}
-                >
-                  {skill}
-                  <span>x</span>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 

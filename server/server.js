@@ -4,6 +4,9 @@ import { checkDatabaseConnection } from "./config/db.js";
 import { env } from "./config/env.js";
 import { attachSocket } from "./config/socket.js";
 import { prepareAuthStorage } from "./modules/auth/auth.repository.js";
+import { ensureDealsTable } from "./modules/deals/deal.repository.js";
+import { ensureProposalsTable } from "./modules/proposals/proposal.repository.js";
+import { ensureRequestsTable } from "./modules/requests/request.repository.js";
 import { ensureReviewsTable } from "./modules/reviews/review.repository.js";
 
 const API_HEALTH_TIMEOUT_MS = 1500;
@@ -67,6 +70,9 @@ const createAlreadyRunningHandle = (port) => ({
 export const startServer = async () => {
   await checkDatabaseConnection();
   await prepareAuthStorage();
+  await ensureRequestsTable();
+  await ensureProposalsTable();
+  await ensureDealsTable();
   await ensureReviewsTable();
 
   for (let offset = 0; offset < MAX_PORT_ATTEMPTS; offset += 1) {

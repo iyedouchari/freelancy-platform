@@ -22,14 +22,15 @@ export const authMiddleware = (req, _res, next) => {
 
   try {
     const payload = jwt.verify(token, jwtConfig.secret);
+    const role = String(payload.role || "").toLowerCase();
     req.auth = {
       userId: payload.sub,
-      role: payload.role,
+      role,
       email: payload.email,
     };
     req.user = {
       id: payload.sub,
-      role: payload.role,
+      role,
       email: payload.email,
     };
     next();

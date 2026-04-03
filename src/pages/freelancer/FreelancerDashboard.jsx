@@ -3,6 +3,7 @@ import CategorySelector from "../../components/CategorySelector";
 import FiltersBar from "../../components/FiltersBar";
 import ProjectCard from "../../components/ProjectCard";
 import ProjectDetails from "../../components/ProjectDetails";
+import { requestService } from "../../services/requestService";
 import { format } from "../../utils/format";
 import "./FreelancerDashboard.css";
 
@@ -16,6 +17,24 @@ const CATEGORIES = [
   "Jeu vidéo",
   "E-commerce",
 ];
+
+const normalizeCategories = (request) => {
+  const collected = new Set();
+
+  if (request?.category) {
+    collected.add(request.category);
+  }
+
+  if (Array.isArray(request?.skills)) {
+    request.skills.forEach((skill) => {
+      if (CATEGORIES.includes(skill)) {
+        collected.add(skill);
+      }
+    });
+  }
+
+  return [...collected];
+};
 
 const BUDGET_OPTIONS = [
   { value: "any", label: "Tout budget" },
@@ -47,120 +66,29 @@ const BUDGET_RANGES = {
   "15000+": [15000, Infinity],
 };
 
-const PROJECTS = [
-  {
-    id: 1,
-    title: "Outil de tri de CV par IA",
-    tags: ["IA", "Python", "Automation", "Recruitment Tech"],
-    type: "Négociable",
-    description:
-      "Construire un système qui analyse automatiquement les CV et classe les candidats selon les exigences du poste.",
-    budget: 7500,
-    currency: "$",
-    deadline: "2026-05-30",
-    posted: "2026-03-06",
-    client: "NextHire Technologies",
-    categories: ["IA & Machine Learning", "Développement Web"],
-    requirements: [
-      "Parsing de CV",
-      "Algorithme de scoring candidat",
-      "Interface dashboard RH",
-      "Intégration ATS existant",
-      "Déploiement cloud sécurisé",
-    ],
-    profile: [
-      "Expérience en machine learning et Python",
-      "Compétences NLP",
-      "Expérience plateformes RH",
-      "Portfolio de projets IA",
-    ],
-  },
-  {
-    id: 2,
-    title: "Assistant IA pour support client",
-    tags: ["IA", "Python", "NLP", "Machine Learning"],
-    type: "Négociable",
-    description:
-      "Concevoir un chatbot IA capable de répondre aux questions clients, s'intégrer au CRM et fournir des analyses de conversations.",
-    budget: 6500,
-    currency: "$",
-    deadline: "2026-05-20",
-    posted: "2026-03-04",
-    client: "NextHire Technologies",
-    categories: ["IA & Machine Learning", "Développement Web"],
-    requirements: [
-      "Détection d'intention avec repli",
-      "Orchestration LLM + garde-fous de prompt",
-      "Intégration CRM (Salesforce/HubSpot)",
-      "Tableau de bord d'analytics",
-    ],
-    profile: ["Python / FastAPI", "Expérience LLM", "MLOps de base"],
-  },
-  {
-    id: 3,
-    title: "Design d'une app mobile de trading crypto",
-    tags: ["Mobile", "UI/UX", "Figma", "FinTech"],
-    type: "Non négociable",
-    description:
-      "Créer une interface mobile de trading crypto moderne avec onboarding, parcours KYC et écrans de graphiques temps réel.",
-    budget: 2200,
-    currency: "$",
-    deadline: "2026-04-18",
-    posted: "2026-02-27",
-    client: "Moonrise Capital",
-    categories: ["Développement Mobile", "UI/UX Design", "FinTech"],
-    requirements: ["Design system Figma", "Thèmes clair/sombre", "Responsive breakpoints"],
-    profile: ["UI/UX mobile", "Expérience FinTech ou crypto", "Prototypes interactifs"],
-  },
-  {
-    id: 4,
-    title: "Tableau de bord analytique temps réel",
-    tags: ["React", "Node.js", "Data Viz", "AWS"],
-    type: "Négociable",
-    description:
-      "Développer une plateforme analytique temps réel pour visualiser des flux d'événements avec alertes et accès par rôle.",
-    budget: 11000,
-    currency: "$",
-    deadline: "2026-06-01",
-    posted: "2026-03-01",
-    client: "StreamPulse",
-    categories: ["Data Science", "Développement Web"],
-    requirements: ["Ingestion streaming", "Base timeseries", "RBAC", "Règles d'alertes"],
-    profile: ["React + Node", "Exp. AWS (Kinesis / Lambda)", "Libs de data viz (D3/Chart.js)"],
-  },
-  {
-    id: 5,
-    title: "Headless storefront e-commerce",
-    tags: ["Next.js", "GraphQL", "Shopify", "E-commerce"],
-    type: "Non négociable",
-    description:
-      "Livrer une vitrine headless connectée à Shopify avec checkout optimisé et SEO soigné.",
-    budget: 8000,
-    currency: "$",
-    deadline: "2026-05-10",
-    posted: "2026-02-20",
-    client: "Atelier Nova",
-    categories: ["E-commerce", "Développement Web"],
-    requirements: ["Next.js 14", "API GraphQL storefront", "Core Web Vitals > 90"],
-    profile: ["Headless commerce", "Performance web", "SEO technique"],
-  },
-  {
-    id: 6,
-    title: "Renforcement DevOps microservices",
-    tags: ["Docker", "Kubernetes", "CI/CD", "Observabilité"],
-    type: "Négociable",
-    description:
-      "Renforcer la chaîne CI/CD, améliorer l'observabilité et réduire le lead time de déploiement sur 6 microservices.",
-    budget: 14000,
-    currency: "$",
-    deadline: "2026-07-15",
-    posted: "2026-03-05",
-    client: "CloudForge",
-    categories: ["Cloud & DevOps"],
-    requirements: ["GitHub Actions", "K8s", "Grafana/Prometheus", "Scans de sécurité"],
-    profile: ["SRE/DevOps", "Sécurité CI/CD", "Optimisation coûts cloud"],
-  },
-];
+const toUiProject = (request) => ({
+  id: request.id,
+  requestId: request.id,
+  title: request.title,
+  tags: Array.isArray(request.skills) && request.skills.length ? request.skills : [request.category],
+  type: request.negotiable ? "Négociable" : "Non négociable",
+  description: request.description,
+  budget: Number(request.budget),
+  currency: "$",
+  deadline: request.deadline,
+  posted: request.postedAt ?? request.createdAt ?? new Date().toISOString().slice(0, 10),
+  client: request.clientName ?? "Client privé",
+  categories: normalizeCategories(request),
+  requirements:
+    Array.isArray(request.skills) && request.skills.length
+      ? request.skills.map((skill) => `Compétence attendue: ${skill}`)
+      : ["Livrables documentés", "Communication claire", "Respect des délais"],
+  profile: [
+    `Expertise principale: ${request.category}`,
+    request.negotiable ? "Capacité à proposer un budget et un délai" : "Capacité à respecter le brief fixé",
+    "Approche professionnelle et livrables propres",
+  ],
+});
 
 const OfferPanel = ({ project, onSendOffer, onAccept }) => {
   const [price, setPrice] = useState(project ? project.budget : "");
@@ -307,13 +235,55 @@ const FreelancerDashboard = forwardRef((_, ref) => {
   const [budgetFilter, setBudgetFilter] = useState("any");
   const [typeFilter, setTypeFilter] = useState("any");
   const [sortBy, setSortBy] = useState("newest");
-  const [selectedProjectId, setSelectedProjectId] = useState(PROJECTS[0].id);
+  const [projects, setProjects] = useState([]);
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [viewMode, setViewMode] = useState("list"); // list | details
+  const [isLoading, setIsLoading] = useState(true);
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProjects = async () => {
+      setIsLoading(true);
+      setNotice("");
+
+      try {
+        const rows = await requestService.listOpen();
+        if (!isMounted) {
+          return;
+        }
+
+        const normalizedRows = Array.isArray(rows) ? rows.map(toUiProject) : [];
+        setProjects(normalizedRows);
+        if (!normalizedRows.length) {
+          setNotice("Aucune demande client disponible pour le moment.");
+        }
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setProjects([]);
+        setNotice(error.message || "Impossible de charger les projets réels pour le moment.");
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadProjects();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const filteredProjects = useMemo(() => {
     const [minBudget, maxBudget] = BUDGET_RANGES[budgetFilter] ?? BUDGET_RANGES.any;
 
-    return PROJECTS.filter((project) => {
+    return projects.filter((project) => {
       const matchesCategory =
         selectedCategories.length === 0 ||
         selectedCategories.some((cat) => project.categories.includes(cat));
@@ -331,7 +301,7 @@ const FreelancerDashboard = forwardRef((_, ref) => {
       if (sortBy === "deadline") return new Date(a.deadline) - new Date(b.deadline);
       return new Date(b.posted) - new Date(a.posted); // newest
     });
-  }, [selectedCategories, budgetFilter, typeFilter, sortBy]);
+  }, [projects, selectedCategories, budgetFilter, typeFilter, sortBy]);
 
   useEffect(() => {
     if (filteredProjects.length === 0) {
@@ -396,14 +366,42 @@ const FreelancerDashboard = forwardRef((_, ref) => {
     },
   }));
 
-  const handleOffer = (payload) => {
-    console.log("Offre envoyée", payload);
-    alert("Offre envoyée au client.");
+  const handleOffer = async (payload) => {
+    try {
+      const project = payload?.project;
+      if (!project?.requestId) {
+        throw new Error("Demande invalide.");
+      }
+
+      await requestService.createProposal({
+        requestId: project.requestId,
+        proposedPrice: payload.price,
+        proposedDeadline: payload.deadline,
+        coverLetter: payload.cover,
+      });
+
+      alert("Proposition envoyée au client.");
+    } catch (error) {
+      alert(error.message || "Impossible d'envoyer la proposition.");
+    }
   };
 
-  const handleAccept = (payload) => {
-    console.log("Accord accepté", payload);
-    alert("Vous avez accepté l'accord du client.");
+  const handleAccept = async (payload) => {
+    try {
+      const project = payload?.project;
+      if (!project?.requestId) {
+        throw new Error("Demande invalide.");
+      }
+
+      await requestService.createProposal({
+        requestId: project.requestId,
+        coverLetter: "J'accepte les conditions du client et je suis disponible pour commencer rapidement.",
+      });
+
+      alert("Votre accord a été envoyé au client.");
+    } catch (error) {
+      alert(error.message || "Impossible d'accepter cette demande.");
+    }
   };
 
   if (viewMode === "details" && selectedProject) {
@@ -485,13 +483,23 @@ const FreelancerDashboard = forwardRef((_, ref) => {
           onTypeChange={setTypeFilter}
         />
 
+        {notice && (
+          <div className="glass-card p-4 text-sm text-slate-600">{notice}</div>
+        )}
+
         <div className="grid gap-5 grid-cols-1">
-          {filteredProjects.length === 0 && (
+          {isLoading && (
+            <div className="glass-card p-6 text-slate-600 freelancer-dashboard-empty">
+              Chargement des demandes correspondant a votre profil...
+            </div>
+          )}
+          {!isLoading && filteredProjects.length === 0 && (
             <div className="glass-card p-6 text-slate-600 freelancer-dashboard-empty">
               Aucun projet ne correspond à ces filtres pour l'instant.
             </div>
           )}
-          {filteredProjects.map((project) => (
+          {!isLoading &&
+            filteredProjects.map((project) => (
             <ProjectCard key={project.id} project={project} onView={() => openDetails(project.id)} />
           ))}
         </div>

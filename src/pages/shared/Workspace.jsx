@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { activeDeals, completedDeals, findDealById } from "../../data/deals";
 import "../../styles/landing.css";
 
 function formatTime(date) {
@@ -170,7 +169,7 @@ function getWorkspaceMeta(viewerRole, selectedDeal) {
 
   return {
     counterpartLabel: "Client",
-    counterpartName: selectedDeal.client || "Client confirme",
+    counterpartName: selectedDeal.client || selectedDeal.clientName || "Client confirme",
     conversationTarget: "client",
     actionLabel: "Soumettre une livraison",
   };
@@ -185,10 +184,30 @@ export default function Workspace({
   backLabel = "Retour a mes accords",
 }) {
   const uploadRef = useRef(null);
-  const selectedDeal = deal ?? findDealById(dealId) ?? activeDeals[0] ?? completedDeals[0] ?? null;
+  const selectedDeal = deal ?? null;
 
   if (!selectedDeal) {
-    return null;
+    return (
+      <div className="workspace-page">
+        <div className="workspace-back-row">
+          <button className="workspace-back-btn" onClick={() => onBack?.()}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12" />
+              <polyline points="12 19 5 12 12 5" />
+            </svg>
+            {backLabel}
+          </button>
+        </div>
+        <div className="workspace-layout">
+          <div className="workspace-deal-card">
+            <h2 className="workspace-deal-title">Aucun deal ouvert</h2>
+            <p className="workspace-deal-description">
+              Ouvrez un vrai deal depuis le dashboard client ou depuis Mes accords.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const participantName = getParticipantName(viewerRole, participantNameProp);

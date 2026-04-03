@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "../../utils/format";
 import ClientCreateRequest from "./ClientCreateRequest";
 import "./ClientRequests.css";
@@ -24,8 +24,12 @@ function normalizeDate(value) {
 }
 
 function getProposalStatusMeta(status) {
-  if (status === "rejected") {
+  if (status === "Refusee" || status === "rejected") {
     return { label: "Refusee", tone: "is-refused" };
+  }
+
+  if (status === "Acceptee" || status === "accepted") {
+    return { label: "Acceptee", tone: "is-accepted" };
   }
 
   return { label: "En attente", tone: "is-pending" };
@@ -61,6 +65,8 @@ function getProposalComparison(request, proposal) {
 
 export default function ClientRequests({
   requests,
+  isLoading = false,
+  errorMessage = "",
   onCreateRequest,
   onUpdateRequest,
   onAcceptProposal,
@@ -73,6 +79,7 @@ export default function ClientRequests({
   const [isEditing, setIsEditing] = useState(false);
   const [showFreelancers, setShowFreelancers] = useState(false);
   const [notice, setNotice] = useState("");
+  const createPanelRef = useRef(null);
 
   const filteredRequests = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -107,6 +114,17 @@ export default function ClientRequests({
     setShowFreelancers(false);
   }, [selectedRequestId]);
 
+  useEffect(() => {
+    if (!showCreateForm) {
+      return;
+    }
+
+    createPanelRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [showCreateForm]);
+
   const selectedRequest =
     requests.find((request) => request.id === selectedRequestId) ?? filteredRequests[0] ?? null;
 
@@ -119,55 +137,71 @@ export default function ClientRequests({
     [requests],
   );
 
-  const handleCreateRequest = (payload) => {
-    const createdRequest = onCreateRequest?.(payload);
-    if (!createdRequest) {
-      return;
-    }
+  const handleCreateRequest = async (payload) => {
+    try {
+      const createdRequest = await onCreateRequest?.(payload);
+      if (!createdRequest) {
+        return;
+      }
 
-    setShowCreateForm(false);
-    setSelectedRequestId(createdRequest.id);
-    setNotice("La demande a ete creee. Elle reste modifiable tant qu'aucun accord n'est accepte.");
+      setShowCreateForm(false);
+      setSelectedRequestId(createdRequest.id);
+      setNotice("La demande a ete creee. Elle reste modifiable tant qu'aucun accord n'est accepte.");
+    } catch (error) {
+      setNotice(error.message || "Impossible de creer la demande.");
+    }
   };
 
-  const handleUpdateRequest = (payload) => {
+  const handleUpdateRequest = async (payload) => {
     if (!selectedRequest) {
       return;
     }
 
-    const updatedRequest = onUpdateRequest?.(selectedRequest.id, payload);
-    if (!updatedRequest) {
-      return;
-    }
+    try {
+      const updatedRequest = await onUpdateRequest?.(selectedRequest.id, payload);
+      if (!updatedRequest) {
+        return;
+      }
 
-    setIsEditing(false);
-    setNotice("La demande a ete mise a jour avec succes.");
+      setIsEditing(false);
+      setNotice("La demande a ete mise a jour avec succes.");
+    } catch (error) {
+      setNotice(error.message || "Impossible de mettre a jour la demande.");
+    }
   };
 
-  const handleAcceptProposal = (proposal) => {
+  const handleAcceptProposal = async (proposal) => {
     if (!selectedRequest) {
       return;
     }
 
-    const createdDeal = onAcceptProposal?.(selectedRequest.id, proposal.id);
-    if (!createdDeal) {
-      return;
-    }
+    try {
+      const createdDeal = await onAcceptProposal?.(selectedRequest.id, proposal.id);
+      if (!createdDeal) {
+        return;
+      }
 
-    setNotice("La proposition a ete acceptee.");
+      setNotice("La proposition a ete acceptee.");
+    } catch (error) {
+      setNotice(error.message || "Impossible d'accepter la proposition.");
+    }
   };
 
-  const handleRejectProposal = (proposal) => {
+  const handleRejectProposal = async (proposal) => {
     if (!selectedRequest) {
       return;
     }
 
-    const updatedProposal = onRejectProposal?.(selectedRequest.id, proposal.id);
-    if (!updatedProposal) {
-      return;
-    }
+    try {
+      const updatedProposal = await onRejectProposal?.(selectedRequest.id, proposal.id);
+      if (!updatedProposal) {
+        return;
+      }
 
-    setNotice("La proposition du freelancer a ete refusee.");
+      setNotice("La proposition du freelancer a ete refusee.");
+    } catch (error) {
+      setNotice(error.message || "Impossible de refuser la proposition.");
+    }
   };
 
   return (
@@ -215,28 +249,38 @@ export default function ClientRequests({
           <button
             type="button"
             className={`client-requests-create-btn ${showCreateForm ? "active" : ""}`}
-            onClick={() => setShowCreateForm((current) => !current)}
+            onClick={() => {
+              setNotice("");
+              setShowCreateForm((current) => !current);
+            }}
           >
             {showCreateForm ? "Fermer la creation" : "Creer une nouvelle demande"}
           </button>
         </div>
 
-        {notice && <div className="client-requests-notice">{notice}</div>}
+        {(notice || errorMessage) && (
+          <div className="client-requests-notice">{errorMessage || notice}</div>
+        )}
 
         {showCreateForm && (
-          <div className="client-requests-create-panel">
+          <div className="client-requests-create-panel" ref={createPanelRef}>
             <ClientCreateRequest
               onCreateRequest={handleCreateRequest}
               onCancel={() => setShowCreateForm(false)}
               submitLabel="Publier la demande"
-              note="Votre projet sera ajoute a la liste des demandes en attente."
+              note="Remplissez le minimum utile pour publier: titre, description, categorie, budget et date. Les competences sont optionnelles."
             />
           </div>
         )}
 
         <div className="client-requests-layout">
           <section className="client-requests-list">
-            {filteredRequests.length === 0 ? (
+            {isLoading ? (
+              <div className="client-requests-empty">
+                <strong>Chargement des demandes</strong>
+                <p>Nous recuperons vos demandes et propositions en cours.</p>
+              </div>
+            ) : filteredRequests.length === 0 ? (
               <div className="client-requests-empty">
                 <strong>Aucune demande correspondante</strong>
                 <p>Essayez une autre recherche ou publiez une nouvelle demande.</p>
@@ -391,7 +435,8 @@ export default function ClientRequests({
                       {selectedRequest.proposals.map((proposal) => {
                         const proposalStatus = getProposalStatusMeta(proposal.status);
                         const comparison = getProposalComparison(selectedRequest, proposal);
-                        const isPending = proposal.status === "pending";
+                        const isPending =
+                          proposal.status === "En attente" || proposal.status === "pending";
 
                         return (
                           <article key={proposal.id} className="client-request-proposal">

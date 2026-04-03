@@ -1,14 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Footer from "../../components/Footer";
 import Navbar from "../../components/Navbar";
 import {
-  createClientDealFromRequest,
-  createClientRequest,
   getFreelancerProfileById,
-  initialClientDeals,
-  initialClientRequests,
   initialFreelancerFeedbackById,
-  updateClientRequest,
 } from "../../data/clientData";
 import ClientDashboard from "./ClientDashboard";
 import ClientFreelancerProfile from "./ClientFreelancerProfile";
@@ -16,6 +11,8 @@ import ClientRequests from "./ClientRequests";
 import ClientWallet from "./ClientWallet";
 import FreelancerProfile from "../freelancer/FreelancerProfile";
 import Workspace from "../shared/Workspace";
+import { dealService, toUiDeal } from "../../services/dealService";
+import { requestService } from "../../services/requestService";
 
 const FEEDBACK_STORAGE_KEY = "client_feedback_directory";
 
@@ -30,7 +27,7 @@ function resolveClientName() {
 }
 
 function getInitialDeal() {
-  return initialClientDeals.find((deal) => deal.daysLeft !== null) ?? initialClientDeals[0] ?? null;
+  return null;
 }
 
 function resolveInitialClientPage(hasDeal) {
@@ -57,21 +54,87 @@ function loadFeedbackDirectory() {
   }
 }
 
+function wait(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
 export default function ClientShell() {
   const initialDeal = getInitialDeal();
   const [page, setPage] = useState(() => resolveInitialClientPage(Boolean(initialDeal)));
-  const [requests, setRequests] = useState(initialClientRequests);
-  const [deals, setDeals] = useState(initialClientDeals);
+  const [requests, setRequests] = useState([]);
+  const [deals, setDeals] = useState([]);
   const [selectedDeal, setSelectedDeal] = useState(initialDeal);
   const [selectedFreelancerId, setSelectedFreelancerId] = useState(null);
   const [feedbackDirectory, setFeedbackDirectory] = useState(loadFeedbackDirectory);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [requestsError, setRequestsError] = useState("");
 
   const clientName = useMemo(() => resolveClientName(), []);
+  const openRequests = useMemo(
+    () => requests.filter((request) => request.status === "Ouverte"),
+    [requests],
+  );
   const activeDealsCount = deals.filter((deal) => deal.daysLeft !== null).length;
   const completedDealsCount = deals.filter((deal) => deal.daysLeft === null).length;
   const selectedFreelancerProfile = selectedFreelancerId
     ? getFreelancerProfileById(selectedFreelancerId)
     : null;
+
+  const loadDealsWithRetry = async (matcher = null) => {
+    let latestDeals = [];
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      latestDeals = await dealService.listMine();
+      if (!matcher || latestDeals.some(matcher)) {
+        return latestDeals;
+      }
+      await wait(250);
+    }
+
+    return latestDeals;
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadClientData = async () => {
+      setIsLoadingData(true);
+      setRequestsError("");
+
+      try {
+        const [requestRows, dealRows] = await Promise.all([
+          requestService.listMine(),
+          loadDealsWithRetry(),
+        ]);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setRequests(requestRows);
+        setDeals(dealRows);
+        setSelectedDeal((current) => current ?? dealRows[0] ?? null);
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setRequestsError(error.message || "Impossible de charger les donnees client.");
+      } finally {
+        if (isMounted) {
+          setIsLoadingData(false);
+        }
+      }
+    };
+
+    loadClientData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const openWorkspace = (dealOrId) => {
     const resolvedDeal =
@@ -92,83 +155,63 @@ export default function ClientShell() {
     setPage("freelancerProfile");
   };
 
-  const handleCreateRequest = (payload) => {
-    const createdRequest = createClientRequest(payload);
+  const handleCreateRequest = async (payload) => {
+    const createdRequest = await requestService.create(payload);
     setRequests((current) => [createdRequest, ...current]);
     return createdRequest;
   };
 
-  const handleUpdateRequest = (requestId, payload) => {
-    let updatedRequest = null;
-
+  const handleUpdateRequest = async (requestId, payload) => {
+    const updatedRequest = await requestService.update(requestId, payload);
     setRequests((current) =>
-      current.map((item) => {
-        if (item.id !== requestId) {
-          return item;
-        }
-
-        updatedRequest = updateClientRequest(item, payload);
-        return updatedRequest;
-      })
+      current.map((item) => (item.id === requestId ? updatedRequest : item)),
     );
-
     return updatedRequest;
   };
 
-  const handleAcceptProposal = (requestId, proposalId) => {
-    const request = requests.find((item) => item.id === requestId);
-    const proposal = request?.proposals.find((item) => item.id === proposalId);
+  const handleAcceptProposal = async (requestId, proposalId) => {
+    const acceptanceResult = await requestService.acceptProposal(proposalId);
+    const acceptedDeal = acceptanceResult?.deal ? toUiDeal(acceptanceResult.deal) : null;
+    const [nextRequests, nextDeals] = await Promise.all([
+      requestService.listMine(),
+      loadDealsWithRetry((deal) => deal.requestId === requestId && deal.proposalId === proposalId),
+    ]);
+    const createdDeal =
+      acceptedDeal ??
+      nextDeals.find((deal) => deal.requestId === requestId && deal.proposalId === proposalId) ??
+      nextDeals[0] ??
+      null;
 
-    if (!request || !proposal) {
-      return null;
-    }
+    setRequests((current) => {
+      const apiRequests = Array.isArray(nextRequests) ? nextRequests : [];
+      const filteredCurrent = current.filter((item) => item.id !== requestId);
+      if (apiRequests.length > 0) {
+        return apiRequests.filter((item) => item.status === "Ouverte");
+      }
+      return filteredCurrent;
+    });
 
-    const agreement = request.negotiable
-      ? {
-          price: Number(proposal.rate),
-          deadline: proposal.proposedDeadline ?? request.deadline,
-        }
-      : {
-          price: Number(request.budget),
-          deadline: request.deadline,
-        };
+    setDeals((current) => {
+      if (!createdDeal) {
+        return Array.isArray(nextDeals) ? nextDeals : current;
+      }
 
-    const createdDeal = createClientDealFromRequest(request, proposal, agreement);
+      const mergedDeals = Array.isArray(nextDeals) && nextDeals.length > 0 ? nextDeals : current;
+      const withoutDuplicate = mergedDeals.filter((deal) => deal.id !== createdDeal.id);
+      return [createdDeal, ...withoutDuplicate];
+    });
 
-    setDeals((current) => [createdDeal, ...current]);
-    setRequests((current) => current.filter((item) => item.id !== requestId));
     setSelectedDeal(createdDeal);
-    setPage("dashboard");
-
+    setPage(createdDeal ? "workspace" : "dashboard");
     return createdDeal;
   };
 
-  const handleRejectProposal = (requestId, proposalId) => {
-    let updatedProposal = null;
-
-    setRequests((current) =>
-      current.map((request) => {
-        if (request.id !== requestId) {
-          return request;
-        }
-
-        return {
-          ...request,
-          proposals: request.proposals.map((proposal) => {
-            if (proposal.id !== proposalId) {
-              return proposal;
-            }
-
-            updatedProposal = {
-              ...proposal,
-              status: "rejected",
-            };
-            return updatedProposal;
-          }),
-        };
-      })
-    );
-
+  const handleRejectProposal = async (requestId, proposalId) => {
+    await requestService.rejectProposal(proposalId);
+    const nextRequests = await requestService.listMine();
+    const updatedRequest = nextRequests.find((item) => item.id === requestId);
+    const updatedProposal = updatedRequest?.proposals.find((item) => item.id === proposalId) ?? null;
+    setRequests(nextRequests);
     return updatedProposal;
   };
 
@@ -217,14 +260,16 @@ export default function ClientShell() {
         {page === "dashboard" && (
           <ClientDashboard
             deals={deals}
-            pendingRequestsCount={requests.length}
+            pendingRequestsCount={openRequests.length}
             onOpenWorkspace={openWorkspace}
           />
         )}
 
         {page === "requests" && (
           <ClientRequests
-            requests={requests}
+            requests={openRequests}
+            isLoading={isLoadingData}
+            errorMessage={requestsError}
             onCreateRequest={handleCreateRequest}
             onUpdateRequest={handleUpdateRequest}
             onAcceptProposal={handleAcceptProposal}
@@ -240,7 +285,7 @@ export default function ClientShell() {
             stats={[
               {
                 label: "Demandes",
-                value: String(requests.length),
+                value: String(openRequests.length),
                 delta: "Actif",
                 accent: "indigo",
               },

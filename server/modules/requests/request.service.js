@@ -2,91 +2,144 @@ import { requestRepository } from "./request.repository.js";
 import AppError from "../../utils/AppError.js";
 import { paginate } from "../../utils/pagination.js";
 
-export const requestService = {
-  // Créer une demande (client uniquement)
-  async createRequest(user, data) {
-    if (user.role !== "client") {
-      throw new AppError("Seuls les clients peuvent publier des demandes", 403);
-    }
+// Transitions de statut autorisées
+const STATUS_TRANSITIONS = {
+  "Ouverte":   ["En cours", "Fermee"],
+  "En cours":  ["Fermee"],
+  "Fermee":    [],
+};
 
-    const request = await requestRepository.create(user.id, data);
-    return request;
+export const requestService = {
+
+  createRequest: async (clientId, data) => {
+    const id = await requestRepository.create({ client_id: clientId, ...data });
+    return requestRepository.findById(id);
   },
 
-  // Obtenir une demande par ID
-  async getRequestById(id) {
+  getRequestById: async (id) => {
     const request = await requestRepository.findById(id);
     if (!request) throw new AppError("Demande introuvable", 404);
-
     return request;
   },
 
-  // Lister toutes les demandes (publiques)
-  async getAllRequests(query) {
-    const { total, rows } = await requestRepository.findAll(query);
-    return paginate(rows, total, query.page, query.limit);
+  getAllRequests: async (queryParams) => {
+    const {
+      domain, status, minBudget, maxBudget, negotiable,
+      page = 1, limit = 10,
+      sortBy = "created_at", sortOrder = "DESC",
+    } = queryParams;
+
+    const { rows, total } = await requestRepository.findAll({
+      domain,
+      status,
+      minBudget:  minBudget  ? parseFloat(minBudget)  : undefined,
+      maxBudget:  maxBudget  ? parseFloat(maxBudget)  : undefined,
+      negotiable: negotiable !== undefined
+        ? negotiable === "true" || negotiable === true
+        : undefined,
+      page:  parseInt(page),
+      limit: parseInt(limit),
+      sortBy,
+      sortOrder,
+    });
+
+    return paginate(rows, total, parseInt(page), parseInt(limit));
   },
 
-  // Mes demandes (client connecté)
-  async getMyRequests(clientId, query) {
-    const rows = await requestRepository.findByClientId(clientId, query);
-    return rows;
+  getClientRequests: async (clientId, queryParams) => {
+    const { page = 1, limit = 10 } = queryParams;
+    const { rows, total } = await requestRepository.findByClientId(clientId, {
+      page: parseInt(page), limit: parseInt(limit),
+    });
+    return paginate(rows, total, parseInt(page), parseInt(limit));
   },
 
-  // Modifier une demande
-  async updateRequest(requestId, userId, role, data) {
+  updateRequest: async (requestId, userId, userRole, data) => {
     const request = await requestRepository.findById(requestId);
     if (!request) throw new AppError("Demande introuvable", 404);
 
-    const isOwner = await requestRepository.isOwner(requestId, userId);
-    if (!isOwner && role !== "admin") {
-      throw new AppError("Action non autorisée", 403);
-    }
+    if (userRole !== "admin" && request.clientId !== userId)
+      throw new AppError("Non autorisé à modifier cette demande", 403);
 
-    if (request.status !== "open" && role !== "admin") {
+    if (userRole !== "admin" && request.status !== "Ouverte")
+      throw new AppError("Seules les demandes ouvertes peuvent être modifiées", 400);
+
+    await requestRepository.update(requestId, data);
+    return requestRepository.findById(requestId);
+  },
+
+  changeRequestStatus: async (requestId, userId, userRole, newStatus) => {
+    const request = await requestRepository.findById(requestId);
+    if (!request) throw new AppError("Demande introuvable", 404);
+
+    if (userRole !== "admin" && request.clientId !== userId)
+      throw new AppError("Non autorisé", 403);
+
+    // Vérifier la transition de statut
+    const allowed = STATUS_TRANSITIONS[request.status] ?? [];
+    if (!allowed.includes(newStatus))
       throw new AppError(
-        "Impossible de modifier une demande déjà en cours ou terminée",
-        400
+        `Transition invalide : "${request.status}" → "${newStatus}"`, 400
       );
-    }
 
-    const updated = await requestRepository.update(requestId, data);
-    return updated;
+    await requestRepository.update(requestId, { status: newStatus });
+    return requestRepository.findById(requestId);
   },
 
-  // Supprimer une demande (soft delete)
-  async deleteRequest(requestId, userId, role) {
+  /**
+   * Méthode interne — appelée par le module proposals (membre 3)
+   * sans vérification de rôle/ownership car déjà validé côté proposal.
+   * Ex: quand une proposal est acceptée → request passe à "En cours"
+   *     quand le deal est finalisé      → request passe à "Fermee"
+   */
+  setRequestStatusInternal: async (requestId, newStatus) => {
     const request = await requestRepository.findById(requestId);
     if (!request) throw new AppError("Demande introuvable", 404);
 
-    const isOwner = await requestRepository.isOwner(requestId, userId);
-    if (!isOwner && role !== "admin") {
-      throw new AppError("Action non autorisée", 403);
-    }
-
-    if (request.status === "in_progress") {
+    const allowed = STATUS_TRANSITIONS[request.status] ?? [];
+    if (!allowed.includes(newStatus))
       throw new AppError(
-        "Impossible de supprimer une demande en cours",
-        400
+        `Transition invalide : "${request.status}" → "${newStatus}"`, 400
       );
-    }
 
-    await requestRepository.softDelete(requestId);
-
-    return { message: "Demande supprimée avec succès" };
+    await requestRepository.update(requestId, { status: newStatus });
+    return requestRepository.findById(requestId);
   },
 
-  // Changer le statut (admin ou système)
-  async changeStatus(requestId, status, userId, role) {
+  deleteRequest: async (requestId, userId, userRole) => {
     const request = await requestRepository.findById(requestId);
     if (!request) throw new AppError("Demande introuvable", 404);
 
-    const isOwner = await requestRepository.isOwner(requestId, userId);
-    if (!isOwner && role !== "admin") {
-      throw new AppError("Action non autorisée", 403);
-    }
+    if (userRole !== "admin" && request.clientId !== userId)
+      throw new AppError("Non autorisé à supprimer cette demande", 403);
 
-    const updated = await requestRepository.update(requestId, { status });
-    return updated;
+    const affected = await requestRepository.remove(requestId);
+    if (!affected)
+      throw new AppError("Impossible de supprimer : la demande n'est plus ouverte", 400);
+  },
+
+  getAvailableDomains: async () => requestRepository.findDistinctDomains(),
+
+  getFreelancerDomains: async (freelancerId) =>
+    requestRepository.findFreelancerDomains(freelancerId),
+
+  addDomainToFreelancer: async (freelancerId, domain) => {
+    await requestRepository.addFreelancerDomain(freelancerId, domain.trim());
+    return requestRepository.findFreelancerDomains(freelancerId);
+  },
+
+  removeDomainFromFreelancer: async (freelancerId, domain) => {
+    const affected = await requestRepository.removeFreelancerDomain(freelancerId, domain);
+    if (!affected) throw new AppError("Domaine introuvable pour ce freelancer", 404);
+    return requestRepository.findFreelancerDomains(freelancerId);
+  },
+
+  getMatchingRequests: async (freelancerId, queryParams) => {
+    const { page = 1, limit = 10 } = queryParams;
+    const { rows, total } = await requestRepository.findRequestsMatchingFreelancer(
+      freelancerId,
+      { page: parseInt(page), limit: parseInt(limit) }
+    );
+    return paginate(rows, total, parseInt(page), parseInt(limit));
   },
 };

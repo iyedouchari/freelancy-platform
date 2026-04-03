@@ -1,67 +1,131 @@
-import { successResponse } from "../../utils/apiResponse.js";
+import { successResponse, errorResponse } from "../../utils/apiResponse.js";
+import { requestService } from "./request.service.js";
+
 
 export const getrequestStatus = async (_req, res) => {
   return successResponse(res, {
-    statusCode: 501,
-    message: "requests module is scaffolded but not implemented yet.",
+    statuses: ["Ouverte", "En cours", "Fermee"],
+    negotiable: [true, false],
+    message: "requests module is operational.",
   });
 };
-import { requestService } from "./request.service.js";
-import { asyncHandler } from "../../utils/asyncHandler.js";
-import { sendSuccess } from "../../utils/apiResponse.js";
 
-// POST /api/requests
-export const createRequest = asyncHandler(async (req, res) => {
-  const request = await requestService.createRequest(req.user, req.body);
-  sendSuccess(res, request, "Demande créée avec succès", 201);
-});
 
-// GET /api/requests
-export const getAllRequests = asyncHandler(async (req, res) => {
-  const result = await requestService.getAllRequests(req.query);
-  sendSuccess(res, result, "Liste des demandes");
-});
+export const createRequest = async (req, res) => {
+  try {
+    const request = await requestService.createRequest(req.user.id, req.body);
+    return successResponse(res, { statusCode: 201, data: request, message: "Demande créée avec succès" });
+  } catch (err) {
+    return errorResponse(res, { statusCode: err.statusCode || 500, message: err.message });
+  }
+};
 
-// GET /api/requests/my
-export const getMyRequests = asyncHandler(async (req, res) => {
-  const requests = await requestService.getMyRequests(req.user.id, req.query);
-  sendSuccess(res, requests, "Vos demandes");
-});
+export const getAllRequests = async (req, res) => {
+  try {
+    const result = await requestService.getAllRequests(req.query);
+    return successResponse(res, { statusCode: 200, data: result });
+  } catch (err) {
+    return errorResponse(res, { statusCode: err.statusCode || 500, message: err.message });
+  }
+};
 
-// GET /api/requests/:id
-export const getRequestById = asyncHandler(async (req, res) => {
-  const request = await requestService.getRequestById(req.params.id);
-  sendSuccess(res, request, "Détail de la demande");
-});
 
-// PUT /api/requests/:id
-export const updateRequest = asyncHandler(async (req, res) => {
-  const updated = await requestService.updateRequest(
-    req.params.id,
-    req.user.id,
-    req.user.role,
-    req.body
-  );
-  sendSuccess(res, updated, "Demande mise à jour");
-});
+export const getAvailableDomains = async (_req, res) => {
+  try {
+    const domains = await requestService.getAvailableDomains();
+    return successResponse(res, { statusCode: 200, data: domains });
+  } catch (err) {
+    return errorResponse(res, { statusCode: err.statusCode || 500, message: err.message });
+  }
+};
 
-// DELETE /api/requests/:id
-export const deleteRequest = asyncHandler(async (req, res) => {
-  const result = await requestService.deleteRequest(
-    req.params.id,
-    req.user.id,
-    req.user.role
-  );
-  sendSuccess(res, result, "Demande supprimée");
-});
 
-// PATCH /api/requests/:id/status
-export const changeRequestStatus = asyncHandler(async (req, res) => {
-  const updated = await requestService.changeStatus(
-    req.params.id,
-    req.body.status,
-    req.user.id,
-    req.user.role
-  );
-  sendSuccess(res, updated, "Statut mis à jour");
-});
+export const getMyRequests = async (req, res) => {
+  try {
+    const result = await requestService.getClientRequests(req.user.id, req.query);
+    return successResponse(res, { statusCode: 200, data: result });
+  } catch (err) {
+    return errorResponse(res, { statusCode: err.statusCode || 500, message: err.message });
+  }
+};
+
+
+export const getMatchingRequests = async (req, res) => {
+  try {
+    const result = await requestService.getMatchingRequests(req.user.id, req.query);
+    return successResponse(res, { statusCode: 200, data: result });
+  } catch (err) {
+    return errorResponse(res, { statusCode: err.statusCode || 500, message: err.message });
+  }
+};
+
+
+export const getRequestById = async (req, res) => {
+  try {
+    const request = await requestService.getRequestById(parseInt(req.params.id));
+    return successResponse(res, { statusCode: 200, data: request });
+  } catch (err) {
+    return errorResponse(res, { statusCode: err.statusCode || 500, message: err.message });
+  }
+};
+
+export const updateRequest = async (req, res) => {
+  try {
+    const request = await requestService.updateRequest(
+      parseInt(req.params.id), req.user.id, req.user.role, req.body
+    );
+    return successResponse(res, { statusCode: 200, data: request, message: "Demande mise à jour" });
+  } catch (err) {
+    return errorResponse(res, { statusCode: err.statusCode || 500, message: err.message });
+  }
+};
+
+
+export const changeStatus = async (req, res) => {
+  try {
+    const request = await requestService.changeRequestStatus(
+      parseInt(req.params.id), req.user.id, req.user.role, req.body.status
+    );
+    return successResponse(res, { statusCode: 200, data: request, message: "Statut mis à jour" });
+  } catch (err) {
+    return errorResponse(res, { statusCode: err.statusCode || 500, message: err.message });
+  }
+};
+
+
+export const deleteRequest = async (req, res) => {
+  try {
+    await requestService.deleteRequest(parseInt(req.params.id), req.user.id, req.user.role);
+    return successResponse(res, { statusCode: 200, message: "Demande supprimée avec succès" });
+  } catch (err) {
+    return errorResponse(res, { statusCode: err.statusCode || 500, message: err.message });
+  }
+};
+
+
+export const getMyDomains = async (req, res) => {
+  try {
+    const domains = await requestService.getFreelancerDomains(req.user.id);
+    return successResponse(res, { statusCode: 200, data: domains });
+  } catch (err) {
+    return errorResponse(res, { statusCode: err.statusCode || 500, message: err.message });
+  }
+};
+
+export const addMyDomain = async (req, res) => {
+  try {
+    const domains = await requestService.addDomainToFreelancer(req.user.id, req.body.domain);
+    return successResponse(res, { statusCode: 200, data: domains, message: "Domaine ajouté" });
+  } catch (err) {
+    return errorResponse(res, { statusCode: err.statusCode || 500, message: err.message });
+  }
+};
+
+export const removeMyDomain = async (req, res) => {
+  try {
+    const domains = await requestService.removeDomainFromFreelancer(req.user.id, req.params.domain);
+    return successResponse(res, { statusCode: 200, data: domains, message: "Domaine supprimé" });
+  } catch (err) {
+    return errorResponse(res, { statusCode: err.statusCode || 500, message: err.message });
+  }
+};

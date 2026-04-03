@@ -9,7 +9,12 @@ This project now includes an Express API for:
 - JWT generation and validation
 - Protected routes with `authMiddleware`
 
-## Run
+## Prerequisites
+
+- **Node.js** (v16 or higher)
+- **MySQL** (running locally or remote)
+
+## Setup & Run
 
 1. Install dependencies:
 
@@ -17,19 +22,38 @@ This project now includes an Express API for:
 npm install
 ```
 
-2. Create local env:
+2. Create `.env` file from example:
 
 ```bash
 cp .env.example .env
 ```
 
-3. Start frontend + backend:
+3. Configure `.env` with your MySQL credentials:
 
-```bash
-npm run dev:all
+```
+DB_HOST=your-database-host
+DB_USER=your-db-username
+DB_PASSWORD=your-db-password
+DB_NAME=freelancy
+JWT_SECRET=your-long-random-secret-key
 ```
 
-Frontend runs on `http://localhost:5173` and API on `http://localhost:4000`.
+4. Initialize the database schema:
+
+```bash
+npm run db:init
+```
+
+5. Start frontend + backend:
+
+```bash
+npm run dev
+```
+(Frontend on `http://localhost:5173`, API on `http://localhost:4000`)
+
+Or run them separately:
+- Frontend: `npm run dev`
+- Server: `npm run dev:server`
 
 ## API routes
 

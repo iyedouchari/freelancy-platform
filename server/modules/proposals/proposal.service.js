@@ -1,4 +1,5 @@
 import AppError from "../../utils/AppError.js";
+import { dealRepository } from "../deals/deal.repository.js";
 import { getDb } from "../../config/db.js";
 import { requestRepository } from "../requests/request.repository.js";
 import { proposalRepository } from "./proposal.repository.js";
@@ -115,16 +116,35 @@ export const proposalService = {
     }
 
     if (status === "Refusee") {
-      return proposalRepository.updateStatus(normalizedProposalId, status);
+      const updatedProposal = await proposalRepository.updateStatus(normalizedProposalId, status);
+      return {
+        proposal: updatedProposal,
+        deal: null,
+      };
     }
 
     const connection = await db.getConnection();
+    let createdOrExistingDeal = null;
 
     try {
       await connection.beginTransaction();
       await proposalRepository.updateStatus(normalizedProposalId, "Acceptee", connection);
       await proposalRepository.rejectOtherProposals(proposal.requestId, normalizedProposalId, connection);
       await requestRepository.markStatus(proposal.requestId, "En cours", connection);
+
+      const request = await requestRepository.findById(proposal.requestId, connection);
+      const existingDeal = await dealRepository.findByProposalId(normalizedProposalId, connection);
+
+      if (!existingDeal && request) {
+        createdOrExistingDeal = await dealRepository.createFromAcceptedProposal(
+          proposal,
+          request,
+          connection,
+        );
+      } else {
+        createdOrExistingDeal = existingDeal;
+      }
+
       await connection.commit();
     } catch (error) {
       await connection.rollback();
@@ -133,7 +153,14 @@ export const proposalService = {
       connection.release();
     }
 
-    return proposalRepository.findById(normalizedProposalId);
+    const updatedProposal = await proposalRepository.findById(normalizedProposalId);
+    const finalDeal =
+      createdOrExistingDeal ?? (await dealRepository.findByProposalId(normalizedProposalId));
+
+    return {
+      proposal: updatedProposal,
+      deal: finalDeal,
+    };
   },
 
   async sendClientResponse(proposalId, userId, role, payload) {
