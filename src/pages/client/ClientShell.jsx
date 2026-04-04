@@ -13,6 +13,7 @@ import FreelancerProfile from "../freelancer/FreelancerProfile";
 import Workspace from "../shared/Workspace";
 import { dealService, toUiDeal } from "../../services/dealService";
 import { requestService } from "../../services/requestService";
+import socket from "../../services/socket.js";
 
 const FEEDBACK_STORAGE_KEY = "client_feedback_directory";
 
@@ -323,6 +324,8 @@ export default function ClientShell() {
             viewerRole="client"
             participantName={clientName}
             backLabel="Retour au tableau de bord client"
+            socket={socket}
+            myUserId={localStorage.getItem("user_id")}
           />
         )}
       </main>

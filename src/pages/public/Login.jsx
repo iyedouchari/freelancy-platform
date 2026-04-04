@@ -38,6 +38,7 @@ const Login = () => {
 
       localStorage.setItem("auth_token", token);
       localStorage.setItem("app_role", role);
+      localStorage.setItem("user_id", String(user.id ?? user.userId ?? ""));
 
       if (role === "client") {
         localStorage.setItem("client_name", user.name || "Client");
