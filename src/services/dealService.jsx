@@ -56,6 +56,7 @@ export const toUiDeal = (deal) => {
     id: deal.id,
     requestId: deal.requestId,
     proposalId: deal.proposalId,
+    clientId: deal.clientId,
     freelancerId: deal.freelancerId,
     freelancer: deal.freelancerName,
     client: deal.clientName,

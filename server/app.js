@@ -15,14 +15,21 @@ import reviewRoutes from "./modules/reviews/review.routes.js";
 import userRoutes from "./modules/users/user.routes.js";
 import walletRoutes from "./modules/wallet/wallet.routes.js";
 import { successResponse } from "./utils/apiResponse.js";
+import { fileURLToPath } from 'url';
+import path from 'path';
 
 const app = express();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsDir = path.resolve(__dirname, "./uploads");
 
 app.disable("x-powered-by");
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "1mb" }));
 app.use(loggerMiddleware);
 app.use(rateLimitMiddleware({ windowMs: 60_000, max: 100 }));
+app.use("/uploads", express.static(uploadsDir));
 
 app.get("/api/health", (_req, res) => {
   return successResponse(res, {

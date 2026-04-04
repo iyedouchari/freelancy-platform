@@ -163,3 +163,6 @@ export const dealRepository = {
     return rows.map(mapDealRow);
   },
 };
+
+
+

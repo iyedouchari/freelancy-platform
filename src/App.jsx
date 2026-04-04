@@ -5,6 +5,7 @@ import Footer from "./components/Footer";
 import FreelancerDashboard from "./pages/freelancer/FreelancerDashboard";
 import FreelancerDeals from "./pages/freelancer/FreelancerDeals";
 import FreelancerProfile from "./pages/freelancer/FreelancerProfile";
+import FreelancerWallet from "./pages/freelancer/FreelancerWallet";
 import ClientShell from "./pages/client/ClientShell";
 import Landing from "./pages/public/Landing";
 import Login from "./pages/public/Login";
@@ -12,24 +13,29 @@ import Register from "./pages/public/Register";
 import Workspace from "./pages/shared/Workspace";
 import { dealService } from "./services/dealService";
 
+// Socket initialisé une seule fois
+import socket from "./services/socket.js"; // ou le chemin où tu mets le fichier
 function getStoredSession() {
   return {
     role: localStorage.getItem("app_role"),
     token: localStorage.getItem("auth_token"),
+    userId: localStorage.getItem("user_id"),
   };
 }
 
 function isAuthenticated() {
-  const session = getStoredSession();
-  return Boolean(session.role && session.token);
+  const { role, token } = getStoredSession();
+  return Boolean(role && token);
 }
 
+// ── Shell Freelancer ──────────────────────────────────────────────────────────
 const FreelancerShell = () => {
   const dashboardRef = useRef(null);
   const [page, setPage] = useState("dashboard");
+  const [selectedDealId, setSelectedDealId] = useState(null);
   const [deals, setDeals] = useState([]);
-  const [selectedDeal, setSelectedDeal] = useState(null);
   const [isLoadingDeals, setIsLoadingDeals] = useState(true);
+  const session = getStoredSession();
 
   useEffect(() => {
     let isMounted = true;
@@ -38,18 +44,11 @@ const FreelancerShell = () => {
       setIsLoadingDeals(true);
 
       try {
-        const dealRows = await dealService.listMine();
-        if (!isMounted) {
-          return;
-        }
-
-        setDeals(dealRows);
-        setSelectedDeal((current) => current ?? dealRows[0] ?? null);
-      } catch (error) {
-        if (!isMounted) {
-          return;
-        }
-
+        const rows = await dealService.listMine();
+        if (!isMounted) return;
+        setDeals(rows);
+      } catch {
+        if (!isMounted) return;
         setDeals([]);
       } finally {
         if (isMounted) {
@@ -60,43 +59,20 @@ const FreelancerShell = () => {
 
     loadDeals();
 
-    const handleVisibilityRefresh = () => {
-      if (document.visibilityState === "visible") {
-        loadDeals();
-      }
-    };
-
-    window.addEventListener("focus", loadDeals);
-    document.addEventListener("visibilitychange", handleVisibilityRefresh);
-
     return () => {
       isMounted = false;
-      window.removeEventListener("focus", loadDeals);
-      document.removeEventListener("visibilitychange", handleVisibilityRefresh);
     };
   }, []);
 
-  const goToDashboard = () => {
-    dashboardRef.current?.goDashboard?.();
-    setPage("dashboard");
-  };
+  const goToDashboard = () => setPage("dashboard");
+  const goToDeals    = () => setPage("deals");
+  const goToWallet   = () => setPage("wallet");
+  const goToProfile  = () => setPage("profile");
 
-  const goToDeals = () => setPage("deals");
-  const goToProfile = () => setPage("profile");
-
-  const goToWorkspace = (dealOrId) => {
-    const resolvedDeal =
-      typeof dealOrId === "object"
-        ? dealOrId
-        : deals.find((deal) => deal.id === dealOrId) ?? deals[0] ?? null;
-
-    if (resolvedDeal) {
-      setSelectedDeal(resolvedDeal);
-    }
+  const goToWorkspace = (dealId) => {
+    setSelectedDealId(dealId);
     setPage("workspace");
   };
-
-  const activeNavPage = page === "workspace" ? "deals" : page;
 
   return (
     <div className="app-shell">
@@ -104,28 +80,27 @@ const FreelancerShell = () => {
         onDashboard={goToDashboard}
         onProfile={goToProfile}
         onDeals={goToDeals}
-        activePage={activeNavPage}
+        onWallet={goToWallet}
+        activePage={page === "workspace" ? "deals" : page}
       />
       <main className="app-main">
-        {page === "dashboard" && (
-          <FreelancerDashboard ref={dashboardRef} />
-        )}
+        {page === "dashboard" && <FreelancerDashboard ref={dashboardRef} />}
         {page === "deals" && (
           <FreelancerDeals
             deals={deals}
             isLoading={isLoadingDeals}
-            onBack={() => setPage("dashboard")}
+            onBack={goToDashboard}
             onOpenWorkspace={goToWorkspace}
           />
         )}
-        {page === "profile" && (
-          <FreelancerProfile onBack={() => setPage("dashboard")} />
-        )}
+        {page === "wallet" && <FreelancerWallet />}
+        {page === "profile" && <FreelancerProfile onBack={goToDashboard} />}
         {page === "workspace" && (
           <Workspace
-            deal={selectedDeal}
-            onBack={() => setPage("deals")}
-            viewerRole="freelancer"
+            dealId={selectedDealId}
+            socket={socket}
+            myUserId={session.userId}
+            onBack={goToDeals}
           />
         )}
       </main>
@@ -134,50 +109,21 @@ const FreelancerShell = () => {
   );
 };
 
-const FreelancerRoute = () => {
-  const session = getStoredSession();
+// ── Gardes de routes ──────────────────────────────────────────────────────────
+const FreelancerRoute = () =>
+  isAuthenticated() ? <FreelancerShell /> : <Navigate to="/login" replace />;
 
-  if (!isAuthenticated()) {
-    return <Navigate to="/login" replace />;
-  }
+const ClientRoute = () =>
+  isAuthenticated() ? <ClientShell /> : <Navigate to="/login" replace />;
 
-  if (session.role === "client") {
-    return <Navigate to="/client" replace />;
-  }
-
-  if (session.role !== "freelancer" && session.role !== "admin") {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <FreelancerShell />;
-};
-
-const ClientRoute = () => {
-  const session = getStoredSession();
-
-  if (!isAuthenticated()) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (session.role === "freelancer" || session.role === "admin") {
-    return <Navigate to="/app" replace />;
-  }
-
-  if (session.role !== "client") {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <ClientShell />;
-};
-
+// ── App principale ────────────────────────────────────────────────────────────
 const App = () => (
   <Routes>
-    <Route path="/" element={<Landing />} />
-    <Route path="/login" element={<Login />} />
+    <Route path="/"         element={<Landing />} />
+    <Route path="/login"    element={<Login />} />
     <Route path="/register" element={<Register />} />
-    <Route path="/app" element={<FreelancerRoute />} />
-    <Route path="/client" element={<ClientRoute />} />
-    <Route path="/profile/:name" element={<FreelancerProfile onBack={() => window.history.back()} />} />
+    <Route path="/app/*"    element={<FreelancerRoute />} />
+    <Route path="/client/*" element={<ClientRoute />} />
   </Routes>
 );
 

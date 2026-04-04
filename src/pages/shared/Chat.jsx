@@ -1,157 +1,250 @@
 import { useState, useRef, useEffect } from "react";
 
-function formatTime(date) {
-  return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+const API_BASE = "http://localhost:4000";
+
+function createMessageItem(message, myUserId, username) {
+  const isMine = message.senderId?.toString?.() === myUserId?.toString?.()
+    || message.sender_id?.toString?.() === myUserId?.toString?.();
+
+  return {
+    id: message.id ?? `${message.sentAt ?? message.sent_at ?? Date.now()}-${message.fileName ?? message.content ?? "msg"}`,
+    type: isMine ? "me" : "them",
+    sender: isMine ? username : "Destinataire",
+    text: message.content,
+    fileName: message.fileName || message.file_name || null,
+    fileUrl: resolveFileUrl(message.fileUrl || message.file_url),
+    isFile: Boolean(message.fileName || message.file_name),
+    time: formatDateTime(message.sentAt || message.sent_at || new Date()),
+  };
 }
 
-export default function Chat({ socket, username, room, onBack }) {
+function formatDateTime(date) {
+  const d = new Date(date);
+  return isNaN(d)
+    ? ""
+    : d.toLocaleString("fr-FR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+}
+
+function resolveFileUrl(fileUrl) {
+  if (!fileUrl) return null;
+  if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) return fileUrl;
+  return `${API_BASE}${fileUrl}`;
+}
+
+export default function Chat({ socket, username, myUserId, receiverId, dealId, chatTitle }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const bottomRef = useRef(null);
+  const [sending, setSending] = useState(false);
+  const messagesContainerRef = useRef(null);
   const fileRef = useRef(null);
-
-  const usernameRef = useRef(username);
-
-  useEffect(() => {
-    usernameRef.current = username;
-  }, [username]);
+  const hasLoadedInitialMessages = useRef(false);
 
   useEffect(() => {
-    const handleReceive = (data) => {
-      //fonction pour recevoir le message 
-      console.log("reçu:", data); // bech nthabet bih 
-      if (data.author === usernameRef.current) return; // si l message iji meni ignore le
-      setMessages((prev) => [
-        ...prev, // Si nahiw l ...prev , twali ki teb3ath message yrtnahaw les anciens message (iwali hedha 3ibara le 1er message)
-        {
-          id: Date.now(),
-          type: "them",
-          sender: data.author,
-          text: data.message,
-          isFile: data.isFile || false,
-          fileName: data.fileName || null,
-          fileUrl: data.fileUrl || null,
-          time: formatTime(new Date()),
-        },
-      ]);
+    if (!socket || !myUserId || !dealId) return;
+
+    socket.emit("register_user", myUserId);
+
+    const loadHistory = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/chat/history/${dealId}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        setMessages(Array.isArray(data) ? data.map((message) => createMessageItem(message, myUserId, username)) : []);
+      } catch (err) {
+        console.error("Erreur chargement historique :", err);
+      }
     };
 
-    if (socket) {
-      socket.on("receive_message", handleReceive);
-      return () => socket.off("receive_message", handleReceive); // socket arrete a ecouter 
-    }
-  }, []); // medem fama [] , il s'execute une seule fois au debut
+    loadHistory();
+
+    const handleReceive = (data) => {
+      const isSameDeal = data.dealId?.toString() === dealId?.toString();
+      const isFromOther = data.senderId?.toString() !== myUserId?.toString();
+
+      if (isSameDeal && isFromOther) {
+        setMessages((prev) => [...prev, createMessageItem(data, myUserId, username)]);
+      }
+    };
+
+    const handleError = (data) => {
+      console.error("Erreur socket :", data?.error || "Echec de l'envoi du message.");
+      setSending(false);
+    };
+
+    socket.on("receive_message", handleReceive);
+    socket.on("message_error", handleError);
+    return () => {
+      socket.off("receive_message", handleReceive);
+      socket.off("message_error", handleError);
+    };
+  }, [socket, myUserId, dealId, username]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" }); // ?. verifie si l'element existe ou non 
+    if (!messages.length) return;
+
+    if (!hasLoadedInitialMessages.current) {
+      hasLoadedInitialMessages.current = true;
+      return;
+    }
+
+    messagesContainerRef.current?.scrollTo({
+      top: messagesContainerRef.current.scrollHeight,
+      behavior: "smooth",
+    });
   }, [messages]);
 
   const sendMessage = () => {
-    if (!input.trim()) return;
-    if (socket) {
-      socket.emit("send_message", { room, author: username, message: input, time: new Date() });
-    }
-    setMessages((prev) => [
-      ...prev,
-      { id: Date.now(), type: "me", text: input, time: formatTime(new Date()) },
-    ]);
+    if (!input.trim() || !dealId || !socket || !myUserId || !receiverId) return;
+
+    const payload = {
+      dealId,
+      senderId: myUserId,
+      receiverId,
+      content: input.trim(),
+    };
+
+    setSending(true);
+    socket.emit("send_message", payload);
+
+    setMessages((prev) => [...prev, createMessageItem(payload, myUserId, username)]);
     setInput("");
+    setSending(false);
   };
 
-  const handleFile = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const fileUrl = URL.createObjectURL(file);
-    setMessages((prev) => [
-      ...prev,
-      { id: Date.now(), type: "me", isFile: true, fileName: file.name, fileUrl, time: formatTime(new Date()) },
-    ]);
-    if (socket) {
-      socket.emit("send_message", {
-        room, author: username, message: "",
-        isFile: true, fileName: file.name, fileUrl, time: new Date(),
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !socket || !dealId || !myUserId || !receiverId) return;
+
+    try {
+      setSending(true);
+      const params = new URLSearchParams({
+        dealId: String(dealId),
+        senderId: String(myUserId),
+        receiverId: String(receiverId),
+        fileName: file.name,
       });
+
+      const uploadRes = await fetch(`${API_BASE}/api/chat/upload?${params.toString()}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": file.type || "application/octet-stream",
+        },
+        body: file,
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error(`Upload HTTP ${uploadRes.status}`);
+      }
+
+      const uploaded = await uploadRes.json();
+      const absoluteFileUrl = resolveFileUrl(uploaded.fileUrl);
+
+      socket.emit("send_message", {
+        dealId,
+        senderId: myUserId,
+        receiverId,
+        content: `[Fichier] ${uploaded.fileName}`,
+        fileName: uploaded.fileName,
+        fileUrl: uploaded.fileUrl,
+      });
+
+      setMessages((prev) => [
+        ...prev,
+        createMessageItem(
+          {
+            id: Date.now(),
+            senderId: myUserId,
+            content: `[Fichier] ${uploaded.fileName}`,
+            fileName: uploaded.fileName,
+            fileUrl: absoluteFileUrl,
+            sentAt: new Date().toISOString(),
+          },
+          myUserId,
+          username,
+        ),
+      ]);
+    } catch (err) {
+      console.error("Erreur upload fichier :", err);
+    } finally {
+      setSending(false);
+      e.target.value = "";
     }
-    e.target.value = "";
   };
 
   return (
-    <div className="chat-panel">
-      <div className="chat-header">
-        {onBack && (
-          <button onClick={onBack} className="button-ghost" style={{ marginRight: "auto" }}>
-            ← Retour
-          </button>
-        )}
-        <div className="chat-header-title">Chat</div>
+    <div className="workspace-chat">
+      <div className="workspace-chat-header">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        <div className="workspace-chat-title-block">
+          <small>{chatTitle || "Destinataire"}</small>
+        </div>
       </div>
 
-      <div className="chat-messages">
+      <div className="workspace-chat-messages" ref={messagesContainerRef}>
         {messages.length === 0 ? (
-          <div className="chat-empty">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1a6ef5" strokeWidth="1.5">
+          <div className="workspace-chat-empty">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4f6ce8" strokeWidth="1.5">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
             <p>Aucun message pour le moment</p>
+            <span>Commencez la conversation</span>
           </div>
         ) : (
           messages.map((msg) => (
-            <div key={msg.id} className={`msg-bubble-wrap ${msg.type}`}>
-              {msg.type === "them" && msg.sender && (
-                <div className="msg-sender">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-                  </svg>
-                  {msg.sender}
-                </div>
-              )}
-              {msg.isFile ? (
-                <div
-                  className="file-msg"
-                  onClick={() => msg.fileUrl && window.open(msg.fileUrl, "_blank")}
-                  style={{ cursor: msg.fileUrl ? "pointer" : "default" }}
-                  title="Cliquer pour ouvrir"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
-                  <span>{msg.fileName}</span>
-                  {msg.fileUrl && (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: "auto", opacity: 0.5 }}>
-                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                      <polyline points="15 3 21 3 21 9" />
-                      <line x1="10" y1="14" x2="21" y2="3" />
+            <div key={msg.id} className={`workspace-msg ${msg.type}`}>
+              <div className={`workspace-msg-bubble ${msg.isFile ? "is-file" : ""}`}>
+                {msg.isFile ? (
+                  <button
+                    type="button"
+                    className="workspace-file-msg"
+                    onClick={() => msg.fileUrl && window.open(msg.fileUrl, "_blank")}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
                     </svg>
-                  )}
-                </div>
-              ) : (
-                <div className="msg-bubble">{msg.text}</div>
-              )}
-              <div className="msg-time">{msg.time}</div>
+                    <span>{msg.fileName}</span>
+                  </button>
+                ) : (
+                  msg.text
+                )}
+              </div>
+              <div className="workspace-msg-time">{msg.time}</div>
             </div>
           ))
         )}
-        <div ref={bottomRef} />
       </div>
 
-      <div className="chat-input-area">
+      <div className="workspace-chat-input">
         <input type="file" ref={fileRef} style={{ display: "none" }} onChange={handleFile} />
-        <button className="upload-icon-btn" onClick={() => fileRef.current.click()} title="Joindre un fichier">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <button
+          className="workspace-attach-btn"
+          onClick={() => fileRef.current?.click()}
+          title="Joindre un fichier"
+          disabled={sending}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.41 17.41a2 2 0 0 1-2.83-2.83l8.49-8.48" />
           </svg>
         </button>
         <input
-          className="chat-input"
+          className="workspace-chat-textinput"
           type="text"
-          placeholder="Écrire un message..."
+          placeholder="Ecrire un message..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && sendMessage()}
         />
-        <button className="send-btn" onClick={sendMessage}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <button className="workspace-send-btn" onClick={sendMessage} disabled={sending}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="22" y1="2" x2="11" y2="13" />
             <polygon points="22 2 15 22 11 13 2 9 22 2" />
           </svg>
