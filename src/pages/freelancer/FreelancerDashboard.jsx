@@ -3,46 +3,25 @@ import CategorySelector from "../../components/CategorySelector";
 import FiltersBar from "../../components/FiltersBar";
 import ProjectCard from "../../components/ProjectCard";
 import ProjectDetails from "../../components/ProjectDetails";
+import { DOMAIN_OPTIONS } from "../../data/domains";
 import { requestService } from "../../services/requestService";
+import { splitRequestMetadata } from "../../utils/requestDomains";
 import { format } from "../../utils/format";
 import "./FreelancerDashboard.css";
 
-const CATEGORIES = [
-  "Développement Web",
-  "Développement Mobile",
-  "UI/UX Design",
-  "IA & Machine Learning",
-  "Cloud & DevOps",
-  "Data Science",
-  "Jeu vidéo",
-  "E-commerce",
-];
+const CATEGORIES = DOMAIN_OPTIONS;
 
 const normalizeCategories = (request) => {
-  const collected = new Set();
-
-  if (request?.category) {
-    collected.add(request.category);
-  }
-
-  if (Array.isArray(request?.skills)) {
-    request.skills.forEach((skill) => {
-      if (CATEGORIES.includes(skill)) {
-        collected.add(skill);
-      }
-    });
-  }
-
-  return [...collected];
+  return splitRequestMetadata(request).domains;
 };
 
 const BUDGET_OPTIONS = [
   { value: "any", label: "Tout budget" },
-  { value: "100-500", label: "$100 – $500" },
-  { value: "500-2000", label: "$500 – $2000" },
-  { value: "2000-5000", label: "$2000 – $5000" },
-  { value: "5000-15000", label: "$5000 – $15000" },
-  { value: "15000+", label: "$15000+" },
+  { value: "100-500", label: "100 DT – 500 DT" },
+  { value: "500-2000", label: "500 DT – 2000 DT" },
+  { value: "2000-5000", label: "2000 DT – 5000 DT" },
+  { value: "5000-15000", label: "5000 DT – 15000 DT" },
+  { value: "15000+", label: "15000 DT+" },
 ];
 
 const TYPE_OPTIONS = [
@@ -67,27 +46,35 @@ const BUDGET_RANGES = {
 };
 
 const toUiProject = (request) => ({
+  ...(() => {
+    const metadata = splitRequestMetadata(request);
+    return {
+      tags: metadata.domains,
+      competencies: metadata.competencies,
+      categories: metadata.domains,
+      requirements:
+        metadata.competencies.length
+          ? metadata.competencies.map((skill) => `Compétence recherchée: ${skill}`)
+          : ["Livrables documentés", "Communication claire", "Respect des délais"],
+      profile: [
+        metadata.domains.length
+          ? `Domaines demandés: ${metadata.domains.join(", ")}`
+          : "Domaines à confirmer avec le client",
+        request.negotiable ? "Capacité à proposer un budget et un délai" : "Capacité à respecter le brief fixé",
+        "Approche professionnelle et livrables propres",
+      ],
+    };
+  })(),
   id: request.id,
   requestId: request.id,
   title: request.title,
-  tags: Array.isArray(request.skills) && request.skills.length ? request.skills : [request.category],
   type: request.negotiable ? "Négociable" : "Non négociable",
   description: request.description,
   budget: Number(request.budget),
-  currency: "$",
+  currency: "DT",
   deadline: request.deadline,
   posted: request.postedAt ?? request.createdAt ?? new Date().toISOString().slice(0, 10),
   client: request.clientName ?? "Client privé",
-  categories: normalizeCategories(request),
-  requirements:
-    Array.isArray(request.skills) && request.skills.length
-      ? request.skills.map((skill) => `Compétence attendue: ${skill}`)
-      : ["Livrables documentés", "Communication claire", "Respect des délais"],
-  profile: [
-    `Expertise principale: ${request.category}`,
-    request.negotiable ? "Capacité à proposer un budget et un délai" : "Capacité à respecter le brief fixé",
-    "Approche professionnelle et livrables propres",
-  ],
 });
 
 const OfferPanel = ({ project, onSendOffer, onAccept }) => {
@@ -161,8 +148,7 @@ const OfferPanel = ({ project, onSendOffer, onAccept }) => {
           </div>
         </div>
         <p className="text-sm text-slate-600">
-          Budget : {project.currency ?? "$"}
-          {format(project.budget)} · Date limite : {format(project.deadline, "date")}
+          Budget : {format(project.budget)} {project.currency ?? "DT"} · Date limite : {format(project.deadline, "date")}
         </p>
       </div>
 
@@ -212,8 +198,7 @@ const OfferPanel = ({ project, onSendOffer, onAccept }) => {
             <p className="flex items-center justify-between">
               <span>Budget</span>
               <span className="font-semibold">
-                {project.currency ?? "$"}
-                {format(project.budget)}
+                {format(project.budget)} {project.currency ?? "DT"}
               </span>
             </p>
             <p className="flex items-center justify-between">
@@ -341,7 +326,7 @@ const FreelancerDashboard = forwardRef((_, ref) => {
       },
       {
         label: "Budget moyen",
-        value: `${format(averageBudget)} $`,
+        value: `${format(averageBudget)} DT`,
         hint: "sur la selection",
       },
       {

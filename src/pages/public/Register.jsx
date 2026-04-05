@@ -1,22 +1,10 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { DOMAIN_OPTIONS } from "../../data/domains";
 import { authService } from "../../services/authService";
 import "../../styles/landing.css";
 
-const CATEGORIES = [
-  "Développement Web",
-  "Développement Mobile",
-  "UI/UX Design",
-  "IA & Machine Learning",
-  "Cloud & DevOps",
-  "Data Science",
-  "Jeu vidéo",
-  "E-commerce",
-  "Marketing Digital",
-  "Rédaction & Contenu",
-  "Traduction",
-  "Vidéo & Animation",
-];
+const CATEGORIES = DOMAIN_OPTIONS;
 
 const Onboarding = ({ onComplete }) => {
   const [selectedFields, setSelectedFields] = useState([]);
@@ -356,9 +344,9 @@ const Register = () => {
     }
     setShowOnboarding(false);
     setRegistrationSuccess({
-      title: "Inscription freelancer reussie",
+      title: "Inscription freelance réussie",
       message:
-        "Votre profil freelancer est pret. Connectez-vous pour commencer a explorer les projets.",
+        "Votre profil freelance est prêt. Connectez-vous pour commencer à explorer les projets.",
     });
   };
 
@@ -394,7 +382,7 @@ const Register = () => {
           <div className="auth-branding-stats">
             <div className="auth-stat">
               <div className="auth-stat-value">10K+</div>
-              <div className="auth-stat-label">Freelancers actifs</div>
+              <div className="auth-stat-label">Freelances actifs</div>
             </div>
             <div className="auth-stat">
               <div className="auth-stat-value">5K+</div>
@@ -443,7 +431,7 @@ const Register = () => {
                       <line x1="12" y1="12" x2="12" y2="12.01" />
                     </svg>
                   </div>
-                  <div className="role-card-title">Freelancer</div>
+                  <div className="role-card-title">Freelance</div>
                   <div className="role-card-desc">Je propose mes services et mon expertise</div>
                   {role === "freelancer" && <div className="role-card-check">✓</div>}
                 </div>
@@ -458,7 +446,7 @@ const Register = () => {
                     </svg>
                   </div>
                   <div className="role-card-title">Client</div>
-                  <div className="role-card-desc">Je cherche un freelancer pour mon projet</div>
+                  <div className="role-card-desc">Je cherche un freelance pour mon projet</div>
                   {role === "client" && <div className="role-card-check">✓</div>}
                 </div>
               </div>
@@ -547,7 +535,7 @@ const Register = () => {
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.87 19.87 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.87 19.87 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                   </svg>
-                  Telephone
+                  Téléphone
                 </label>
                 <input
                   className="auth-input"

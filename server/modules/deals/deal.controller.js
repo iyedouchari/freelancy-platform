@@ -6,7 +6,7 @@ export const getdealStatus = async (_req, res) => {
     message: "deals module is operational.",
     data: {
       statuses: [
-        "En attente acompte",
+        "En cours",
         "Actif",
         "Soumis",
         "En attente paiement final",

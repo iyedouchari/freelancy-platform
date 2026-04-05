@@ -46,7 +46,7 @@ export default function ClientFreelancerProfile({
           </div>
 
           <div className="client-freelancer-copy">
-            <span className="client-freelancer-eyebrow">Profil freelancer</span>
+            <span className="client-freelancer-eyebrow">Profil freelance</span>
             <h1>{profile.name}</h1>
             <p>{profile.title}</p>
             <div className="client-freelancer-tags">
@@ -69,7 +69,7 @@ export default function ClientFreelancerProfile({
         </section>
 
         <section className="client-freelancer-panel">
-          <h2>A propos</h2>
+          <h2>À propos</h2>
           <p>{profile.bio}</p>
         </section>
 
@@ -90,7 +90,7 @@ export default function ClientFreelancerProfile({
               <strong>{profile.email}</strong>
             </div>
             <div>
-              <span>Telephone</span>
+              <span>Téléphone</span>
               <strong>{profile.phone}</strong>
             </div>
           </div>
@@ -100,7 +100,7 @@ export default function ClientFreelancerProfile({
           <div className="client-freelancer-feedback-head">
             <div>
               <h2>Feedback client</h2>
-              <p>Ajoutez un retour directement sur le profil du freelancer.</p>
+              <p>Ajoutez un retour directement sur le profil du freelance.</p>
             </div>
           </div>
 
@@ -116,21 +116,21 @@ export default function ClientFreelancerProfile({
               </select>
             </label>
             <label className="wide">
-              <span>Votre feedback</span>
+              <span>Votre avis</span>
               <textarea
                 rows={4}
                 value={comment}
                 onChange={(event) => setComment(event.target.value)}
-                placeholder="Partagez votre impression sur ce freelancer, son approche et sa communication."
+                placeholder="Partagez votre impression sur ce freelance, son approche et sa communication."
               />
             </label>
-            <button type="submit">Ajouter le feedback</button>
+            <button type="submit">Ajouter l'avis</button>
           </form>
 
           <div className="client-freelancer-feedback-list">
             {feedbackEntries.length === 0 ? (
               <div className="client-freelancer-feedback-empty">
-                Aucun feedback pour le moment.
+                Aucun avis pour le moment.
               </div>
             ) : (
               feedbackEntries.map((feedback, index) => (

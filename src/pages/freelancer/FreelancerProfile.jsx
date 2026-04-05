@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import FeedbackCard from "../../components/FeedbackCard";
 import StatsCard from "../../components/StatsCard";
+import { DOMAIN_OPTIONS } from "../../data/domains";
 import "./FreelancerProfile.css";
 
 const sampleFeedback = {
@@ -12,20 +13,7 @@ const sampleFeedback = {
   date: "il y a 2 jours",
 };
 
-const ALL_FIELDS = [
-  "Développement Web",
-  "Développement Mobile",
-  "UI/UX Design",
-  "IA & Machine Learning",
-  "Cloud & DevOps",
-  "Data Science",
-  "Jeu vidéo",
-  "E-commerce",
-  "Marketing Digital",
-  "Rédaction & Contenu",
-  "Traduction",
-  "Vidéo & Animation",
-];
+const ALL_FIELDS = DOMAIN_OPTIONS;
 
 const DEFAULT_STATS = {
   freelancer: [
@@ -35,8 +23,8 @@ const DEFAULT_STATS = {
   ],
   client: [
     { label: "Demandes", value: "0", delta: "Actif", accent: "indigo" },
-    { label: "Deals en cours", value: "0", delta: "En suivi", accent: "indigo" },
-    { label: "Deals termines", value: "0", delta: "Historique", accent: "green" },
+    { label: "Accords en cours", value: "0", delta: "En suivi", accent: "indigo" },
+    { label: "Accords terminés", value: "0", delta: "Historique", accent: "green" },
   ],
 };
 
@@ -54,7 +42,7 @@ function readProfile(variant) {
         "Je pilote des projets digitaux avec une attention forte sur la clarte du besoin, la qualite d'execution et le suivi avec les freelancers engages.",
       fields: JSON.parse(
         localStorage.getItem("client_sectors") ||
-          '["Developpement Web","UI/UX Design","Marketing Digital"]'
+          '["Développement Web","UI/UX Design","Marketing digital"]'
       ),
       profileImage: localStorage.getItem("client_image") || null,
     };
@@ -72,7 +60,7 @@ function readProfile(variant) {
     phone: localStorage.getItem("freelancer_phone") || "+216 XX XXX XXX",
     fields: JSON.parse(
       localStorage.getItem("freelancer_fields") ||
-        '["IA & Machine Learning", "Développement Web", "Data Science"]'
+        '["Intelligence Artificielle & Machine Learning", "Développement Web", "Data Science"]'
     ),
     profileImage: localStorage.getItem("freelancer_image") || null,
   };
@@ -485,7 +473,7 @@ export default function FreelancerProfile({ onBack, variant = "freelancer", stat
               <path d="M12 20h9" />
               <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
             </svg>
-            A propos
+            À propos
           </h2>
           <p className="profile-bio-text">{profile.bio}</p>
         </div>

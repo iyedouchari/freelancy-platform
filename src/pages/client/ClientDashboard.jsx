@@ -20,37 +20,37 @@ export default function ClientDashboard({
         <section className="client-dashboard-hero">
           <div className="client-dashboard-copy">
             <span className="client-dashboard-eyebrow">Tableau de bord client</span>
-            <h1>Suivez uniquement les collaborations deja acceptees et passees en execution</h1>
+            <h1>Suivez uniquement les collaborations déjà acceptées et en cours d'exécution</h1>
             <p>
-              Ce dashboard regroupe les deals valides par vous et par les freelancers. Les
-              demandes encore en attente restent gerees a part dans la page demandes.
+              Ce tableau de bord regroupe les accords validés par vous et par les freelances. Les
+              demandes encore en attente restent gérées séparément dans la page des demandes.
             </p>
             <p className="client-dashboard-note">
-              Les demandes en attente se gerent depuis l'onglet Demandes. Les espaces de travail
+              Les demandes en attente se gèrent depuis l'onglet Demandes. Les espaces de travail
               actifs restent accessibles directement dans la liste ci-dessous.
             </p>
           </div>
 
           <div className="client-dashboard-stat-grid">
             <div className="client-dashboard-stat-card">
-              <span>Deals en cours</span>
+              <span>Accords en cours</span>
               <strong>{activeDeals.length}</strong>
-              <small>collaborations deja lancees</small>
+              <small>collaborations déjà lancées</small>
             </div>
             <div className="client-dashboard-stat-card">
-              <span>Deals termines</span>
+              <span>Accords terminés</span>
               <strong>{completedDeals.length}</strong>
-              <small>missions finalisees</small>
+              <small>missions finalisées</small>
             </div>
             <div className="client-dashboard-stat-card">
-              <span>Budget engage</span>
+              <span>Budget engagé</span>
               <strong>{format(committedBudget)} DT</strong>
-              <small>sur les deals acceptes</small>
+              <small>sur les accords acceptés</small>
             </div>
             <div className="client-dashboard-stat-card accent">
               <span>Demandes en attente</span>
               <strong>{pendingRequestsCount}</strong>
-              <small>encore modifiables avant acceptation</small>
+              <small>encore modifiables avant validation</small>
             </div>
           </div>
         </section>
@@ -59,14 +59,14 @@ export default function ClientDashboard({
           <div className="client-dashboard-panel-head">
             <div>
               <span className="client-dashboard-panel-eyebrow">Collaborations en cours</span>
-              <h2>Deals acceptes deja au travail</h2>
+              <h2>Accords acceptés en cours d'exécution</h2>
             </div>
           </div>
 
           {activeDeals.length === 0 ? (
             <div className="client-dashboard-empty">
-              <strong>Aucun deal en cours</strong>
-              <p>Des qu'une demande est acceptee par un freelance, elle apparaitra ici.</p>
+              <strong>Aucun accord en cours</strong>
+              <p>Dès qu'une demande est acceptée par un freelance, elle apparaîtra ici.</p>
             </div>
           ) : (
             <div className="client-dashboard-deal-list">
@@ -87,7 +87,7 @@ export default function ClientDashboard({
                       <strong>{deal.total} DT</strong>
                     </div>
                     <div>
-                      <span>Echeance</span>
+                      <span>Échéance</span>
                       <strong>{deal.deadline}</strong>
                     </div>
                     <button type="button" onClick={() => onOpenWorkspace?.(deal)}>
@@ -104,14 +104,14 @@ export default function ClientDashboard({
           <div className="client-dashboard-panel-head">
             <div>
               <span className="client-dashboard-panel-eyebrow">Historique</span>
-              <h2>Deals termines et deja livres</h2>
+              <h2>Accords terminés et déjà livrés</h2>
             </div>
           </div>
 
           {completedDeals.length === 0 ? (
             <div className="client-dashboard-empty">
-              <strong>Aucun deal termine</strong>
-              <p>Les missions finalisees apparaitront ici pour consultation.</p>
+              <strong>Aucun accord terminé</strong>
+              <p>Les missions finalisées apparaîtront ici pour consultation.</p>
             </div>
           ) : (
             <div className="client-dashboard-completed-grid">

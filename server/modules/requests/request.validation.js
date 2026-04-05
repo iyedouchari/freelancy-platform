@@ -26,6 +26,7 @@ const requestBaseSchema = {
     "date.format": "Format YYYY-MM-DD requis",
     "any.required": "La date limite est requise",
   }),
+  domains: Joi.array().items(Joi.string().trim().max(100)).default([]),
   skills: Joi.array().items(Joi.string().trim().max(80)).default([]),
 };
 
@@ -39,6 +40,7 @@ export const updateRequestSchema = Joi.object({
   budget: Joi.number().positive().optional(),
   negotiable: Joi.boolean().optional(),
   deadline: Joi.date().iso().optional(),
+  domains: Joi.array().items(Joi.string().trim().max(100)).optional(),
   skills: Joi.array().items(Joi.string().trim().max(80)).optional(),
   status: Joi.string().valid(...requestStatuses).optional(),
 });

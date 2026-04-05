@@ -1,6 +1,32 @@
 import { getDb } from "../../config/db.js";
 
 const db = getDb();
+const KNOWN_DOMAINS = new Set([
+  "Développement Web",
+  "Développement Mobile",
+  "Cybersécurité",
+  "UI/UX Design",
+  "Intelligence Artificielle & Machine Learning",
+  "Cloud & DevOps",
+  "Data Science",
+  "Analyse de données avancée",
+  "Blockchain / Web3",
+  "Systèmes embarqués / IoT",
+  "Jeu vidéo",
+  "Design graphique",
+  "Motion design",
+  "Montage vidéo",
+  "Modélisation 3D",
+  "Production musicale",
+  "Création de contenu",
+  "Marketing digital",
+  "Gestion des réseaux sociaux",
+  "Business & support",
+  "Comptabilité & finance",
+  "Coaching professionnel",
+  "E-commerce",
+  "Dropshipping",
+]);
 
 const addColumnIfMissing = async (tableName, columnName, columnDefinition) => {
   const [rows] = await db.query(`SHOW COLUMNS FROM ${tableName} LIKE ?`, [columnName]);
@@ -34,6 +60,36 @@ const normalizeTimestamp = (value) => {
   return new Date(value).toISOString();
 };
 
+const formatDateForMySQL = (dateValue, withTime = false) => {
+  if (!dateValue) {
+    return null;
+  }
+
+  let date;
+  if (typeof dateValue === "string") {
+    // Se é uma string no formato YYYY-MM-DD ou similar, extrair apenas a data
+    const dateOnly = dateValue.split(" ")[0].split("T")[0];
+    date = new Date(dateOnly);
+  } else {
+    date = new Date(dateValue);
+  }
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  if (!withTime) {
+    return `${year}-${month}-${day}`;
+  }
+
+  // Com time: adicionar 23:59:59 para o final do dia
+  return `${year}-${month}-${day} 23:59:59`;
+};
+
 const parseSkills = (rawValue) => {
   if (!rawValue) {
     return [];
@@ -49,6 +105,26 @@ const parseSkills = (rawValue) => {
   } catch {
     return [];
   }
+};
+
+const parseDomains = (rawValue, fallbackDomain, rawSkills) => {
+  const parsed = parseSkills(rawValue);
+  if (parsed.length > 0) {
+    return parsed;
+  }
+
+  const fallback = new Set();
+  if (fallbackDomain) {
+    fallback.add(fallbackDomain);
+  }
+
+  parseSkills(rawSkills).forEach((item) => {
+    if (KNOWN_DOMAINS.has(item)) {
+      fallback.add(item);
+    }
+  });
+
+  return [...fallback];
 };
 
 const mapProposalRow = (row) => {
@@ -99,6 +175,7 @@ const mapRequestRow = (row) => {
     status: row.status,
     postedAt: normalizeDate(row.created_at),
     createdAt: normalizeTimestamp(row.created_at),
+    domains: parseDomains(row.domains_json, row.domain, row.skills_json),
     skills: parseSkills(row.skills_json),
     proposals: [],
   };
@@ -183,6 +260,11 @@ export const ensureRequestsTable = async () => {
     "skills_json",
     "skills_json JSON DEFAULT NULL AFTER deadline",
   );
+  await addColumnIfMissing(
+    "requests",
+    "domains_json",
+    "domains_json JSON DEFAULT NULL AFTER skills_json",
+  );
 };
 
 export const requestRepository = {
@@ -197,9 +279,10 @@ export const requestRepository = {
           budget,
           negotiable,
           deadline,
-          skills_json
+          skills_json,
+          domains_json
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         data.client_id,
@@ -208,8 +291,9 @@ export const requestRepository = {
         (data.domain ?? data.category ?? "").trim(),
         Number(data.budget),
         Boolean(data.negotiable),
-        data.deadline || null,
+        formatDateForMySQL(data.deadline, false),
         JSON.stringify(Array.isArray(data.skills) ? data.skills : []),
+        JSON.stringify(Array.isArray(data.domains) ? data.domains : []),
       ],
     );
 
@@ -353,7 +437,7 @@ export const requestRepository = {
 
     if (data.deadline !== undefined) {
       fields.push("deadline = ?");
-      params.push(data.deadline || null);
+      params.push(formatDateForMySQL(data.deadline, false));
     }
 
     if (data.status !== undefined) {
@@ -364,6 +448,11 @@ export const requestRepository = {
     if (data.skills !== undefined) {
       fields.push("skills_json = ?");
       params.push(JSON.stringify(Array.isArray(data.skills) ? data.skills : []));
+    }
+
+    if (data.domains !== undefined) {
+      fields.push("domains_json = ?");
+      params.push(JSON.stringify(Array.isArray(data.domains) ? data.domains : []));
     }
 
     if (!fields.length) {
@@ -439,8 +528,13 @@ export const requestRepository = {
       `
         SELECT COUNT(*) AS total
         FROM requests r
-        JOIN freelancer_domains fd ON fd.domain = r.domain
-        WHERE fd.id_freelancer = ? AND r.status = 'Ouverte'
+        JOIN freelancer_domains fd ON fd.id_freelancer = ?
+        WHERE r.status = 'Ouverte'
+          AND (
+            fd.domain = r.domain
+            OR JSON_SEARCH(COALESCE(r.domains_json, JSON_ARRAY()), 'one', fd.domain) IS NOT NULL
+            OR JSON_SEARCH(COALESCE(r.skills_json, JSON_ARRAY()), 'one', fd.domain) IS NOT NULL
+          )
       `,
       [freelancerId],
     );
@@ -448,8 +542,13 @@ export const requestRepository = {
       `
         SELECT r.*
         FROM requests r
-        JOIN freelancer_domains fd ON fd.domain = r.domain
-        WHERE fd.id_freelancer = ? AND r.status = 'Ouverte'
+        JOIN freelancer_domains fd ON fd.id_freelancer = ?
+        WHERE r.status = 'Ouverte'
+          AND (
+            fd.domain = r.domain
+            OR JSON_SEARCH(COALESCE(r.domains_json, JSON_ARRAY()), 'one', fd.domain) IS NOT NULL
+            OR JSON_SEARCH(COALESCE(r.skills_json, JSON_ARRAY()), 'one', fd.domain) IS NOT NULL
+          )
         ORDER BY r.created_at DESC
         LIMIT ? OFFSET ?
       `,

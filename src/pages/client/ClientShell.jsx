@@ -20,7 +20,7 @@ const FEEDBACK_STORAGE_KEY = "client_feedback_directory";
 const clientNavItems = [
   { key: "dashboard", label: "Tableau de bord", actionProp: "onDashboard" },
   { key: "requests", label: "Demandes", actionProp: "onRequests" },
-  { key: "wallet", label: "Wallet", actionProp: "onWallet" },
+  { key: "wallet", label: "Portefeuille", actionProp: "onWallet" },
 ];
 
 function resolveClientName() {
@@ -291,13 +291,13 @@ export default function ClientShell() {
                 accent: "indigo",
               },
               {
-                label: "Deals en cours",
+                label: "Accords en cours",
                 value: String(activeDealsCount),
                 delta: "En suivi",
                 accent: "indigo",
               },
               {
-                label: "Deals termines",
+                label: "Accords terminés",
                 value: String(completedDealsCount),
                 delta: "Historique",
                 accent: "green",

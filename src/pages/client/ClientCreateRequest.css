@@ -66,6 +66,13 @@
   font-weight: 700;
 }
 
+.client-create-request-helper {
+  color: #64748b;
+  display: block;
+  margin-top: 10px;
+  line-height: 1.6;
+}
+
 .client-create-request-field input,
 .client-create-request-field select,
 .client-create-request-field textarea {
@@ -130,6 +137,118 @@
   color: #334155;
 }
 
+.client-create-request-domain-shell {
+  border: 1px solid #dbe3f1;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top left, rgba(79, 108, 232, 0.08), transparent 28%),
+    linear-gradient(180deg, #ffffff, #f8fbff);
+  padding: 18px;
+}
+
+.client-create-request-domain-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.client-create-request-domain-summary div {
+  border-radius: 16px;
+  border: 1px solid #dbe3f1;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 14px 16px;
+}
+
+.client-create-request-domain-summary strong,
+.client-create-request-domain-summary span {
+  display: block;
+}
+
+.client-create-request-domain-summary strong {
+  color: #0f172a;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.client-create-request-domain-summary span {
+  color: #64748b;
+  font-size: 0.88rem;
+  margin-top: 4px;
+}
+
+.client-create-request-domain-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.client-create-request-domain-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 84px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid #dbe3f1;
+  background: rgba(255, 255, 255, 0.9);
+  text-align: left;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.client-create-request-domain-card:hover {
+  transform: translateY(-1px);
+  border-color: #a5b4fc;
+  box-shadow: 0 10px 24px rgba(79, 108, 232, 0.1);
+}
+
+.client-create-request-domain-card.active {
+  border-color: #2a52be;
+  background: linear-gradient(135deg, #162f6b, #2a52be);
+  box-shadow: 0 16px 30px rgba(22, 47, 107, 0.22);
+}
+
+.client-create-request-domain-icon {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #eef2ff;
+  color: #1f3f8a;
+  font-weight: 800;
+}
+
+.client-create-request-domain-card.active .client-create-request-domain-icon {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.client-create-request-domain-name {
+  color: #334155;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.client-create-request-domain-card.active .client-create-request-domain-name {
+  color: #fff;
+}
+
+.client-create-request-domain-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.client-create-request-domain-header small {
+  color: #64748b;
+  font-weight: 600;
+}
+
 /* ── Skill entry ── */
 
 .client-create-request-skill-entry {
@@ -184,6 +303,13 @@
   border-color: #c7d2fe;
 }
 
+.client-create-request-competency-panel {
+  border: 1px solid #dbe3f1;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 18px;
+}
+
 .client-create-request-skill span {
   font-size: 1rem;
   line-height: 1;
@@ -221,5 +347,9 @@
 
   .client-create-request-skill-entry {
     flex-direction: column;
+  }
+
+  .client-create-request-domain-summary {
+    grid-template-columns: 1fr;
   }
 }

@@ -1,3 +1,5 @@
+import { DOMAIN_OPTIONS } from "./domains";
+
 export const freelancerDirectory = [
   {
     id: "lina-trabelsi",
@@ -113,14 +115,7 @@ export const freelancerDirectoryById = Object.fromEntries(
 export const initialFreelancerFeedbackById = {};
 
 export const clientRequestCategories = [
-  "Développement Web",
-  "Développement Mobile",
-  "UI/UX Design",
-  "IA & Machine Learning",
-  "Cloud & DevOps",
-  "Data Science",
-  "Jeu vidéo",
-  "E-commerce",
+  ...DOMAIN_OPTIONS,
 ];
 
 export function getFreelancerProfileById(freelancerId) {

@@ -6,7 +6,7 @@ const ProjectCard = ({ project, onView }) => {
   const typeStyle = isNegotiable
     ? "bg-emerald-50 text-emerald-600 border-emerald-100"
     : "bg-rose-50 text-rose-600 border-rose-100";
-  const currency = project.currency ?? "$";
+  const currency = project.currency ?? "DT";
 
   return (
     <article className="glass-card p-7 flex flex-col gap-4 h-full">
@@ -17,13 +17,6 @@ const ProjectCard = ({ project, onView }) => {
             <span className={`px-2 py-0.5 text-xs rounded-full border font-semibold ${typeStyle}`}>
               {typeLabel}
             </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {project.tags.map((tag) => (
-              <span key={tag} className="tag">
-                {tag}
-              </span>
-            ))}
           </div>
         </div>
 
@@ -37,10 +30,35 @@ const ProjectCard = ({ project, onView }) => {
 
       <p className="text-lg text-slate-600 leading-relaxed">{project.description}</p>
 
+      {Array.isArray(project.tags) && project.tags.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Domaines</p>
+          <div className="flex flex-wrap gap-2">
+            {project.tags.map((tag) => (
+              <span key={tag} className="tag">
+                {tag}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {Array.isArray(project.competencies) && project.competencies.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Competences</p>
+          <div className="flex flex-wrap gap-2">
+            {project.competencies.map((skill) => (
+              <span key={skill} className="tag">
+                {skill}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-4 text-base text-slate-500">
         <span className="font-semibold text-slate-700">
-          {currency}
-          {format(project.budget)} budget
+          {format(project.budget)} {currency} budget
         </span>
         <span>Date limite : {format(project.deadline, "date")}</span>
         <span className="text-indigo-600">Posté {format(project.posted, "relative")}</span>

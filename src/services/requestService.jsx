@@ -1,3 +1,5 @@
+import { DOMAIN_OPTIONS } from "../data/domains";
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
 
 const getToken = () => localStorage.getItem("auth_token");
@@ -43,11 +45,25 @@ const request = async (path, options = {}) => {
 const normalizeRequestPayload = (payload) => ({
   title: payload.title,
   description: payload.description,
-  domain: payload.category,
+  domain: payload.category ?? payload.domains?.[0],
+  domains: Array.isArray(payload.domains)
+    ? payload.domains
+    : payload.category
+      ? [payload.category]
+      : [],
   budget: Number(payload.budget),
   deadline: payload.deadline,
   negotiable: Boolean(payload.negotiable),
-  skills: Array.isArray(payload.skills) ? payload.skills : [],
+  skills: Array.isArray(payload.skills)
+    ? [
+        ...(Array.isArray(payload.domains)
+          ? payload.domains.filter((domain) => domain && domain !== payload.category)
+          : []),
+        ...payload.skills.filter(Boolean),
+      ].filter((item, index, array) => array.indexOf(item) === index)
+    : Array.isArray(payload.domains)
+      ? payload.domains.filter((domain) => domain && domain !== payload.category && DOMAIN_OPTIONS.includes(domain))
+      : [],
 });
 
 export const requestService = {

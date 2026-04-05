@@ -40,10 +40,12 @@ function DealCard({ deal, onOpenWorkspace }) {
 
       <div className="fh-deal-description">{deal.description}</div>
 
-      <div className="fh-deal-location">
-        <PinIcon />
-        {deal.location}
-      </div>
+      {deal.location && (
+        <div className="fh-deal-location">
+          <PinIcon />
+          {deal.location}
+        </div>
+      )}
 
       <div className="fh-deal-stats">
         <div>
@@ -87,13 +89,13 @@ export default function FreelancerDeals({ deals = [], onBack, onOpenWorkspace, i
       label: `Accords en cours (${activeDeals.length})`,
       title: "Accords en cours",
       subtitle:
-        "Suivez vos vrais deals acceptes par le client et ouvrez leur espace de travail sans quitter l'espace freelance.",
+        "Suivez vos accords acceptés par le client et ouvrez leur espace de travail sans quitter l'espace freelance.",
       items: activeDeals,
     },
     completed: {
-      label: `Completes (${completedDeals.length})`,
-      title: "Accords completes",
-      subtitle: "Retrouvez l'historique de vos vrais deals finalises.",
+      label: `Terminés (${completedDeals.length})`,
+      title: "Accords terminés",
+      subtitle: "Retrouvez l'historique de vos accords finalisés.",
       items: completedDeals,
     },
   };
@@ -118,7 +120,7 @@ export default function FreelancerDeals({ deals = [], onBack, onOpenWorkspace, i
 
         <div className="deals-summary-grid">
           <SummaryCard label="En cours" value={activeDeals.length} accent="primary" />
-          <SummaryCard label="Completes" value={completedDeals.length} />
+          <SummaryCard label="Terminés" value={completedDeals.length} />
           <SummaryCard label="Total" value={activeDeals.length + completedDeals.length} accent="soft" />
         </div>
       </div>
@@ -148,12 +150,12 @@ export default function FreelancerDeals({ deals = [], onBack, onOpenWorkspace, i
           {isLoading ? (
             <div className="fh-empty">
               <div className="fh-empty-icon">...</div>
-              <p className="fh-empty-title">Chargement des accords reels</p>
+              <p className="fh-empty-title">Chargement des accords réels</p>
             </div>
           ) : currentTab.items.length === 0 ? (
             <div className="fh-empty">
               <div className="fh-empty-icon">Aucun</div>
-              <p className="fh-empty-title">Aucun accord a afficher</p>
+              <p className="fh-empty-title">Aucun accord à afficher</p>
             </div>
           ) : (
             currentTab.items.map((deal) => (

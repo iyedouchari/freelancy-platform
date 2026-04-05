@@ -84,13 +84,14 @@ CREATE TABLE IF NOT EXISTS deals (
     submitted_at DATETIME DEFAULT NULL,
     final_paid_at DATETIME DEFAULT NULL,
     status ENUM(
-        'En attente acompte',
+        'En cours',
         'Actif',
         'Soumis',
         'En attente paiement final',
+        'En attente acompte',
         'Termine',
         'Annule'
-    ) NOT NULL DEFAULT 'En attente acompte',
+    ) NOT NULL DEFAULT 'En cours',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_deal_proposal FOREIGN KEY (proposal_id)
         REFERENCES proposals(id) ON DELETE RESTRICT,
@@ -255,7 +256,7 @@ BEGIN
             ROUND(NEW.proposed_price * 0.10, 2),
             DATE_ADD(NOW(), INTERVAL 24 HOUR),
             NEW.proposed_deadline_at,
-            'En attente acompte'
+            'En cours'
         FROM requests r
         WHERE r.id = NEW.request_id;
     END IF;

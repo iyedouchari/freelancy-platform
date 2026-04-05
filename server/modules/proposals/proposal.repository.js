@@ -34,6 +34,36 @@ const formatTimestamp = (value) => {
   return new Date(value).toISOString();
 };
 
+const formatDateForMySQL = (dateValue, withTime = false) => {
+  if (!dateValue) {
+    return null;
+  }
+
+  let date;
+  if (typeof dateValue === "string") {
+    // Se é uma string no formato YYYY-MM-DD ou similar, extrair apenas a data
+    const dateOnly = dateValue.split(" ")[0].split("T")[0];
+    date = new Date(dateOnly);
+  } else {
+    date = new Date(dateValue);
+  }
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  if (!withTime) {
+    return `${year}-${month}-${day}`;
+  }
+
+  // Com time: adicionar 23:59:59 para o final do dia
+  return `${year}-${month}-${day} 23:59:59`;
+};
+
 const mapProposalRow = (row) => {
   if (!row) {
     return null;
@@ -179,7 +209,7 @@ export const proposalRepository = {
         data.requestId,
         data.freelancerId,
         data.proposedPrice,
-        `${data.proposedDeadline} 23:59:59`,
+        formatDateForMySQL(data.proposedDeadline, true),
         data.coverLetter || null,
       ],
     );
@@ -210,7 +240,7 @@ export const proposalRepository = {
           client_response_status = 'En attente'
         WHERE id = ?
       `,
-      [data.responseType, data.price, data.deadline, id],
+      [data.responseType, data.price, formatDateForMySQL(data.deadline, false), id],
     );
 
     return this.findById(id, connection);

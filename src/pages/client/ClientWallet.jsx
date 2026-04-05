@@ -179,11 +179,11 @@ export default function ClientWallet() {
       <div className="client-wallet-shell">
         <section className="client-wallet-hero">
           <div className="client-wallet-copy">
-            <span className="client-wallet-eyebrow">Wallet client</span>
+            <span className="client-wallet-eyebrow">Portefeuille client</span>
             <h1>Suivre votre solde, vos fonds bloques et les paiements projet</h1>
             <p>
               Ce wallet vous donne une vue claire sur les recharges, les montants places en escrow
-              et les paiements deja liberes sur vos collaborations.
+              et les paiements déjà libérés sur vos collaborations.
             </p>
           </div>
 

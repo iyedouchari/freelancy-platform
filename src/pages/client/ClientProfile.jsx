@@ -15,7 +15,7 @@ function readClientProfile() {
       "Je pilote des projets digitaux avec une attention forte sur la clarte du besoin, la qualite d'execution et le suivi avec les freelancers engages.",
     sectors: JSON.parse(
       localStorage.getItem("client_sectors") ||
-        '["Developpement Web","UI/UX Design","Marketing Digital"]'
+        '["Développement Web","UI/UX Design","Marketing digital"]'
     ),
     profileImage: localStorage.getItem("client_image") || null,
   };
@@ -287,17 +287,17 @@ export default function ClientProfile({
             <strong>{requestsCount}</strong>
           </article>
           <article>
-            <span>Deals en cours</span>
+            <span>Accords en cours</span>
             <strong>{activeDealsCount}</strong>
           </article>
           <article>
-            <span>Deals termines</span>
+            <span>Accords terminés</span>
             <strong>{completedDealsCount}</strong>
           </article>
         </section>
 
         <section className="client-profile-panel">
-          <h2>A propos</h2>
+          <h2>À propos</h2>
           <p>{profile.bio}</p>
         </section>
 

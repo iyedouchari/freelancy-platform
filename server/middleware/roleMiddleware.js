@@ -2,12 +2,14 @@ import AppError from "../utils/AppError.js";
 
 export const roleMiddleware = (...allowedRoles) => {
   return (req, _res, next) => {
-    if (!req.auth?.role) {
+    const userRole = req.user?.role || req.auth?.role;
+    
+    if (!userRole) {
       next(new AppError("User role not found in request context.", 401, "ROLE_MISSING"));
       return;
     }
 
-    const normalizedRole = String(req.auth.role).toLowerCase();
+    const normalizedRole = String(userRole).toLowerCase();
     const normalizedAllowedRoles = allowedRoles.map((role) => String(role).toLowerCase());
 
     if (!normalizedAllowedRoles.includes(normalizedRole)) {

@@ -45,6 +45,10 @@
   text-transform: uppercase;
 }
 
+.client-request-detail-eyebrow {
+  margin-bottom: 10px;
+}
+
 .client-requests-copy h1 {
   margin-top: 16px;
   color: #0f172a;
@@ -242,6 +246,24 @@
   flex-wrap: wrap;
 }
 
+.client-request-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.client-request-badge-row-inline {
+  margin-top: 0;
+}
+
+.client-request-title-row-detail {
+  margin-top: 4px;
+  gap: 12px;
+}
+
 .client-request-proposal-flag-row {
   display: flex;
   align-items: center;
@@ -272,6 +294,11 @@
 .client-request-proposal-kind.is-fixed {
   background: #fee2e2;
   color: #b91c1c;
+}
+
+.client-request-proposal-kind.is-warning {
+  background: #fef08a;
+  color: #a16207;
 }
 
 .client-request-proposal-kind.is-counter {
@@ -308,6 +335,22 @@
   color: #0f172a;
   font-size: 1rem;
   font-weight: 800;
+}
+
+.client-request-card-sections {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.client-request-card-section strong {
+  display: block;
+  color: #64748b;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
 }
 
 .client-request-detail-card {

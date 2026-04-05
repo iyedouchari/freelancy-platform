@@ -53,7 +53,7 @@ const Login = () => {
       }
 
       localStorage.setItem("freelancer_name", user.name || formatFreelancerName(normalizedEmail));
-      localStorage.setItem("freelancer_title", user.title || "Freelancer");
+      localStorage.setItem("freelancer_title", user.title || "Freelance");
       localStorage.setItem("freelancer_location", user.location || "Remote");
       localStorage.setItem("freelancer_email", user.email || normalizedEmail);
       localStorage.setItem("freelancer_phone", user.phone || "");

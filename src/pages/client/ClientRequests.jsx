@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "../../utils/format";
+import { splitRequestMetadata } from "../../utils/requestDomains";
 import ClientCreateRequest from "./ClientCreateRequest";
 import "./ClientRequests.css";
 
 function getRequestTypeMeta(request) {
   return request.negotiable
     ? {
-        label: "Negociable",
+        label: "Négociable",
         tone: "is-negotiable",
       }
     : {
-        label: "Non negociable",
+        label: "Non négociable",
         tone: "is-fixed",
       };
 }
@@ -40,7 +41,7 @@ function getProposalComparison(request, proposal) {
     return {
       label: "Comme la demande",
       tone: "is-fixed",
-      description: "Le freelancer suit votre demande.",
+      description: "Le freelance suit votre demande.",
     };
   }
 
@@ -57,9 +58,9 @@ function getProposalComparison(request, proposal) {
   }
 
   return {
-    label: "Contre-offre freelancer",
-    tone: "is-counter",
-    description: "Le freelancer propose un prix ou une date differents.",
+    label: "Contre-offre",
+    tone: "is-warning",
+    description: "Le freelance propose un prix ou une date différents.",
   };
 }
 
@@ -92,7 +93,8 @@ export default function ClientRequests({
       return (
         request.title.toLowerCase().includes(query) ||
         request.category.toLowerCase().includes(query) ||
-        request.skills.some((skill) => skill.toLowerCase().includes(query))
+        splitRequestMetadata(request).domains.some((domain) => domain.toLowerCase().includes(query)) ||
+        splitRequestMetadata(request).competencies.some((skill) => skill.toLowerCase().includes(query))
       );
     });
   }, [requests, search]);
@@ -198,7 +200,7 @@ export default function ClientRequests({
         return;
       }
 
-      setNotice("La proposition du freelancer a ete refusee.");
+      setNotice("La proposition du freelance a été refusée.");
     } catch (error) {
       setNotice(error.message || "Impossible de refuser la proposition.");
     }
@@ -226,7 +228,7 @@ export default function ClientRequests({
             <div className="client-requests-stat-card">
               <span>Avec propositions</span>
               <strong>{stats.withProposals}</strong>
-              <small>freelancers deja interesses</small>
+              <small>freelances déjà intéressés</small>
             </div>
             <div className="client-requests-stat-card">
               <span>Sans proposition</span>
@@ -287,6 +289,7 @@ export default function ClientRequests({
               </div>
             ) : (
               filteredRequests.map((request) => {
+                const metadata = splitRequestMetadata(request);
                 const typeMeta = getRequestTypeMeta(request);
 
                 return (
@@ -300,20 +303,43 @@ export default function ClientRequests({
                       <span className="client-request-posted">{format(request.postedAt, "relative")}</span>
                     </div>
 
-                    <div className="client-request-badge-row">
-                      <span className="client-request-status">En attente</span>
-                      <span className={`client-request-type-badge ${typeMeta.tone}`}>
-                        {typeMeta.label}
-                      </span>
+                    <div className="client-request-title-row">
+                      <h2>{request.title}</h2>
+                      <div className="client-request-badge-row client-request-badge-row-inline">
+                        <span className="client-request-status">En attente</span>
+                        <span className={`client-request-type-badge ${typeMeta.tone}`}>
+                          {typeMeta.label}
+                        </span>
+                      </div>
                     </div>
-
-                    <h2>{request.title}</h2>
                     <p>{request.description}</p>
 
                     <div className="client-request-card-meta">
-                      <span>{request.category}</span>
-                      <strong>{format(request.budget)} DT</strong>
+                      <span>{metadata.domains.length} domaine(s)</span>
+                      <strong>Budget: {format(request.budget)} DT</strong>
                       <span>{request.proposals.length} proposition(s)</span>
+                    </div>
+
+                    <div className="client-request-card-sections">
+                      <div className="client-request-card-section">
+                        <strong>Domaines</strong>
+                        <div className="client-request-skills">
+                          {metadata.domains.map((domain) => (
+                            <span key={domain}>{domain}</span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {metadata.competencies.length > 0 && (
+                        <div className="client-request-card-section">
+                          <strong>Compétences</strong>
+                          <div className="client-request-skills">
+                            {metadata.competencies.map((skill) => (
+                              <span key={skill}>{skill}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </button>
                 );
@@ -324,23 +350,28 @@ export default function ClientRequests({
           <aside className="client-request-details">
             {selectedRequest ? (
               <>
+                {(() => {
+                  const selectedMetadata = splitRequestMetadata(selectedRequest);
+                  return (
+                    <>
                 <div className="client-request-detail-card">
                   <div className="client-request-detail-top">
                     <div>
                       <span className="client-request-detail-eyebrow">Demande en attente</span>
-                      <h2>{selectedRequest.title}</h2>
+                      <div className="client-request-title-row client-request-title-row-detail">
+                        <h2>{selectedRequest.title}</h2>
+                        <div className="client-request-badge-row client-request-badge-row-inline">
+                          <span className="client-request-status">En attente</span>
+                          <span
+                            className={`client-request-type-badge ${
+                              getRequestTypeMeta(selectedRequest).tone
+                            }`}
+                          >
+                            {getRequestTypeMeta(selectedRequest).label}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="client-request-badge-row">
-                    <span className="client-request-status">En attente</span>
-                    <span
-                      className={`client-request-type-badge ${
-                        getRequestTypeMeta(selectedRequest).tone
-                      }`}
-                    >
-                      {getRequestTypeMeta(selectedRequest).label}
-                    </span>
                   </div>
 
                   <p className="client-request-detail-description">{selectedRequest.description}</p>
@@ -355,8 +386,8 @@ export default function ClientRequests({
                       <strong>{format(selectedRequest.deadline, "date")}</strong>
                     </div>
                     <div>
-                      <span>Categorie</span>
-                      <strong>{selectedRequest.category}</strong>
+                      <span>Domaines</span>
+                      <strong>{selectedMetadata.domains.length}</strong>
                     </div>
                     <div>
                       <span>Propositions</span>
@@ -365,13 +396,24 @@ export default function ClientRequests({
                   </div>
 
                   <div className="client-request-skills-block">
-                    <span>Competences demandees</span>
+                    <span>Domaines demandés</span>
                     <div className="client-request-skills">
-                      {selectedRequest.skills.map((skill) => (
+                      {selectedMetadata.domains.map((domain) => (
+                        <span key={domain}>{domain}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {selectedMetadata.competencies.length > 0 && (
+                  <div className="client-request-skills-block">
+                    <span>Compétences demandées</span>
+                    <div className="client-request-skills">
+                      {selectedMetadata.competencies.map((skill) => (
                         <span key={skill}>{skill}</span>
                       ))}
                     </div>
                   </div>
+                  )}
 
                   <div className="client-request-detail-actions">
                     <button type="button" onClick={() => setIsEditing((current) => !current)}>
@@ -383,8 +425,8 @@ export default function ClientRequests({
                       onClick={() => setShowFreelancers((current) => !current)}
                     >
                       {showFreelancers
-                        ? "Masquer les freelancers proposes"
-                        : "Voir les freelancers proposes"}
+                        ? "Masquer les freelances proposés"
+                        : "Voir les freelances proposés"}
                     </button>
                   </div>
 
@@ -392,6 +434,9 @@ export default function ClientRequests({
                     Cette demande reste modifiable tant qu'aucun accord n'est valide.
                   </div>
                 </div>
+                    </>
+                  );
+                })()}
 
                 {isEditing && (
                   <div className="client-request-detail-card">
@@ -410,7 +455,7 @@ export default function ClientRequests({
                 <div className="client-request-detail-card">
                   <div className="client-request-proposals-head">
                     <div>
-                      <span className="client-request-detail-eyebrow">Freelancers proposes</span>
+                      <span className="client-request-detail-eyebrow">Freelances proposés</span>
                       <h3>Comprendre chaque proposition avant de choisir</h3>
                     </div>
                     <span className="client-request-proposals-count">
@@ -423,12 +468,12 @@ export default function ClientRequests({
                     <div className="client-request-proposals-closed">
                       <p>
                         Ouvrez cette section pour comparer chaque proposition, voir le profil du
-                        freelancer et ajouter un feedback si besoin.
+                        freelance et ajouter un avis si besoin.
                       </p>
                     </div>
                   ) : selectedRequest.proposals.length === 0 ? (
                     <div className="client-request-proposals-empty">
-                      Aucun freelance ne s'est encore positionne sur cette demande.
+                      Aucun freelance ne s'est encore positionné sur cette demande.
                     </div>
                   ) : (
                     <div className="client-request-proposals-list">
@@ -473,7 +518,7 @@ export default function ClientRequests({
                                 <small>{format(selectedRequest.deadline, "date")}</small>
                               </div>
                               <div className="client-request-proposal-term-card">
-                                <span>Proposition freelancer</span>
+                                <span>Proposition du freelance</span>
                                 <strong>{format(proposal.rate)} DT</strong>
                                 <small>{format(proposal.proposedDeadline, "date")}</small>
                               </div>
@@ -489,7 +534,7 @@ export default function ClientRequests({
                                 className="ghost"
                                 onClick={() => onViewFreelancerProfile?.(proposal.freelancerId)}
                               >
-                                Voir le profil et ajouter un feedback
+                                Voir le profil et ajouter un avis
                               </button>
                             </div>
 

@@ -18,26 +18,20 @@ const ProjectDetails = ({ project }) => {
     "Habitué aux environnements produit",
     "Capable de communiquer clairement en français",
   ];
-  const currency = project.currency ?? "$";
+  const currency = project.currency ?? "DT";
 
   return (
     <div className="glass-card p-8 space-y-7 h-fit">
       <div className="space-y-3">
         <h2 className="text-4xl font-semibold text-slate-900">{project.title}</h2>
         <div className="flex flex-wrap gap-2">
-          {project.tags.map((tag) => (
-            <span key={tag} className="tag">
-              {tag}
-            </span>
-          ))}
           <span className={`tag ${typeStyle} border`}>
             {typeLabel}
           </span>
         </div>
         <div className="flex flex-wrap gap-4 text-sm text-slate-600">
           <span className="font-semibold text-slate-800">
-            {currency}
-            {format(project.budget)} budget
+            {format(project.budget)} {currency} budget
           </span>
           <span>Date limite : {format(project.deadline, "date")}</span>
         </div>
@@ -47,6 +41,38 @@ const ProjectDetails = ({ project }) => {
         <h3 className="text-lg font-semibold text-slate-900">Description du projet</h3>
         <p className="text-slate-700 leading-relaxed text-lg">{project.description}</p>
       </div>
+
+      <div className="space-y-3">
+        {Array.isArray(project.categories) && project.categories.length > 0 && (
+          <>
+            <h4 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">
+              Domaines
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {project.categories.map((domain) => (
+                <span key={domain} className="tag">
+                  {domain}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {Array.isArray(project.competencies) && project.competencies.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">
+            Competences
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {project.competencies.map((skill) => (
+              <span key={skill} className="tag">
+                {skill}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-3">
         <h4 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Exigences</h4>
@@ -72,8 +98,7 @@ const ProjectDetails = ({ project }) => {
         <div className="glass-card p-4">
           <p className="card-section-title">Budget</p>
           <p className="text-lg font-semibold text-slate-900">
-            {currency}
-            {format(project.budget)}
+            {format(project.budget)} {currency}
           </p>
         </div>
         <div className="glass-card p-4">

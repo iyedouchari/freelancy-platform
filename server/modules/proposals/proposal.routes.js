@@ -26,13 +26,11 @@ router.get("/request/:requestId", authorize("client", "freelancer", "admin"), as
 router.post("/", authorize("freelancer"), validate(createProposalSchema), asyncHandler(createProposal));
 router.patch(
   "/:id/status",
-  authorize("client", "admin"),
   validate(proposalStatusSchema),
   asyncHandler(changeProposalStatus),
 );
 router.patch(
   "/:id/client-response",
-  authorize("client", "admin"),
   validate(clientProposalResponseSchema),
   asyncHandler(sendClientProposalResponse),
 );

@@ -20,15 +20,15 @@ function getParticipantName(viewerRole, explicitName) {
   if (viewerRole === "client") {
     return localStorage.getItem("client_name") || "Client";
   }
-  return localStorage.getItem("freelancer_name") || "Freelancer";
+  return localStorage.getItem("freelancer_name") || "Freelance";
 }
 
 function getWorkspaceMeta(viewerRole, selectedDeal) {
   if (viewerRole === "client") {
     return {
-      counterpartLabel: "Freelancer",
-      counterpartName: readDealField(selectedDeal, "freelancerName", "freelancer_name") || "Freelancer",
-      actionLabel: "Partager un fichier projet",
+      counterpartLabel: "Freelance",
+      counterpartName: readDealField(selectedDeal, "freelancerName", "freelancer_name") || "Freelance",
+      actionLabel: "Partager un fichier de projet",
       receiverId: readDealField(selectedDeal, "freelancerId", "freelancer_id"),
     };
   }
@@ -95,7 +95,7 @@ export default function Workspace({
   onBack,
   viewerRole = "freelancer",
   participantName: participantNameProp,
-  backLabel = "Retour a mes accords",
+  backLabel = "Retour à mes accords",
   socket,
   myUserId,
 }) {
@@ -143,7 +143,7 @@ export default function Workspace({
   useEffect(() => {
     if (!resolvedDealId) {
       setSelectedDeal(null);
-      setError("Aucun deal selectionne.");
+      setError("Aucun accord sélectionné.");
       setLoading(false);
       return;
     }
@@ -162,12 +162,12 @@ export default function Workspace({
 
         if (!res.ok) {
           if (res.status === 404) {
-            throw new Error("Deal introuvable.");
+            throw new Error("Accord introuvable.");
           }
           if (res.status === 401) {
-            throw new Error("Session expiree. Reconnectez-vous.");
+            throw new Error("Session expirée. Reconnectez-vous.");
           }
-          throw new Error("Impossible de charger ce deal.");
+          throw new Error("Impossible de charger cet accord.");
         }
 
         const payload = await res.json();
@@ -175,7 +175,7 @@ export default function Workspace({
       } catch (err) {
         if (err.name !== "AbortError") {
           setSelectedDeal(null);
-          setError(err.message || "Erreur lors du chargement du deal.");
+          setError(err.message || "Erreur lors du chargement de l'accord.");
         }
       } finally {
         setLoading(false);
@@ -262,7 +262,7 @@ export default function Workspace({
       });
       await loadDeliveries();
     } catch (err) {
-      console.error("Erreur soumission livraison:", err);
+      console.error("Erreur lors de l'envoi de la livraison :", err);
     } finally {
       setDeliveryUploading(false);
       event.target.value = "";
@@ -285,7 +285,7 @@ export default function Workspace({
 
       setDeliveryFiles((prev) => prev.filter((file) => file.id !== deliveryId));
     } catch (err) {
-      console.error("Erreur suppression livraison:", err);
+      console.error("Erreur lors de la suppression de la livraison :", err);
     } finally {
       setDeletingDeliveryId(null);
     }
@@ -329,7 +329,7 @@ export default function Workspace({
                 </div>
                 <div className="workspace-days-left">
                   {daysLeft === null || daysLeft < 0
-                    ? "Projet finalise"
+                    ? "Projet finalisé"
                     : timeRemainingLabel}
                 </div>
               </div>
@@ -358,9 +358,9 @@ export default function Workspace({
             />
 
             <div className="workspace-delivery-list">
-              <h4>Fichiers envoyes</h4>
+              <h4>Fichiers envoyés</h4>
               {deliveryFiles.length === 0 ? (
-                <p className="workspace-delivery-empty">Aucun fichier envoye pour le moment.</p>
+                <p className="workspace-delivery-empty">Aucun fichier envoyé pour le moment.</p>
               ) : (
                 <ul>
                   {deliveryFiles.map((file) => (
@@ -371,10 +371,10 @@ export default function Workspace({
                             {file.fileName}
                           </a>
                           <strong className="workspace-delivery-author">
-                            Envoye par{" "}
+                            Envoyé par{" "}
                             {String(file.senderId) === String(readDealField(selectedDeal, "clientId", "client_id"))
                               ? readDealField(selectedDeal, "clientName", "client_name") || "Client"
-                              : readDealField(selectedDeal, "freelancerName", "freelancer_name") || "Freelancer"}
+                              : readDealField(selectedDeal, "freelancerName", "freelancer_name") || "Freelance"}
                           </strong>
                           <span>{formatDateTime(file.sentAt)}</span>
                         </div>

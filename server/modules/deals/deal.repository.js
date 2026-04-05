@@ -26,6 +26,36 @@ const normalizeTimestamp = (value) => {
   return new Date(value).toISOString();
 };
 
+const formatDateForMySQL = (dateValue, withTime = false) => {
+  if (!dateValue) {
+    return null;
+  }
+
+  let date;
+  if (typeof dateValue === "string") {
+    // Se é uma string no formato YYYY-MM-DD ou similar, extrair apenas a data
+    const dateOnly = dateValue.split(" ")[0].split("T")[0];
+    date = new Date(dateOnly);
+  } else {
+    date = new Date(dateValue);
+  }
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  if (!withTime) {
+    return `${year}-${month}-${day}`;
+  }
+
+  // Com time: adicionar 23:59:59 para o final do dia
+  return `${year}-${month}-${day} 23:59:59`;
+};
+
 const mapDealRow = (row) => {
   if (!row) {
     return null;
@@ -81,13 +111,13 @@ export const ensureDealsTable = async () => {
       submitted_at DATETIME DEFAULT NULL,
       final_paid_at DATETIME DEFAULT NULL,
       status ENUM(
-        'En attente acompte',
+        'En cours',
         'Actif',
         'Soumis',
         'En attente paiement final',
         'Termine',
         'Annule'
-      ) NOT NULL DEFAULT 'En attente acompte',
+      ) NOT NULL DEFAULT 'En cours',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_deal_proposal FOREIGN KEY (proposal_id)
         REFERENCES proposals(id) ON DELETE RESTRICT,
@@ -117,7 +147,7 @@ export const dealRepository = {
           deadline,
           status
         )
-        VALUES (?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR), ?, 'En attente acompte')
+        VALUES (?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR), ?, 'En cours')
       `,
       [
         proposal.id,
@@ -126,7 +156,7 @@ export const dealRepository = {
         proposal.freelancerId,
         proposedPrice,
         Number((proposedPrice * 0.1).toFixed(2)),
-        `${proposal.proposedDeadline} 23:59:59`,
+        formatDateForMySQL(proposal.proposedDeadline, true),
       ],
     );
 

@@ -28,18 +28,25 @@ const parseJson = async (response) => {
 
 const formatDealStatus = (status) => {
   if (status === "Termine") {
-    return { status: "Complete", daysLeft: null };
+    return { status: "Terminé", daysLeft: null, statusType: "done" };
   }
 
   if (status === "Soumis") {
-    return { status: "Soumis" };
+    return { status: "Soumis", statusType: "submitted" };
   }
 
   if (status === "En attente paiement final") {
-    return { status: "En attente paiement final" };
+    return { status: "En attente paiement final", statusType: "review" };
   }
 
-  return { status: status === "Actif" ? "En Cours" : status };
+  if (status === "En cours") {
+    return { status: "En cours", statusType: "review" };
+  }
+
+  return {
+    status: status === "Actif" ? "En Cours" : status,
+    statusType: status === "Actif" ? "progress" : "review",
+  };
 };
 
 export const toUiDeal = (deal) => {
@@ -71,7 +78,9 @@ export const toUiDeal = (deal) => {
     urgent: daysLeft !== null && daysLeft <= 5,
     roomCode: `deal-${deal.id}`,
     status: statusMeta.status,
-    progressLabel: `Deal lie a la demande #${deal.requestId}`,
+    statusType: statusMeta.statusType,
+    location: deal.clientName ? `Client : ${deal.clientName}` : "",
+    progressLabel: `Accord lié à la demande n°${deal.requestId}`,
   };
 };
 
