@@ -16,7 +16,18 @@ export const chatSocketHandler = (io) => {
     });
 
     socket.on("send_message", async (data) => {
-      const { dealId, senderId, receiverId, content, fileName, fileUrl } = data;
+      const {
+        dealId,
+        senderId,
+        receiverId,
+        content,
+        fileName,
+        fileUrl,
+        key,
+        mimeType,
+        size,
+        messageType,
+      } = data;
 
       try {
         const savedMsg = await chatService.handleSendMessage(
@@ -25,15 +36,25 @@ export const chatSocketHandler = (io) => {
           receiverId,
           content,
           fileName,
-          fileUrl
+          fileUrl,
+          key,
+          mimeType,
+          size,
+          messageType
         );
 
         const payload = {
           id: savedMsg.id,
           dealId: savedMsg.deal_id ?? dealId,
+          conversationId: savedMsg.conversation_id ?? savedMsg.deal_id ?? dealId,
           senderId: savedMsg.sender_id ?? senderId,
           content: savedMsg.content ?? content,
+          text: savedMsg.text ?? savedMsg.content ?? content,
+          messageType: savedMsg.message_type ?? messageType ?? "text",
           fileName: savedMsg.file_name ?? fileName ?? null,
+          key: savedMsg.file_key ?? key ?? null,
+          mimeType: savedMsg.file_mime_type ?? mimeType ?? null,
+          size: savedMsg.file_size ?? size ?? null,
           fileUrl: savedMsg.file_url ?? fileUrl ?? null,
           sentAt: savedMsg.sent_at ?? new Date(),
         };

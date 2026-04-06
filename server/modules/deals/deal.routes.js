@@ -3,11 +3,10 @@ import { authenticate } from "../../middleware/authMiddleware.js";
 import asyncHandler from "../../utils/asyncHandler.js";
 import { getDealById, getdealStatus, listDeals } from "./deal.controller.js";
 import crypto from "crypto";
-import { promises as fs } from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import { pipeline } from "stream/promises";
 import { getDb } from "../../config/db.js";
 import express from "express";
+import { deleteFromB2, downloadFromB2, uploadToB2 } from "../../config/b2.js";
 
 const router = express.Router();
 
@@ -16,12 +15,37 @@ router.use(authenticate);
 router.get("/", asyncHandler(listDeals));
 router.get("/:id", asyncHandler(getDealById));
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const deliveryUploadDir = path.resolve(__dirname, "../../uploads/deliveries");
-
 function sanitizeFileName(fileName) {
-  return fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+  return fileName.replace(/[^a-zA-Z0-9._-]/g, "_") || "file";
+}
+
+function buildStorageKey(folder, fileName) {
+  const ext = fileName.includes(".") ? `.${fileName.split(".").pop()}` : "";
+  const baseName = ext ? fileName.slice(0, -ext.length) : fileName;
+  const safeBaseName = baseName || "file";
+  return `${folder}/${Date.now()}-${crypto.randomUUID()}-${safeBaseName}${ext}`;
+}
+
+function buildDeliveryDownloadUrl(dealId, key, fileName) {
+  const params = new URLSearchParams({
+    key,
+    fileName,
+  });
+
+  return `/api/deals/${dealId}/deliveries/download?${params.toString()}`;
+}
+
+function getKeyFromStoredUrl(fileUrl) {
+  if (!fileUrl) {
+    return null;
+  }
+
+  try {
+    const parsedUrl = new URL(String(fileUrl), "http://localhost");
+    return parsedUrl.searchParams.get("key");
+  } catch {
+    return null;
+  }
 }
 
 async function ensureDeliveriesTable() {
@@ -93,6 +117,37 @@ router.get("/:id/deliveries", async (req, res) => {
   }
 });
 
+router.get("/:id/deliveries/download", async (req, res) => {
+  const { key, fileName } = req.query;
+
+  if (!key) {
+    return res.status(400).json({ message: "Cle fichier manquante." });
+  }
+
+  try {
+    const safeFileName = sanitizeFileName(String(fileName || "download"));
+    const object = await downloadFromB2(String(key));
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${safeFileName}"`
+    );
+    res.setHeader(
+      "Content-Type",
+      object.ContentType || "application/octet-stream"
+    );
+
+    if (object.ContentLength != null) {
+      res.setHeader("Content-Length", String(object.ContentLength));
+    }
+
+    await pipeline(object.Body, res);
+  } catch (error) {
+    console.error("Erreur download livraison /api/deals/:id/deliveries/download :", error);
+    return res.status(500).json({ message: "Impossible de telecharger le fichier." });
+  }
+});
+
 router.delete("/:id/deliveries/:deliveryId", async (req, res) => {
   const db = getDb();
   const { id, deliveryId } = req.params;
@@ -123,13 +178,9 @@ router.delete("/:id/deliveries/:deliveryId", async (req, res) => {
 
     await db.execute(`DELETE FROM deliveries WHERE id = ?`, [deliveryId]);
 
-    if (delivery.file_url) {
-      const relativePath = String(delivery.file_url).replace(/^\/+/, "").split("/").join(path.sep);
-      const absolutePath = path.resolve(__dirname, "../../", relativePath);
-
-      if (absolutePath.startsWith(deliveryUploadDir)) {
-        await fs.unlink(absolutePath).catch(() => null);
-      }
+    const storageKey = getKeyFromStoredUrl(delivery.file_url);
+    if (storageKey) {
+      await deleteFromB2(storageKey).catch(() => null);
     }
 
     return res.json({ success: true });
@@ -155,23 +206,22 @@ router.post(
       return res.status(400).json({ message: "Fichier vide." });
     }
 
+    const safeOriginalName = sanitizeFileName(String(fileName));
+    const mimeType = String(req.headers["content-type"] || "application/octet-stream");
+    const key = buildStorageKey("deliveries", safeOriginalName);
+
     try {
       await ensureDeliveriesTable();
-      await fs.mkdir(deliveryUploadDir, { recursive: true });
-
-      const safeOriginalName = sanitizeFileName(String(fileName));
-      const ext = path.extname(safeOriginalName);
-      const baseName = path.basename(safeOriginalName, ext) || "file";
-      const uniqueName = `${Date.now()}-${crypto.randomUUID()}-${baseName}${ext}`;
-      const absolutePath = path.join(deliveryUploadDir, uniqueName);
-      const fileUrl = `/uploads/deliveries/${uniqueName}`;
-
-      await fs.writeFile(absolutePath, req.body);
+      await uploadToB2({
+        key,
+        body: req.body,
+        contentType: mimeType,
+      });
 
       const [insertResult] = await db.execute(
         `INSERT INTO deliveries (deal_id, sender_id, receiver_id, file_name, file_url)
          VALUES (?, ?, ?, ?, ?)`,
-        [id, senderId, receiverId, safeOriginalName, fileUrl]
+        [id, senderId, receiverId, safeOriginalName, buildDeliveryDownloadUrl(id, key, safeOriginalName)]
       );
 
       const [rows] = await db.execute(
@@ -181,8 +231,14 @@ router.post(
         [insertResult.insertId]
       );
 
-      res.status(201).json(rows[0]);
+      res.status(201).json({
+        ...rows[0],
+        key,
+        mimeType,
+        size: req.body.length,
+      });
     } catch (error) {
+      await deleteFromB2(key).catch(() => null);
       console.error("Erreur upload livraison /api/deals/:id/deliveries/upload :", error);
       res.status(500).json({ message: "Erreur serveur" });
     }

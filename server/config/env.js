@@ -1,6 +1,11 @@
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 const parseNumber = (value, fallback) => {
   const parsed = Number.parseInt(value, 10);
@@ -10,6 +15,10 @@ const parseNumber = (value, fallback) => {
 export const env = Object.freeze({
   NODE_ENV: process.env.NODE_ENV || "development",
   PORT: parseNumber(process.env.PORT, 4000),
+  B2_ENDPOINT: process.env.B2_ENDPOINT || "",
+  B2_KEY_ID: process.env.B2_KEY_ID || "",
+  B2_APP_KEY: process.env.B2_APP_KEY || "",
+  B2_BUCKET: process.env.B2_BUCKET || "",
   CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || "http://localhost:5173",
   JWT_SECRET: process.env.JWT_SECRET || "replace-with-a-long-random-secret",
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "7d",

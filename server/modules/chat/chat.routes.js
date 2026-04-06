@@ -1,17 +1,29 @@
 import crypto from "crypto";
 import express from "express";
-import { promises as fs } from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import { pipeline } from "stream/promises";
+import { deleteFromB2, downloadFromB2, uploadToB2 } from "../../config/b2.js";
 import { getMessageHistory, markMessagesAsRead } from "./chat.service.js";
 
 const router = express.Router();
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const uploadDir = path.resolve(__dirname, "../../uploads/chat");
 
 function sanitizeFileName(fileName) {
-  return fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+  return fileName.replace(/[^a-zA-Z0-9._-]/g, "_") || "file";
+}
+
+function buildStorageKey(folder, fileName) {
+  const ext = fileName.includes(".") ? `.${fileName.split(".").pop()}` : "";
+  const baseName = ext ? fileName.slice(0, -ext.length) : fileName;
+  const safeBaseName = baseName || "file";
+  return `${folder}/${Date.now()}-${crypto.randomUUID()}-${safeBaseName}${ext}`;
+}
+
+function buildChatDownloadUrl(key, fileName) {
+  const params = new URLSearchParams({
+    key,
+    fileName,
+  });
+
+  return `/api/chat/file?${params.toString()}`;
 }
 
 router.get("/history/:dealId", async (req, res) => {
@@ -38,6 +50,37 @@ router.patch("/read/:dealId/:userId", async (req, res) => {
   }
 });
 
+router.get("/file", async (req, res) => {
+  const { key, fileName } = req.query;
+
+  if (!key) {
+    return res.status(400).json({ error: "Cle fichier manquante." });
+  }
+
+  try {
+    const safeFileName = sanitizeFileName(String(fileName || "download"));
+    const object = await downloadFromB2(String(key));
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${safeFileName}"`
+    );
+    res.setHeader(
+      "Content-Type",
+      object.ContentType || "application/octet-stream"
+    );
+
+    if (object.ContentLength != null) {
+      res.setHeader("Content-Length", String(object.ContentLength));
+    }
+
+    await pipeline(object.Body, res);
+  } catch (err) {
+    console.error("Erreur /file :", err.message);
+    return res.status(500).json({ error: "Impossible de telecharger le fichier." });
+  }
+});
+
 router.post(
   "/upload",
   express.raw({ type: "*/*", limit: "20mb" }),
@@ -52,22 +95,26 @@ router.post(
       return res.status(400).json({ error: "Fichier vide." });
     }
 
+    const safeOriginalName = sanitizeFileName(String(fileName));
+    const mimeType = String(req.headers["content-type"] || "application/octet-stream");
+    const key = buildStorageKey("chat", safeOriginalName);
+
     try {
-      await fs.mkdir(uploadDir, { recursive: true });
-
-      const safeOriginalName = sanitizeFileName(String(fileName));
-      const ext = path.extname(safeOriginalName);
-      const baseName = path.basename(safeOriginalName, ext) || "file";
-      const uniqueName = `${Date.now()}-${crypto.randomUUID()}-${baseName}${ext}`;
-      const absolutePath = path.join(uploadDir, uniqueName);
-
-      await fs.writeFile(absolutePath, req.body);
+      await uploadToB2({
+        key,
+        body: req.body,
+        contentType: mimeType,
+      });
 
       return res.json({
         fileName: safeOriginalName,
-        fileUrl: `/uploads/chat/${uniqueName}`,
+        key,
+        mimeType,
+        size: req.body.length,
+        fileUrl: buildChatDownloadUrl(key, safeOriginalName),
       });
     } catch (err) {
+      await deleteFromB2(key).catch(() => null);
       console.error("Erreur /upload :", err.message);
       return res.status(500).json({ error: "Impossible d'uploader le fichier." });
     }
