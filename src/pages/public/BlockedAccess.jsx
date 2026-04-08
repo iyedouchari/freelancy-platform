@@ -50,7 +50,7 @@ export default function BlockedAccess() {
         </div>
 
         <div className="blocked-page-panel">
-          <span>Durée</span>
+          <span>Date de retour : </span>
           <strong>{formatSuspendedUntil(suspendedUntil)}</strong>
         </div>
 
