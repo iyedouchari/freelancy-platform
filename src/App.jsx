@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 import FreelancerDashboard from "./pages/freelancer/FreelancerDashboard";
 import FreelancerDeals from "./pages/freelancer/FreelancerDeals";
 import FreelancerProfile from "./pages/freelancer/FreelancerProfile";
@@ -116,12 +117,16 @@ const FreelancerRoute = () =>
 const ClientRoute = () =>
   isAuthenticated() ? <ClientShell /> : <Navigate to="/login" replace />;
 
+const AdminRoute = () =>
+  isAuthenticated() ? <AdminDashboard /> : <Navigate to="/login" replace />;
+
 // ── App principale ────────────────────────────────────────────────────────────
 const App = () => (
   <Routes>
     <Route path="/"         element={<Landing />} />
     <Route path="/login"    element={<Login />} />
     <Route path="/register" element={<Register />} />
+    <Route path="/admin"    element={<AdminRoute />} />
     <Route path="/app/*"    element={<FreelancerRoute />} />
     <Route path="/client/*" element={<ClientRoute />} />
   </Routes>

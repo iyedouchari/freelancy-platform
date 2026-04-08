@@ -8,6 +8,7 @@ import { ensureDealsTable } from "./modules/deals/deal.repository.js";
 import { ensureProposalsTable } from "./modules/proposals/proposal.repository.js";
 import { ensureRequestsTable } from "./modules/requests/request.repository.js";
 import { ensureReviewsTable } from "./modules/reviews/review.repository.js";
+import { ensureReportsTable } from "./modules/admin/admin.repository.js";
 
 const API_HEALTH_TIMEOUT_MS = 1500;
 const MAX_PORT_ATTEMPTS = 5;

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import "../../styles/landing.css";
 import Chat from "./Chat.jsx";
+import { reportService } from "../../services/reportService";
 
 const API_BASE = "http://localhost:4000";
 
@@ -106,6 +107,12 @@ export default function Workspace({
   const [deliveryFiles, setDeliveryFiles] = useState([]);
   const [deliveryUploading, setDeliveryUploading] = useState(false);
   const [deletingDeliveryId, setDeletingDeliveryId] = useState(null);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetails, setReportDetails] = useState("");
+  const [reportError, setReportError] = useState("");
+  const [reportNotice, setReportNotice] = useState("");
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
   const resolvedDealId = dealId ?? deal?.id;
 
@@ -218,6 +225,50 @@ export default function Workspace({
   const finalPrice = readDealField(selectedDeal, "finalPrice", "final_price");
   const deadline = readDealField(selectedDeal, "deadline", "deadline");
   const timeRemainingLabel = formatRemainingTime(deadline);
+
+  const openReportModal = () => {
+    setReportError("");
+    setReportNotice("");
+    setReportReason("");
+    setReportDetails("");
+    setIsReportOpen(true);
+  };
+
+  const closeReportModal = () => {
+    if (isSubmittingReport) return;
+    setIsReportOpen(false);
+  };
+
+  const handleSubmitReport = async (event) => {
+    event.preventDefault();
+    setReportError("");
+    setReportNotice("");
+
+    if (!workspaceMeta.receiverId) {
+      setReportError("Impossible de retrouver l'utilisateur a signaler.");
+      return;
+    }
+
+    setIsSubmittingReport(true);
+    try {
+      await reportService.create({
+        reportedUserId: workspaceMeta.receiverId,
+        dealId: resolvedDealId,
+        reason: reportReason,
+        details: reportDetails,
+      });
+      setReportNotice("Report envoye avec succes.");
+      setReportReason("");
+      setReportDetails("");
+      setTimeout(() => {
+        setIsReportOpen(false);
+      }, 800);
+    } catch (submitError) {
+      setReportError(submitError.message || "Impossible d'envoyer le report.");
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
 
   const handleDeliveryFile = async (event) => {
     const file = event.target.files?.[0];
@@ -404,8 +455,56 @@ export default function Workspace({
           myUserId={resolvedMyUserId}
           receiverId={workspaceMeta.receiverId}
           dealId={resolvedDealId}
+          onOpenReport={openReportModal}
         />
       </div>
+
+      {isReportOpen ? (
+        <div className="workspace-report-modal-overlay" onClick={closeReportModal}>
+          <div className="workspace-report-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="workspace-report-modal-head">
+              <div>
+                <span className="workspace-report-eyebrow">Reporter</span>
+                <h3>Signaler {workspaceMeta.counterpartName}</h3>
+              </div>
+              <button type="button" className="workspace-report-close" onClick={closeReportModal}>Fermer</button>
+            </div>
+
+            <form className="workspace-report-form" onSubmit={handleSubmitReport}>
+              <label>
+                <span>Utilisateur concerne</span>
+                <input type="text" value={workspaceMeta.counterpartName} readOnly />
+              </label>
+              <label>
+                <span>Probleme</span>
+                <input
+                  type="text"
+                  placeholder="Ex: comportement abusif, arnaque, spam..."
+                  value={reportReason}
+                  onChange={(event) => setReportReason(event.target.value)}
+                  required
+                />
+              </label>
+              <label>
+                <span>Details</span>
+                <textarea
+                  rows="5"
+                  placeholder="Explique le probleme..."
+                  value={reportDetails}
+                  onChange={(event) => setReportDetails(event.target.value)}
+                />
+              </label>
+
+              {reportError ? <div className="workspace-report-feedback is-error">{reportError}</div> : null}
+              {reportNotice ? <div className="workspace-report-feedback is-success">{reportNotice}</div> : null}
+
+              <button type="submit" className="workspace-report-submit" disabled={isSubmittingReport}>
+                {isSubmittingReport ? "Envoi..." : "Envoyer le report"}
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

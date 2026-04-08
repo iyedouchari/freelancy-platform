@@ -52,6 +52,13 @@ const Login = () => {
         return;
       }
 
+      if (role === "admin") {
+        localStorage.removeItem("client_entry_page");
+        navigate("/admin");
+        return;
+      }
+      
+
       localStorage.setItem("freelancer_name", user.name || formatFreelancerName(normalizedEmail));
       localStorage.setItem("freelancer_title", user.title || "Freelance");
       localStorage.setItem("freelancer_location", user.location || "Remote");

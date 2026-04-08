@@ -37,7 +37,15 @@ function resolveFileUrl(fileUrl) {
   return `${API_BASE}${fileUrl}`;
 }
 
-export default function Chat({ socket, username, myUserId, receiverId, dealId, chatTitle }) {
+export default function Chat({
+  socket,
+  username,
+  myUserId,
+  receiverId,
+  dealId,
+  chatTitle,
+  onOpenReport,
+}) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -186,6 +194,11 @@ export default function Chat({ socket, username, myUserId, receiverId, dealId, c
         <div className="workspace-chat-title-block">
           <small>{chatTitle || "Destinataire"}</small>
         </div>
+        {onOpenReport ? (
+          <button type="button" className="workspace-report-btn" onClick={onOpenReport}>
+            Reporter
+          </button>
+        ) : null}
       </div>
 
       <div className="workspace-chat-messages" ref={messagesContainerRef}>
