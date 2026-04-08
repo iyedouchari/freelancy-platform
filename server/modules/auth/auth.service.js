@@ -46,6 +46,14 @@ export const login = async ({ email, password }) => {
   }
 
   const { passwordHash, ...safeUser } = user;
+
+  if (safeUser.isSuspended) {
+    return {
+      user: safeUser,
+      token: null,
+    };
+  }
+
   return buildAuthResponse(safeUser);
 };
 
