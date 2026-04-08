@@ -253,20 +253,20 @@ export const adminService = {
       await mailer.sendMail({
         to: report.reportedUserEmail,
         subject: "Votre compte Freelancy a ete banni",
-        text: `Bonjour ${report.reportedUserName},\n\nVotre compte a ete banni suite a un signalement verifie.\n${buildBanDetailsText({
+        text: `Bonjour ${report.reportedUserName},\n\nVotre compte a été banni suite a un signalement verifié.\n${buildBanDetailsText({
           reason: report.banReason || report.reason,
           suspendedUntil: report.bannedUntil,
           durationDays: report.banDurationDays,
-        })}\n\nMerci de respecter les regles de la plateforme.`,
+        })}\n\nMerci de respecter les règles de la plateforme.`,
         html: `
           <p>Bonjour <strong>${report.reportedUserName}</strong>,</p>
-          <p>Votre compte Freelancy a ete banni suite a un signalement verifie.</p>
+          <p>Votre compte Freelancy a été banni suite a un signalement verifié.</p>
           ${buildBanDetailsHtml({
             reason: report.banReason || report.reason,
             suspendedUntil: report.bannedUntil,
             durationDays: report.banDurationDays,
           })}
-          <p>Merci de respecter les regles de la plateforme.</p>
+          <p>Merci de respecter les règles de la plateforme.</p>
         `,
       });
 
