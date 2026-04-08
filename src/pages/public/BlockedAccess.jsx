@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../../styles/landing.css";
 
@@ -21,8 +22,15 @@ function formatSuspendedUntil(value) {
 
 export default function BlockedAccess() {
   const navigate = useNavigate();
+  const isSuspended = localStorage.getItem("is_suspended") === "true";
   const reason = localStorage.getItem("suspension_reason") || "Violation des regles de la plateforme.";
   const suspendedUntil = localStorage.getItem("suspended_until");
+
+  useEffect(() => {
+    if (!isSuspended) {
+      navigate("/login");
+    }
+  }, [isSuspended, navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem("auth_token");
@@ -50,7 +58,7 @@ export default function BlockedAccess() {
         </div>
 
         <div className="blocked-page-panel">
-          <span>Date de retour : </span>
+          <span>Date de retour</span>
           <strong>{formatSuspendedUntil(suspendedUntil)}</strong>
         </div>
 
