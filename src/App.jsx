@@ -11,6 +11,7 @@ import ClientShell from "./pages/client/ClientShell";
 import Landing from "./pages/public/Landing";
 import Login from "./pages/public/Login";
 import Register from "./pages/public/Register";
+import BlockedAccess from "./pages/public/BlockedAccess";
 import Workspace from "./pages/shared/Workspace";
 import { dealService } from "./services/dealService";
 
@@ -126,6 +127,7 @@ const App = () => (
     <Route path="/"         element={<Landing />} />
     <Route path="/login"    element={<Login />} />
     <Route path="/register" element={<Register />} />
+    <Route path="/blocked-access" element={<BlockedAccess />} />
     <Route path="/admin"    element={<AdminRoute />} />
     <Route path="/app/*"    element={<FreelancerRoute />} />
     <Route path="/client/*" element={<ClientRoute />} />
