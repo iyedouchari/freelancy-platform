@@ -753,9 +753,7 @@ export default function AdminDashboard() {
             aria-labelledby="admin-user-modal-title"
           >
             <div className="admin-report-modal-head">
-              <div>
-                <h2 id="admin-user-modal-title">Informations de l'utilisateur</h2>
-              </div>
+             
               <button type="button" className="admin-modal-close" onClick={closeUserModal}>
                 Fermer
               </button>
@@ -821,7 +819,7 @@ export default function AdminDashboard() {
                   />
                 </label>
                 <label>
-                  <span>Duree du ban (jours)</span>
+                  <span>Durée du ban (jours)</span>
                   <input
                     type="number"
                     min="1"
