@@ -35,7 +35,7 @@ const buildEffectiveFrom = () => {
 const ensureMailerConfig = () => {
   if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS) {
     throw new AppError(
-      "SMTP is not configured. Add SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS and SMTP_FROM to server/.env.",
+      "SMTP is not configured. Add SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS and SMTP_FROM to .env (or server/.env).",
       500,
       "SMTP_NOT_CONFIGURED",
     );

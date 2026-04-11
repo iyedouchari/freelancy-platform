@@ -8,6 +8,7 @@
     "dev:server": "node server/server.js",
     "start:server": "node server/server.js",
     "db:init": "node server/scripts/initDatabaseSchema.js",
+    "email:test": "node server/scripts/testSmtpEmail.js",
     "build": "vite build",
     "preview": "vite preview"
   },

@@ -14,9 +14,32 @@ const parseNumber = (value, fallback) => {
   return Number.isNaN(parsed) ? fallback : parsed;
 };
 
+const parseBoolean = (value, fallback = false) => {
+  if (value === undefined || value === null || value === "") {
+    return fallback;
+  }
+
+  const normalized = String(value).trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return fallback;
+};
+
 export const env = Object.freeze({
   NODE_ENV: process.env.NODE_ENV || "development",
   PORT: parseNumber(process.env.PORT, 4000),
+  SMTP_HOST: process.env.SMTP_HOST || "",
+  SMTP_PORT: parseNumber(process.env.SMTP_PORT, 587),
+  SMTP_SECURE: parseBoolean(process.env.SMTP_SECURE, false),
+  SMTP_USER: process.env.SMTP_USER || "",
+  SMTP_PASS: process.env.SMTP_PASS || "",
+  SMTP_FROM: process.env.SMTP_FROM || "",
   B2_ENDPOINT: process.env.B2_ENDPOINT || "",
   B2_KEY_ID: process.env.B2_KEY_ID || "",
   B2_APP_KEY: process.env.B2_APP_KEY || "",
