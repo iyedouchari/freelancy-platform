@@ -7,6 +7,7 @@ import {
   changeProposalStatus,
   createProposal,
   getproposalStatus,
+  listMyProposals,
   listProposalsByRequest,
   sendClientProposalResponse,
 } from "./proposal.controller.js";
@@ -22,6 +23,7 @@ router.get("/status", asyncHandler(getproposalStatus));
 
 router.use(authenticate);
 
+router.get("/my", authorize("freelancer", "admin"), asyncHandler(listMyProposals));
 router.get("/request/:requestId", authorize("client", "freelancer", "admin"), asyncHandler(listProposalsByRequest));
 router.post("/", authorize("freelancer"), validate(createProposalSchema), asyncHandler(createProposal));
 router.patch(

@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { DOMAIN_OPTIONS } from "../../data/domains";
 import { authService } from "../../services/authService";
+import { showAppFeedback } from "../../utils/appFeedback";
 import "../../styles/landing.css";
 
 const CATEGORIES = DOMAIN_OPTIONS;
@@ -22,7 +23,11 @@ const Onboarding = ({ onComplete }) => {
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      alert("Veuillez choisir une image de moins de 5 MB.");
+      showAppFeedback({
+        tone: "warning",
+        title: "Image trop volumineuse",
+        message: "Veuillez choisir une image de moins de 5 MB.",
+      });
       e.target.value = "";
       return;
     }
@@ -46,8 +51,22 @@ const Onboarding = ({ onComplete }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (selectedFields.length === 0) return alert("Choisissez au moins un domaine.");
-    if (!bio.trim()) return alert("Veuillez ajouter une bio.");
+    if (selectedFields.length === 0) {
+      showAppFeedback({
+        tone: "warning",
+        title: "Domaine requis",
+        message: "Choisissez au moins un domaine.",
+      });
+      return;
+    }
+    if (!bio.trim()) {
+      showAppFeedback({
+        tone: "warning",
+        title: "Bio requise",
+        message: "Veuillez ajouter une bio.",
+      });
+      return;
+    }
     onComplete({ fields: selectedFields, bio, profileImage });
   };
 
@@ -273,10 +292,38 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!role) return alert("Veuillez choisir votre rôle.");
-    if (password !== confirmPassword) return alert("Les mots de passe ne correspondent pas.");
-    if (password.length < 10) return alert("Le mot de passe doit contenir au moins 10 caracteres.");
-    if (!acceptTerms) return alert("Veuillez accepter les conditions d'utilisation.");
+    if (!role) {
+      showAppFeedback({
+        tone: "warning",
+        title: "Role requis",
+        message: "Veuillez choisir votre role.",
+      });
+      return;
+    }
+    if (password !== confirmPassword) {
+      showAppFeedback({
+        tone: "warning",
+        title: "Mots de passe differents",
+        message: "Les mots de passe ne correspondent pas.",
+      });
+      return;
+    }
+    if (password.length < 10) {
+      showAppFeedback({
+        tone: "warning",
+        title: "Mot de passe trop court",
+        message: "Le mot de passe doit contenir au moins 10 caracteres.",
+      });
+      return;
+    }
+    if (!acceptTerms) {
+      showAppFeedback({
+        tone: "warning",
+        title: "Conditions non acceptees",
+        message: "Veuillez accepter les conditions d'utilisation.",
+      });
+      return;
+    }
 
     setErrorMessage("");
     setIsSubmitting(true);

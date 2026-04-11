@@ -42,6 +42,14 @@ export const proposalService = {
     return proposalRepository.findByRequestId(normalizedRequestId);
   },
 
+  async listMine(userId, role) {
+    if (!isAdmin(role) && role !== "freelancer") {
+      throw new AppError("Action non autorisee.", 403, "FORBIDDEN");
+    }
+
+    return proposalRepository.findByFreelancerId(userId);
+  },
+
   async createProposal(user, data) {
     if (user.role !== "freelancer") {
       throw new AppError(

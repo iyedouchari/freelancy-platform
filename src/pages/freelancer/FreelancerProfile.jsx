@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import FeedbackCard from "../../components/FeedbackCard";
 import StatsCard from "../../components/StatsCard";
 import { DOMAIN_OPTIONS } from "../../data/domains";
+import { showAppFeedback } from "../../utils/appFeedback";
 import "./FreelancerProfile.css";
 
 const sampleFeedback = {
@@ -108,7 +109,11 @@ function EditProfile({ profile, onSave, onCancel, variant }) {
     const file = event.target.files[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      alert("Veuillez choisir une image de moins de 5 MB.");
+      showAppFeedback({
+        tone: "warning",
+        title: "Image trop volumineuse",
+        message: "Veuillez choisir une image de moins de 5 MB.",
+      });
       event.target.value = "";
       return;
     }
@@ -358,9 +363,17 @@ export default function FreelancerProfile({ onBack, variant = "freelancer", stat
 
   try {
     await navigator.clipboard.writeText(profileUrl);
-    alert(`✓ Lien copié !\n${profileUrl}`);
+      showAppFeedback({
+        tone: "success",
+        title: "Lien copie",
+        message: `Le lien de profil a ete copie :\n${profileUrl}`,
+      });
   } catch {
-    alert(`Lien : ${profileUrl}`);
+      showAppFeedback({
+        tone: "info",
+        title: "Lien du profil",
+        message: profileUrl,
+      });
   }
 };
 

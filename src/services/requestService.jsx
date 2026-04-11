@@ -77,6 +77,15 @@ export const requestService = {
     return result?.data ?? [];
   },
 
+  listMyProposals: async () => {
+    const result = await request("/proposals/my");
+    if (Array.isArray(result)) {
+      return result;
+    }
+
+    return result?.data ?? [];
+  },
+
   create: async (payload) => {
     return request("/requests", {
       method: "POST",

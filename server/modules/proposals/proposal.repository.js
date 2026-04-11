@@ -82,6 +82,9 @@ const mapProposalRow = (row) => {
   return {
     id: row.id,
     requestId: row.request_id,
+    requestTitle: row.request_title ?? null,
+    requestStatus: row.request_status ?? null,
+    clientName: row.request_client_name ?? null,
     freelancerId: row.freelancer_id,
     freelancerName: row.freelancer_name ?? null,
     freelancerTitle: row.freelancer_title ?? null,
@@ -112,6 +115,7 @@ const proposalSelect = `
     p.*,
     u.name AS freelancer_name,
     u.professional_title AS freelancer_title,
+    c.name AS request_client_name,
     r.client_id AS request_client_id,
     r.budget AS request_budget,
     r.deadline AS request_deadline,
@@ -121,6 +125,7 @@ const proposalSelect = `
   FROM proposals p
   JOIN users u ON u.id = p.freelancer_id
   JOIN requests r ON r.id = p.request_id
+  JOIN users c ON c.id = r.client_id
 `;
 
 export const ensureProposalsTable = async () => {
@@ -190,6 +195,15 @@ export const proposalRepository = {
     );
 
     return mapProposalRow(rows[0]);
+  },
+
+  async findByFreelancerId(freelancerId, connection = db) {
+    const [rows] = await connection.query(
+      `${proposalSelect} WHERE p.freelancer_id = ? ORDER BY p.created_at DESC`,
+      [freelancerId],
+    );
+
+    return rows.map(mapProposalRow);
   },
 
   async create(data, connection = db) {
