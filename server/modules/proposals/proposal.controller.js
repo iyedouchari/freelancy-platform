@@ -6,12 +6,18 @@ export const getproposalStatus = async (_req, res) => {
     message: "proposals module is ready.",
     data: {
       routes: [
+        "GET /api/proposals/my",
         "GET /api/proposals/request/:requestId",
         "POST /api/proposals",
         "PATCH /api/proposals/:id/status",
       ],
     },
   });
+};
+
+export const listMyProposals = async (req, res) => {
+  const proposals = await proposalService.listMine(req.user.id, req.user.role);
+  return sendSuccess(res, proposals, "Liste de vos propositions.");
 };
 
 export const listProposalsByRequest = async (req, res) => {

@@ -2,15 +2,18 @@ import { useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import AppFeedbackHost from "./components/AppFeedbackHost";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import FreelancerDashboard from "./pages/freelancer/FreelancerDashboard";
 import FreelancerDeals from "./pages/freelancer/FreelancerDeals";
 import FreelancerProfile from "./pages/freelancer/FreelancerProfile";
+import FreelancerProposals from "./pages/freelancer/FreelancerProposals";
 import FreelancerWallet from "./pages/freelancer/FreelancerWallet";
 import ClientShell from "./pages/client/ClientShell";
 import Landing from "./pages/public/Landing";
 import Login from "./pages/public/Login";
 import Register from "./pages/public/Register";
+import BlockedAccess from "./pages/public/BlockedAccess";
 import Workspace from "./pages/shared/Workspace";
 import { dealService } from "./services/dealService";
 
@@ -66,6 +69,7 @@ const FreelancerShell = () => {
   }, []);
 
   const goToDashboard = () => setPage("dashboard");
+  const goToProposals = () => setPage("proposals");
   const goToDeals    = () => setPage("deals");
   const goToWallet   = () => setPage("wallet");
   const goToProfile  = () => setPage("profile");
@@ -79,6 +83,7 @@ const FreelancerShell = () => {
     <div className="app-shell">
       <Navbar
         onDashboard={goToDashboard}
+        onRequests={goToProposals}
         onProfile={goToProfile}
         onDeals={goToDeals}
         onWallet={goToWallet}
@@ -86,6 +91,7 @@ const FreelancerShell = () => {
       />
       <main className="app-main">
         {page === "dashboard" && <FreelancerDashboard ref={dashboardRef} />}
+        {page === "proposals" && <FreelancerProposals onBack={goToDashboard} />}
         {page === "deals" && (
           <FreelancerDeals
             deals={deals}
@@ -122,14 +128,18 @@ const AdminRoute = () =>
 
 // ── App principale ────────────────────────────────────────────────────────────
 const App = () => (
-  <Routes>
-    <Route path="/"         element={<Landing />} />
-    <Route path="/login"    element={<Login />} />
-    <Route path="/register" element={<Register />} />
-    <Route path="/admin"    element={<AdminRoute />} />
-    <Route path="/app/*"    element={<FreelancerRoute />} />
-    <Route path="/client/*" element={<ClientRoute />} />
-  </Routes>
+  <>
+    <Routes>
+      <Route path="/" element={<Landing />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/blocked-access" element={<BlockedAccess />} />
+      <Route path="/admin" element={<AdminRoute />} />
+      <Route path="/app/*" element={<FreelancerRoute />} />
+      <Route path="/client/*" element={<ClientRoute />} />
+    </Routes>
+    <AppFeedbackHost />
+  </>
 );
 
 export default App;

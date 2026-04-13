@@ -22,6 +22,10 @@ const mapUserRow = (row, { includePassword = false } = {}) => {
     email: row.email,
     phone: row.phone,
     role: normalizeRoleFromDb(row.role),
+    isSuspended: Boolean(row.is_suspended),
+    suspensionReason: row.suspension_reason || "",
+    suspendedUntil: row.suspended_until || "",
+    suspensionDurationDays: row.suspension_duration_days ? Number(row.suspension_duration_days) : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at || null,
   };
@@ -71,6 +75,10 @@ export const ensureUsersTable = async () => {
   );
   await addColumnIfMissing("location", "location VARCHAR(120) DEFAULT NULL");
   await addColumnIfMissing("phone", "phone VARCHAR(30) DEFAULT NULL");
+  await addColumnIfMissing("is_suspended", "is_suspended BOOLEAN NOT NULL DEFAULT FALSE");
+  await addColumnIfMissing("suspension_reason", "suspension_reason VARCHAR(255) DEFAULT NULL");
+  await addColumnIfMissing("suspended_until", "suspended_until TIMESTAMP NULL DEFAULT NULL");
+  await addColumnIfMissing("suspension_duration_days", "suspension_duration_days INT NULL DEFAULT NULL");
 };
 
 export const createUser = async ({
@@ -95,7 +103,7 @@ export const createUser = async ({
 export const findUserByEmail = async (email, { includePassword = false } = {}) => {
   const db = getDb();
   const [rows] = await db.query(
-    "SELECT id, name, company, professional_title, location, email, phone, role, password AS password_hash, created_at FROM users WHERE email = ? LIMIT 1",
+    "SELECT id, name, company, professional_title, location, email, phone, role, password AS password_hash, is_suspended, suspension_reason, suspended_until, suspension_duration_days, created_at FROM users WHERE email = ? LIMIT 1",
     [email],
   );
 
@@ -105,7 +113,7 @@ export const findUserByEmail = async (email, { includePassword = false } = {}) =
 export const findUserById = async (id) => {
   const db = getDb();
   const [rows] = await db.query(
-    "SELECT id, name, company, professional_title, location, email, phone, role, created_at FROM users WHERE id = ? LIMIT 1",
+    "SELECT id, name, company, professional_title, location, email, phone, role, is_suspended, suspension_reason, suspended_until, suspension_duration_days, created_at FROM users WHERE id = ? LIMIT 1",
     [id],
   );
   return mapUserRow(rows[0]);

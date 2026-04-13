@@ -1,7 +1,11 @@
 import AppError from "../../utils/AppError.js";
 import { generateToken } from "../../utils/generateToken.js";
 import { comparePassword, hashPassword } from "../../utils/hashPassword.js";
+<<<<<<< HEAD
 import { logAuthError, logAuthEvent } from "../../utils/logger.js";
+=======
+import { mailer } from "../../utils/mailer.js";
+>>>>>>> 72a04575963f9545b273dee9f26ede78def149db
 import { findAuthUserByEmail, findAuthUserById, insertAuthUser } from "./auth.repository.js";
 
 const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
@@ -11,6 +15,47 @@ const buildAuthResponse = (user) => {
     user,
     token: generateToken(user),
   };
+};
+
+const buildRoleLabel = (role) => {
+  if (role === "freelancer") {
+    return "freelance";
+  }
+
+  if (role === "client") {
+    return "client";
+  }
+
+  return role || "utilisateur";
+};
+
+const sendWelcomeEmail = async (user) => {
+  if (!user?.email) {
+    return;
+  }
+
+  const userName = user.name || "Utilisateur";
+  const roleLabel = buildRoleLabel(user.role);
+
+  try {
+    await mailer.sendMail({
+      to: user.email,
+      subject: "Bienvenue sur Freelancy",
+      text: `Bonjour ${userName},\n\nVotre inscription est confirmee. Votre compte ${roleLabel} est maintenant actif sur Freelancy.\n\nVous pouvez vous connecter et commencer a utiliser la plateforme.\n\n- Equipe Freelancy`,
+      html: `
+        <p>Bonjour <strong>${userName}</strong>,</p>
+        <p>Votre inscription est confirmee.</p>
+        <p>Votre compte <strong>${roleLabel}</strong> est maintenant actif sur Freelancy.</p>
+        <p>Vous pouvez vous connecter et commencer a utiliser la plateforme.</p>
+        <p>- Equipe Freelancy</p>
+      `,
+    });
+  } catch (error) {
+    // Keep registration successful even when SMTP is unavailable.
+    console.warn(
+      `[auth.register] Welcome email not sent to ${user.email}: ${error?.message || "Unknown error"}`,
+    );
+  }
 };
 
 export const register = async ({ name, company, title, location, email, phone, password, role }) => {
@@ -37,6 +82,8 @@ export const register = async ({ name, company, title, location, email, phone, p
     role,
   });
   const user = await findAuthUserById(userId);
+
+  await sendWelcomeEmail(user);
 
   return buildAuthResponse(user);
 };

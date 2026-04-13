@@ -7,6 +7,7 @@ import { DOMAIN_OPTIONS } from "../../data/domains";
 import { requestService } from "../../services/requestService";
 import { splitRequestMetadata } from "../../utils/requestDomains";
 import { format } from "../../utils/format";
+import { showAppFeedback } from "../../utils/appFeedback";
 import "./FreelancerDashboard.css";
 
 const CATEGORIES = DOMAIN_OPTIONS;
@@ -342,12 +343,14 @@ const FreelancerDashboard = forwardRef((_, ref) => {
     setViewMode("details");
   };
 
-  const backToList = () => setViewMode("list");
+  const backToList = () => {
+    setViewMode("list");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   useImperativeHandle(ref, () => ({
     goDashboard: () => {
-      setViewMode("list");
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      backToList();
     },
   }));
 
@@ -365,9 +368,28 @@ const FreelancerDashboard = forwardRef((_, ref) => {
         coverLetter: payload.cover,
       });
 
-      alert("Proposition envoyée au client.");
+      showAppFeedback({
+        tone: "success",
+        title: "Offre envoyée",
+        message: "Proposition envoyée au client.",
+      });
+
+      backToList();
     } catch (error) {
-      alert(error.message || "Impossible d'envoyer la proposition.");
+      const fallback = "Impossible d'envoyer la proposition.";
+      const message =
+        typeof error?.message === "string" && error.message.trim()
+          ? error.message
+          : fallback;
+      const duplicateProposal = /deja\s+envoye\s+une\s+proposition|deja\s+soumis\s+une\s+proposition|déjà\s+envoyé\s+une\s+proposition/i.test(
+        message
+      );
+
+      showAppFeedback({
+        tone: duplicateProposal ? "warning" : "error",
+        title: duplicateProposal ? "Proposition déjà envoyée" : "Envoi impossible",
+        message,
+      });
     }
   };
 
@@ -383,9 +405,17 @@ const FreelancerDashboard = forwardRef((_, ref) => {
         coverLetter: "J'accepte les conditions du client et je suis disponible pour commencer rapidement.",
       });
 
-      alert("Votre accord a été envoyé au client.");
+      showAppFeedback({
+        tone: "success",
+        title: "Accord envoyé",
+        message: "Votre accord a été envoyé au client.",
+      });
     } catch (error) {
-      alert(error.message || "Impossible d'accepter cette demande.");
+      showAppFeedback({
+        tone: "error",
+        title: "Validation impossible",
+        message: error.message || "Impossible d'accepter cette demande.",
+      });
     }
   };
 

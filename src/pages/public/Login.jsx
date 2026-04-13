@@ -32,7 +32,25 @@ const Login = () => {
       const token = result?.token;
       const role = user?.role;
 
-      if (!user || !token || !role) {
+      if (!user) {
+        throw new Error("Réponse de connexion invalide.");
+      }
+
+      if (user.isSuspended) {
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("app_role");
+        localStorage.removeItem("user_id");
+        localStorage.removeItem("client_entry_page");
+
+        localStorage.setItem("is_suspended", "true");
+        localStorage.setItem("suspension_reason", user.suspensionReason || "Violation des règles de la plateforme.");
+        localStorage.setItem("suspended_until", user.suspendedUntil || "");
+
+        navigate("/blocked-access");
+        return;
+      }
+
+      if (!token || !role) {
         throw new Error("Réponse de connexion invalide.");
       }
 
