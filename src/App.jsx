@@ -32,6 +32,13 @@ function isAuthenticated() {
   return Boolean(role && token);
 }
 
+function isSuspended() {
+  return localStorage.getItem("is_suspended") === "true";
+}
+
+const SuspendedRouteGuard = ({ children }) =>
+  isSuspended() ? <Navigate to="/blocked-access" replace /> : children;
+
 // ── Shell Freelancer ──────────────────────────────────────────────────────────
 const FreelancerShell = () => {
   const dashboardRef = useRef(null);
@@ -118,25 +125,50 @@ const FreelancerShell = () => {
 
 // ── Gardes de routes ──────────────────────────────────────────────────────────
 const FreelancerRoute = () =>
+  isSuspended() ? <Navigate to="/blocked-access" replace /> :
   isAuthenticated() ? <FreelancerShell /> : <Navigate to="/login" replace />;
 
 const ClientRoute = () =>
+  isSuspended() ? <Navigate to="/blocked-access" replace /> :
   isAuthenticated() ? <ClientShell /> : <Navigate to="/login" replace />;
 
 const AdminRoute = () =>
+  isSuspended() ? <Navigate to="/blocked-access" replace /> :
   isAuthenticated() ? <AdminDashboard /> : <Navigate to="/login" replace />;
 
 // ── App principale ────────────────────────────────────────────────────────────
 const App = () => (
   <>
     <Routes>
-      <Route path="/" element={<Landing />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
+      <Route
+        path="/"
+        element={
+          <SuspendedRouteGuard>
+            <Landing />
+          </SuspendedRouteGuard>
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          <SuspendedRouteGuard>
+            <Login />
+          </SuspendedRouteGuard>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <SuspendedRouteGuard>
+            <Register />
+          </SuspendedRouteGuard>
+        }
+      />
       <Route path="/blocked-access" element={<BlockedAccess />} />
       <Route path="/admin" element={<AdminRoute />} />
       <Route path="/app/*" element={<FreelancerRoute />} />
       <Route path="/client/*" element={<ClientRoute />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     <AppFeedbackHost />
   </>
