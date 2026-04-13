@@ -88,6 +88,17 @@ const buildBanEmailPayload = ({ name, reason, suspendedUntil, durationDays }) =>
   `,
 });
 
+const buildUnbanEmailPayload = ({ name }) => ({
+  subject: "Votre compte Freelancy a été débanni",
+  text: `Bonjour ${name},\n\nVotre compte Freelancy a été débanni. Vous pouvez maintenant vous reconnecter et accéder de nouveau à la plateforme.\n\nMerci de respecter les règles de la plateforme.`,
+  html: `
+    <p>Bonjour <strong>${name}</strong>,</p>
+    <p>Votre compte Freelancy a été débanni.</p>
+    <p>Vous pouvez maintenant vous reconnecter et accéder de nouveau à la plateforme.</p>
+    <p>Merci de respecter les règles de la plateforme.</p>
+  `,
+});
+
 export const adminService = {
   async listUsers() {
     return adminRepository.listUsers();
@@ -225,9 +236,24 @@ export const adminService = {
       throw new AppError("Utilisateur introuvable.", 404, "USER_NOT_FOUND");
     }
 
-    return adminRepository.setUserSuspendedState(normalizedUserId, {
+    const updatedUser = await adminRepository.setUserSuspendedState(normalizedUserId, {
       isSuspended: false,
     });
+
+    if (updatedUser?.email) {
+      const emailPayload = buildUnbanEmailPayload({
+        name: updatedUser.name || user.name,
+      });
+
+      await mailer.sendMail({
+        to: updatedUser.email,
+        subject: emailPayload.subject,
+        text: emailPayload.text,
+        html: emailPayload.html,
+      });
+    }
+
+    return updatedUser;
   },
 
   async notifyBannedUser(reportId, payload = {}) {
