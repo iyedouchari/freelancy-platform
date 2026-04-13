@@ -883,32 +883,7 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-<<<<<<< HEAD
               
-=======
-              <div className="admin-ban-config">
-                <label>
-                  <span>Raison du ban</span>
-                  <textarea
-                    rows="4"
-                    value={banReason}
-                    onChange={(event) => setBanReason(event.target.value)}
-                    placeholder="Explique la raison du ban"
-                  />
-                </label>
-                <label>
-                  <span>Durée du ban (jours)</span>
-                  <input
-                    type="number"
-                    min="1"
-                    value={banDurationDays}
-                    onChange={(event) => setBanDurationDays(event.target.value)}
-                    placeholder="7"
-                    disabled={selectedUser.isSuspended}
-                  />
-                </label>
-              </div>
->>>>>>> 72a04575963f9545b273dee9f26ede78def149db
 
               <button
                 type="button"
