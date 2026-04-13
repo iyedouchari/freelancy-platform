@@ -3,7 +3,7 @@ import "../../styles/landing.css";
 
 function formatSuspendedUntil(value) {
   if (!value) {
-    return "Duree indefinie";
+    return "durée indefinie";
   }
 
   try {
@@ -21,7 +21,7 @@ function formatSuspendedUntil(value) {
 
 export default function BlockedAccess() {
   const navigate = useNavigate();
-  const reason = localStorage.getItem("suspension_reason") || "Violation des regles de la plateforme.";
+  const reason = localStorage.getItem("suspension_reason") || "Violation des règles de la plateforme.";
   const suspendedUntil = localStorage.getItem("suspended_until");
 
   const handleLogout = () => {

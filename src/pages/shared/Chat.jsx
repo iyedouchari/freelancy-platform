@@ -52,6 +52,7 @@ export default function Chat({
   const messagesContainerRef = useRef(null);
   const fileRef = useRef(null);
   const hasLoadedInitialMessages = useRef(false);
+  const shouldAutoScrollRef = useRef(false);
 
   useEffect(() => {
     if (!socket || !myUserId || !dealId) return;
@@ -76,6 +77,7 @@ export default function Chat({
       const isFromOther = data.senderId?.toString() !== myUserId?.toString();
 
       if (isSameDeal && isFromOther) {
+        shouldAutoScrollRef.current = true;
         setMessages((prev) => [...prev, createMessageItem(data, myUserId, username)]);
       }
     };
@@ -101,10 +103,15 @@ export default function Chat({
       return;
     }
 
+    if (!shouldAutoScrollRef.current) {
+      return;
+    }
+
     messagesContainerRef.current?.scrollTo({
       top: messagesContainerRef.current.scrollHeight,
       behavior: "smooth",
     });
+    shouldAutoScrollRef.current = false;
   }, [messages]);
 
   const sendMessage = () => {
@@ -239,6 +246,7 @@ export default function Chat({
       <div className="workspace-chat-input">
         <input type="file" ref={fileRef} style={{ display: "none" }} onChange={handleFile} />
         <button
+          type="button"
           className="workspace-attach-btn"
           onClick={() => fileRef.current?.click()}
           title="Joindre un fichier"
@@ -254,9 +262,14 @@ export default function Chat({
           placeholder="Ecrire un message..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              sendMessage();
+            }
+          }}
         />
-        <button className="workspace-send-btn" onClick={sendMessage} disabled={sending}>
+        <button type="button" className="workspace-send-btn" onClick={sendMessage} disabled={sending}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="22" y1="2" x2="11" y2="13" />
             <polygon points="22 2 15 22 11 13 2 9 22 2" />

@@ -3,12 +3,20 @@ import { authenticate } from "../../middleware/authMiddleware.js";
 import asyncHandler from "../../utils/asyncHandler.js";
 import { getDealById, getdealStatus, listDeals } from "./deal.controller.js";
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 import { pipeline } from "stream/promises";
 import { getDb } from "../../config/db.js";
 import express from "express";
 import { deleteFromB2, downloadFromB2, uploadToB2 } from "../../config/b2.js";
+import { env } from "../../config/env.js";
+import { fileURLToPath } from "url";
+import { logUserActivity } from "../../utils/logger.js";
 
 const router = express.Router();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const localDeliveriesDir = path.resolve(__dirname, "../../uploads/deliveries");
 
 router.get("/status", asyncHandler(getdealStatus));
 router.use(authenticate);
@@ -35,6 +43,10 @@ function buildDeliveryDownloadUrl(dealId, key, fileName) {
   return `/api/deals/${dealId}/deliveries/download?${params.toString()}`;
 }
 
+function buildLocalDeliveryUrl(fileName) {
+  return `/uploads/deliveries/${fileName}`;
+}
+
 function getKeyFromStoredUrl(fileUrl) {
   if (!fileUrl) {
     return null;
@@ -46,6 +58,14 @@ function getKeyFromStoredUrl(fileUrl) {
   } catch {
     return null;
   }
+}
+
+function hasB2Config() {
+  return Boolean(env.B2_ENDPOINT && env.B2_KEY_ID && env.B2_APP_KEY && env.B2_BUCKET);
+}
+
+async function ensureLocalDeliveriesDir() {
+  await fs.promises.mkdir(localDeliveriesDir, { recursive: true });
 }
 
 async function ensureDeliveriesTable() {
@@ -176,11 +196,21 @@ router.delete("/:id/deliveries/:deliveryId", async (req, res) => {
       return res.status(403).json({ message: "Suppression non autorisee." });
     }
 
+    logUserActivity("Utilisateur a supprime une livraison", {
+      userId: requesterId,
+      requestId: Number(id),
+      deliveryId: Number(deliveryId),
+    });
+
     await db.execute(`DELETE FROM deliveries WHERE id = ?`, [deliveryId]);
 
     const storageKey = getKeyFromStoredUrl(delivery.file_url);
-    if (storageKey) {
+    if (storageKey && hasB2Config()) {
       await deleteFromB2(storageKey).catch(() => null);
+    } else if (delivery.file_url?.startsWith("/uploads/deliveries/")) {
+      const localFileName = path.basename(delivery.file_url);
+      const localFilePath = path.join(localDeliveriesDir, localFileName);
+      await fs.promises.unlink(localFilePath).catch(() => null);
     }
 
     return res.json({ success: true });
@@ -212,16 +242,27 @@ router.post(
 
     try {
       await ensureDeliveriesTable();
-      await uploadToB2({
-        key,
-        body: req.body,
-        contentType: mimeType,
-      });
+      let storedFileUrl;
+
+      if (hasB2Config()) {
+        await uploadToB2({
+          key,
+          body: req.body,
+          contentType: mimeType,
+        });
+        storedFileUrl = buildDeliveryDownloadUrl(id, key, safeOriginalName);
+      } else {
+        await ensureLocalDeliveriesDir();
+        const localStoredName = `${Date.now()}-${crypto.randomUUID()}-${safeOriginalName}`;
+        const localFilePath = path.join(localDeliveriesDir, localStoredName);
+        await fs.promises.writeFile(localFilePath, req.body);
+        storedFileUrl = buildLocalDeliveryUrl(localStoredName);
+      }
 
       const [insertResult] = await db.execute(
         `INSERT INTO deliveries (deal_id, sender_id, receiver_id, file_name, file_url)
          VALUES (?, ?, ?, ?, ?)`,
-        [id, senderId, receiverId, safeOriginalName, buildDeliveryDownloadUrl(id, key, safeOriginalName)]
+        [id, senderId, receiverId, safeOriginalName, storedFileUrl]
       );
 
       const [rows] = await db.execute(
@@ -231,6 +272,14 @@ router.post(
         [insertResult.insertId]
       );
 
+      logUserActivity("Utilisateur a soumis une livraison", {
+        userId: Number(senderId),
+        requestId: Number(id),
+        deliveryId: Number(insertResult.insertId),
+        title: safeOriginalName,
+        status: "livree",
+      });
+
       res.status(201).json({
         ...rows[0],
         key,
@@ -238,7 +287,9 @@ router.post(
         size: req.body.length,
       });
     } catch (error) {
-      await deleteFromB2(key).catch(() => null);
+      if (hasB2Config()) {
+        await deleteFromB2(key).catch(() => null);
+      }
       console.error("Erreur upload livraison /api/deals/:id/deliveries/upload :", error);
       res.status(500).json({ message: "Erreur serveur" });
     }

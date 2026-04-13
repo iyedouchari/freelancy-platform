@@ -24,7 +24,7 @@ export const freelancerDirectory = [
     email: "ahmed.kacem@freelancy.dev",
     phone: "+216 52 220 910",
     bio:
-      "Je livre des applications React et Node robustes, avec une attention particuliere sur l'architecture, l'integration API et la lisibilite du code sur la duree.",
+      "Je livre des applications React et Node robustes, avec une attention particuliere sur l'architecture, l'integration API et la lisibilite du code sur la durée.",
     fields: ["Developpement Web", "Node.js", "Architecture Produit"],
     rating: 4.8,
     projectsCompleted: 31,

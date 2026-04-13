@@ -17,6 +17,11 @@ const buildHeaders = () => {
   return headers;
 };
 
+const buildAuthHeaders = () => {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 const parseJson = async (response) => {
   const payload = await response.json().catch(() => null);
 
@@ -28,12 +33,49 @@ const parseJson = async (response) => {
 };
 
 export const reportService = {
-  create: async ({ reportedUserId, dealId, reason, details }) => {
+  create: async ({
+    reportedUserId,
+    dealId,
+    reason,
+    details,
+    attachmentFileName,
+    attachmentFileUrl,
+    attachmentMimeType,
+    attachmentSize,
+  }) => {
     const response = await fetch(`${API_BASE_URL}/reports`, {
       method: "POST",
       cache: "no-store",
       headers: buildHeaders(),
-      body: JSON.stringify({ reportedUserId, dealId, reason, details }),
+      body: JSON.stringify({
+        reportedUserId,
+        dealId,
+        reason,
+        details,
+        attachmentFileName,
+        attachmentFileUrl,
+        attachmentMimeType,
+        attachmentSize,
+      }),
+    });
+
+    return parseJson(response);
+  },
+
+  uploadAttachment: async (file) => {
+    if (!(file instanceof File)) {
+      throw new Error("Fichier de piece jointe invalide.");
+    }
+
+    const params = new URLSearchParams({ fileName: file.name });
+    const response = await fetch(`${API_BASE_URL}/reports/attachments/upload?${params.toString()}`, {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        ...buildAuthHeaders(),
+        "Content-Type": file.type || "application/octet-stream",
+      },
+      body: file,
     });
 
     return parseJson(response);

@@ -101,6 +101,8 @@ export default function Workspace({
   myUserId,
 }) {
   const uploadRef = useRef(null);
+  const reportAttachmentRef = useRef(null);
+  const lastScrollYRef = useRef(0);
   const [selectedDeal, setSelectedDeal] = useState(deal ?? null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -113,6 +115,7 @@ export default function Workspace({
   const [reportError, setReportError] = useState("");
   const [reportNotice, setReportNotice] = useState("");
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [reportAttachment, setReportAttachment] = useState(null);
 
   const resolvedDealId = dealId ?? deal?.id;
 
@@ -231,12 +234,25 @@ export default function Workspace({
     setReportNotice("");
     setReportReason("");
     setReportDetails("");
+    setReportAttachment(null);
+    if (reportAttachmentRef.current) {
+      reportAttachmentRef.current.value = "";
+    }
     setIsReportOpen(true);
   };
 
   const closeReportModal = () => {
     if (isSubmittingReport) return;
+    setReportAttachment(null);
+    if (reportAttachmentRef.current) {
+      reportAttachmentRef.current.value = "";
+    }
     setIsReportOpen(false);
+  };
+
+  const handleReportAttachmentChange = (event) => {
+    const file = event.target.files?.[0] ?? null;
+    setReportAttachment(file);
   };
 
   const handleSubmitReport = async (event) => {
@@ -251,15 +267,29 @@ export default function Workspace({
 
     setIsSubmittingReport(true);
     try {
+      let uploadedAttachment = null;
+
+      if (reportAttachment) {
+        uploadedAttachment = await reportService.uploadAttachment(reportAttachment);
+      }
+
       await reportService.create({
         reportedUserId: workspaceMeta.receiverId,
         dealId: resolvedDealId,
         reason: reportReason,
         details: reportDetails,
+        attachmentFileName: uploadedAttachment?.fileName || "",
+        attachmentFileUrl: uploadedAttachment?.fileUrl || "",
+        attachmentMimeType: uploadedAttachment?.mimeType || "",
+        attachmentSize: uploadedAttachment?.size ?? null,
       });
       setReportNotice("Report envoye avec succes.");
       setReportReason("");
       setReportDetails("");
+      setReportAttachment(null);
+      if (reportAttachmentRef.current) {
+        reportAttachmentRef.current.value = "";
+      }
       setTimeout(() => {
         setIsReportOpen(false);
       }, 800);
@@ -277,6 +307,7 @@ export default function Workspace({
       return;
     }
 
+    lastScrollYRef.current = window.scrollY;
     setDeliveryUploading(true);
     try {
       const params = new URLSearchParams({
@@ -317,6 +348,7 @@ export default function Workspace({
     } finally {
       setDeliveryUploading(false);
       event.target.value = "";
+      window.scrollTo({ top: lastScrollYRef.current, behavior: "auto" });
     }
   };
 
@@ -345,7 +377,7 @@ export default function Workspace({
   return (
     <div className="workspace-page">
       <div className="workspace-back-row">
-        <button className="workspace-back-btn" onClick={() => onBack?.()}>
+        <button type="button" className="workspace-back-btn" onClick={() => onBack?.()}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="19" y1="12" x2="5" y2="12" />
             <polyline points="12 19 5 12 12 5" />
@@ -390,6 +422,7 @@ export default function Workspace({
           <div className="workspace-actions-card">
             <h3>Actions</h3>
             <button
+              type="button"
               className="workspace-action-btn"
               onClick={() => uploadRef.current?.click()}
               disabled={deliveryUploading}
@@ -464,8 +497,7 @@ export default function Workspace({
           <div className="workspace-report-modal" onClick={(event) => event.stopPropagation()}>
             <div className="workspace-report-modal-head">
               <div>
-                <span className="workspace-report-eyebrow">Reporter</span>
-                <h3>Signaler {workspaceMeta.counterpartName}</h3>
+                <h1>Signaler {workspaceMeta.counterpartName}</h1>
               </div>
               <button type="button" className="workspace-report-close" onClick={closeReportModal}>Fermer</button>
             </div>
@@ -494,6 +526,36 @@ export default function Workspace({
                   onChange={(event) => setReportDetails(event.target.value)}
                 />
               </label>
+              <input
+                type="file"
+                ref={reportAttachmentRef}
+                style={{ display: "none" }}
+                onChange={handleReportAttachmentChange}
+                accept="image/*,.pdf,.doc,.docx,.txt,.zip,.rar,.xlsx,.xls,.ppt,.pptx"
+              />
+              <button
+                type="button"
+                className="workspace-report-attachment-trigger"
+                onClick={() => reportAttachmentRef.current?.click()}
+              >
+                Cliquez ici pour ajouter une piece jointe (facultatif)
+              </button>
+              {reportAttachment ? (
+                <div className="workspace-report-attachment-chip">
+                  <strong>{reportAttachment.name}</strong>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReportAttachment(null);
+                      if (reportAttachmentRef.current) {
+                        reportAttachmentRef.current.value = "";
+                      }
+                    }}
+                  >
+                    Retirer
+                  </button>
+                </div>
+              ) : null}
 
               {reportError ? <div className="workspace-report-feedback is-error">{reportError}</div> : null}
               {reportNotice ? <div className="workspace-report-feedback is-success">{reportNotice}</div> : null}

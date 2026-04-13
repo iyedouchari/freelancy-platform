@@ -12,6 +12,23 @@ const parseNumber = (value, fallback) => {
   return Number.isNaN(parsed) ? fallback : parsed;
 };
 
+const parseBoolean = (value, fallback = false) => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  const normalized = String(value || "").trim().toLowerCase();
+  if (["true", "1", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["false", "0", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return fallback;
+};
+
 export const env = Object.freeze({
   NODE_ENV: process.env.NODE_ENV || "development",
   PORT: parseNumber(process.env.PORT, 4000),
@@ -28,5 +45,10 @@ export const env = Object.freeze({
   DB_PASSWORD: process.env.DB_PASSWORD || "",
   DB_NAME: process.env.DB_NAME || "project",
   DB_POOL_SIZE: parseNumber(process.env.DB_POOL_SIZE, 10),
+  SMTP_HOST: process.env.SMTP_HOST || "",
+  SMTP_PORT: parseNumber(process.env.SMTP_PORT, 465),
+  SMTP_SECURE: parseBoolean(process.env.SMTP_SECURE, true),
+  SMTP_USER: process.env.SMTP_USER || "",
+  SMTP_PASS: process.env.SMTP_PASS || "",
+  SMTP_FROM: process.env.SMTP_FROM || "",
 });
-

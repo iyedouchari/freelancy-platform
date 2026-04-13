@@ -221,7 +221,7 @@ const RegistrationSuccess = ({ title, message, onLogin }) => (
           Votre inscription est <span>bien enregistree</span>
         </h2>
         <p className="auth-branding-desc">
-          Le compte a ete cree avec succes. Vous pouvez maintenant revenir a la connexion pour
+          Le compte a été cree avec succes. Vous pouvez maintenant revenir a la connexion pour
           acceder a la plateforme.
         </p>
       </div>
@@ -316,7 +316,7 @@ const Register = () => {
         setRegistrationSuccess({
           title: "Inscription client reussie",
           message:
-            "Votre compte client a ete cree avec succes. Connectez-vous quand vous etes pret a publier vos demandes.",
+            "Votre compte client a été cree avec succes. Connectez-vous quand vous etes pret a publier vos demandes.",
         });
       }
     } catch (error) {

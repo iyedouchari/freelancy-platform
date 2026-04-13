@@ -5,7 +5,7 @@ export const createReport = async (req, res) => {
   const report = await reportService.createReport(req.user, req.body);
   return successResponse(res, {
     statusCode: 201,
-    message: "Report envoye avec succes.",
+    message: "Signalement envoyé avec succès.",
     data: report,
   });
 };
@@ -13,7 +13,7 @@ export const createReport = async (req, res) => {
 export const listMyReports = async (req, res) => {
   const reports = await reportService.listMyReports(req.user);
   return successResponse(res, {
-    message: "Vos reports ont ete charges.",
+    message: "Votre signalement a été chargé.",
     data: reports,
   });
 };

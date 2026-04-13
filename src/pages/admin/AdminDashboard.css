@@ -436,6 +436,26 @@ width: min(1380px, calc(100% - 8px));  margin: 0 auto;
   font-size: 14px;
 }
 
+.admin-ban-history-mail {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.admin-ban-history-mail pre {
+  margin: 0;
+  padding: 14px;
+  border-radius: 14px;
+  background: #eef4ff;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #1e293b;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+}
+
 .admin-user-meta-grid,
 .admin-report-grid,
 .admin-report-detail-grid,
@@ -582,6 +602,20 @@ width: min(1380px, calc(100% - 8px));  margin: 0 auto;
   font-size: 14px;
 }
 
+.admin-report-attachment-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #1d4ed8;
+  font-weight: 700;
+  text-decoration: none;
+  word-break: break-word;
+}
+
+.admin-report-attachment-link:hover {
+  text-decoration: underline;
+}
+
 .admin-report-editorial-footer span {
   font-size: 12px;
 }
@@ -633,6 +667,79 @@ width: min(1380px, calc(100% - 8px));  margin: 0 auto;
   gap: 14px;
 }
 
+.admin-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.28);
+}
+
+.admin-confirm-card {
+  width: min(360px, 100%);
+  border-radius: 20px;
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid rgba(203, 213, 225, 0.8);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+  display: grid;
+  gap: 12px;
+}
+
+.admin-confirm-card h3 {
+  margin: 0;
+  color: #10243f;
+  font-size: 22px;
+}
+
+.admin-confirm-card p {
+  margin: 0;
+  color: #526173;
+  line-height: 1.6;
+}
+
+.admin-confirm-warning {
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #fff1f2;
+  border: 1px solid rgba(225, 29, 72, 0.18);
+  color: #be123c;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.admin-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.admin-confirm-cancel,
+.admin-confirm-approve {
+  border: none;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-weight: 700;
+}
+
+.admin-confirm-cancel {
+  background: #eef2ff;
+  color: #28416c;
+}
+
+.admin-confirm-approve {
+  background: linear-gradient(135deg, #163a73, #2457a7);
+  color: #fff;
+}
+
+.admin-confirm-approve:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .admin-user-modal {
   width: min(880px, 100%);
 }
@@ -647,7 +754,10 @@ width: min(1380px, calc(100% - 8px));  margin: 0 auto;
 .admin-report-modal-head h2 {
   margin: 0;
   color: #10243f;
+  font-weight: 800;
+  font-size: 40px;
 }
+
 
 .admin-modal-close {
   border: 1px solid rgba(148, 163, 184, 0.35);
@@ -714,4 +824,10 @@ width: min(1380px, calc(100% - 8px));  margin: 0 auto;
   .admin-search-form label {
     min-width: 100%;
   }
+}
+.message {
+  margin-top: 8px;
+  font-size: 19px;
+  color: #526173;
+  font-weight: 500;
 }

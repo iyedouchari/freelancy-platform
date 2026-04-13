@@ -4,6 +4,9 @@ import Navbar from "../../components/Navbar";
 import { adminService } from "../../services/adminService";
 import "./AdminDashboard.css";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "");
+
 const adminNavItems = [
   { key: "overview", label: "Utilisateurs", actionProp: "onDashboard" },
   { key: "reports", label: "Signalements", actionProp: "onRequests" },
@@ -37,6 +40,8 @@ const formatDurationDays = (value) => {
   return `${days} jour${days > 1 ? "s" : ""}`;
 };
 
+const formatMultilineText = (value) => String(value || "").trim() || "-";
+
 const parsePositiveDaysOrDefault = (value, fallback = 7) => {
   const days = Number.parseInt(value, 10);
   if (Number.isNaN(days) || days <= 0) {
@@ -68,7 +73,17 @@ const getReportStatusLabel = (status) => {
   return "En cours";
 };
 
+const resolveAttachmentUrl = (fileUrl) => {
+  if (!fileUrl) return "";
+  if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) {
+    return fileUrl;
+  }
+
+  return `${API_ORIGIN}${fileUrl}`;
+};
+
 export default function AdminDashboard() {
+  const [confirmDialog, setConfirmDialog] = useState(null);
   const [page, setPage] = useState("overview");
   const [users, setUsers] = useState([]);
   const [reports, setReports] = useState([]);
@@ -139,7 +154,7 @@ export default function AdminDashboard() {
   };
 
   const syncReportBanFormFromReport = (report) => {
-    setReportBanReason("");
+    setReportBanReason(String(report?.banReason || report?.reason || ""));
     setReportBanDurationDays(String(report?.banDurationDays || 7));
   };
 
@@ -233,6 +248,24 @@ export default function AdminDashboard() {
     setBanDurationDays("7");
   };
 
+  const closeConfirmDialog = () => {
+    setConfirmDialog(null);
+  };
+
+  const openConfirmDialog = ({ title, message, warning = "", confirmDisabled = false, onConfirm }) => {
+    setConfirmDialog({ title, message, warning, confirmDisabled, onConfirm });
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirmDialog?.onConfirm) {
+      return;
+    }
+
+    const action = confirmDialog.onConfirm;
+    setConfirmDialog(null);
+    await action();
+  };
+
   const handleSearchSubmit = async (event) => {
     event.preventDefault();
     const trimmed = searchUserEmail.trim().toLowerCase();
@@ -271,39 +304,93 @@ export default function AdminDashboard() {
 
   const handleBanSubmit = async () => {
     if (!selectedUser) return;
-
     const trimmedBanReason = String(banReason || "").trim();
+    const isMissingReason = !selectedUser.isSuspended && !trimmedBanReason;
 
-    setNotice("");
-    setErrorMessage("");
-    setIsApplyingBan(true);
+    openConfirmDialog({
+      title: selectedUser.isSuspended ? "Debannir cet utilisateur ?" : "Bannir cet utilisateur ?",
+      message: selectedUser.isSuspended
+        ? `L'utilisateur #${selectedUser.id} retrouvera l'acces a la plateforme.`
+        : `L'utilisateur #${selectedUser.id} sera banni et ajoute a l'historique.`,
+      warning: isMissingReason ? "La raison du ban est obligatoire pour continuer." : "",
+      confirmDisabled: isMissingReason,
+      onConfirm: async () => {
+        setNotice("");
+        setErrorMessage("");
+        setIsApplyingBan(true);
 
-    try {
-      if (!selectedUser.isSuspended && !trimmedBanReason) {
-        throw new Error("L'admin doit saisir une raison de ban.");
-      }
+        try {
+          if (!selectedUser.isSuspended && !trimmedBanReason) {
+            throw new Error("L'admin doit saisir une raison de ban.");
+          }
 
-      const updatedUser = selectedUser.isSuspended
-        ? await adminService.unbanUser(selectedUser.id)
-        : await adminService.banUser(selectedUser.id, {
-            reason: trimmedBanReason,
-            durationDays: banDurationDays,
+          const updatedUser = selectedUser.isSuspended
+            ? await adminService.unbanUser(selectedUser.id)
+            : await adminService.banUser(selectedUser.id, {
+                reason: trimmedBanReason,
+                durationDays: banDurationDays,
+              });
+
+          setSelectedUser(updatedUser);
+          syncBanFormFromUser(updatedUser);
+          setNotice(
+            selectedUser.isSuspended
+              ? `L'utilisateur #${selectedUser.id} a été debanni.`
+              : `L'utilisateur #${selectedUser.id} a été banni.`,
+          );
+
+          await loadAdminData({ preserveSelection: true });
+        } catch (error) {
+          setErrorMessage(error.message || "Impossible de mettre a jour le ban.");
+        } finally {
+          setIsApplyingBan(false);
+        }
+      },
+    });
+  };
+
+  const handleBanReportedUser = async () => {
+    if (!selectedReport) return;
+    const trimmedReportBanReason = String(reportBanReason || "").trim();
+    const isMissingReason = !trimmedReportBanReason;
+
+    openConfirmDialog({
+      title: "Bannir l'utilisateur signale ?",
+      message: `L'utilisateur #${selectedReport.reportedUserId} sera banni apres confirmation.`,
+      warning: isMissingReason ? "La raison du ban est obligatoire pour continuer." : "",
+      confirmDisabled: isMissingReason,
+      onConfirm: async () => {
+        setNotice("");
+        setErrorMessage("");
+        setIsApplyingReportBan(true);
+
+        try {
+          if (!trimmedReportBanReason) {
+            throw new Error("L'admin doit saisir une raison de ban.");
+          }
+
+          const updatedUser = await adminService.banUser(selectedReport.reportedUserId, {
+            reason: trimmedReportBanReason,
+            durationDays: reportBanDurationDays,
           });
 
-      setSelectedUser(updatedUser);
-      syncBanFormFromUser(updatedUser);
-      setNotice(
-        selectedUser.isSuspended
-          ? `L'utilisateur #${selectedUser.id} a ete debanni.`
-          : `L'utilisateur #${selectedUser.id} a ete banni. Email envoye avec la date de retour et la duree.`,
-      );
-
-      await loadAdminData({ preserveSelection: true });
-    } catch (error) {
-      setErrorMessage(error.message || "Impossible de mettre a jour le ban.");
-    } finally {
-      setIsApplyingBan(false);
-    }
+          const refreshedReport = await adminService.getReportById(selectedReport.id);
+          setSelectedReport(refreshedReport);
+          setReportBanReason(String(updatedUser?.suspensionReason || trimmedReportBanReason));
+          setReportBanDurationDays(String(updatedUser?.suspensionDurationDays || reportBanDurationDays || 7));
+          setNotice(
+            refreshedReport?.reportedUserIsSuspended
+              ? "Le ban a été mis a jour et un nouvel element a été ajoute a l'historique."
+              : "L'utilisateur signale a été banni.",
+          );
+          await loadAdminData({ preserveSelection: true });
+        } catch (error) {
+          setErrorMessage(error.message || "Impossible de bannir l'utilisateur signale.");
+        } finally {
+          setIsApplyingReportBan(false);
+        }
+      },
+    });
   };
 
   const handleNotifyBannedUser = async () => {
@@ -313,45 +400,17 @@ export default function AdminDashboard() {
     setIsSendingEmail(true);
 
     try {
-      const updatedReport = await adminService.notifyBannedUser(selectedReport.id);
+      const updatedReport = await adminService.notifyBannedUser(selectedReport.id, {
+        reason: reportBanReason,
+        durationDays: reportBanDurationDays,
+      });
       setSelectedReport(updatedReport);
-      setNotice("Email automatique envoye a la personne reportee avec la date de retour et la duree du ban.");
+      setNotice("Email automatique envoye a la personne reportee avec la date de retour et la durée du ban.");
       await loadAdminData({ preserveSelection: true });
     } catch (error) {
       setErrorMessage(error.message || "Impossible d'envoyer l'email de suspension.");
     } finally {
       setIsSendingEmail(false);
-    }
-  };
-
-  const handleBanReportedUser = async () => {
-    if (!selectedReport) return;
-
-    const trimmedReportBanReason = String(reportBanReason || "").trim();
-
-    setNotice("");
-    setErrorMessage("");
-    setIsApplyingReportBan(true);
-
-    try {
-      if (!trimmedReportBanReason) {
-        throw new Error("L'admin doit saisir une raison de ban.");
-      }
-
-      await adminService.banUser(selectedReport.reportedUserId, {
-        reason: trimmedReportBanReason,
-        durationDays: reportBanDurationDays,
-      });
-
-      const refreshedReport = await adminService.getReportById(selectedReport.id);
-      setSelectedReport(refreshedReport);
-      syncReportBanFormFromReport(refreshedReport);
-      setNotice("L'utilisateur signale a ete banni.");
-      await loadAdminData({ preserveSelection: true });
-    } catch (error) {
-      setErrorMessage(error.message || "Impossible de bannir l'utilisateur signale.");
-    } finally {
-      setIsApplyingReportBan(false);
     }
   };
 
@@ -367,9 +426,9 @@ export default function AdminDashboard() {
       setNotice(
         outcome === "resolved"
           ? updatedReport?.reportedUserIsSuspended
-            ? "Le reporteur a ete informe et le compte banni a recu son email automatique."
-            : "Le reporteur a ete informe que le probleme a ete resolu."
-          : "Le reporteur a ete informe qu'aucun probleme n'a ete retenu.",
+            ? "Le reporteur a été informe et le compte banni a récu son email automatique."
+            : "Le reporteur a été informe que le probleme a été resolu."
+          : "Le reporteur a été informe qu'aucun probleme n'a été retenu.",
       );
       await loadAdminData({ preserveSelection: true });
     } catch (error) {
@@ -388,10 +447,10 @@ export default function AdminDashboard() {
       setSelectedReport((current) => (current?.id === updatedReport.id ? updatedReport : current));
       setNotice(
         nextStatus === "refuse"
-          ? "Le signalement a ete refuse."
+          ? "Le signalement a été refuse."
           : nextStatus === "ouvert"
             ? "Le signalement est maintenant ouvert."
-            : "Le signalement a ete remis en cours.",
+            : "Le signalement a été remis en cours.",
       );
       await loadAdminData({ preserveSelection: true });
     } catch (error) {
@@ -671,43 +730,54 @@ export default function AdminDashboard() {
             </div>
 
             <div className="admin-report-detail-card admin-report-action-card">
+              <div className="admin-report-detail-card">
+                <div className="admin-report-detail-section">
+                  <span>Détails du signalement</span>
+                  <p>{selectedReport.details || "Aucun detail supplementaire partage par l'utilisateur."}</p>
+                </div>
+                <div className="admin-report-detail-section">
+                  <span>Pièce jointe</span>
+                  {selectedReport.attachmentFileUrl ? (
+                    <a
+                      className="admin-report-attachment-link"
+                      href={resolveAttachmentUrl(selectedReport.attachmentFileUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {selectedReport.attachmentFileName || "Ouvrir la piece jointe"}
+                    </a>
+                  ) : (
+                    <p>Aucune pièce jointe.</p>
+                  )}
+                </div>
+              </div>
               <div className="admin-report-detail-grid admin-report-detail-grid-compact">
                 <div>
-                  <span>Mail envoye</span>
-                  <strong>{selectedReport.isReportedUserEmailSent ? "Oui" : "Non"}</strong>
+                  <span>Mail envoyé</span>
+                  <strong>{selectedReport.reportedUserEmailSentAt ? formatDate(selectedReport.reportedUserEmailSentAt) : "-"}</strong>
                 </div>
                 <div>
                   <span>Date de retour actuelle</span>
                   <strong>{formatDate(reportMailPreviewReturnDate)}</strong>
                 </div>
                 <div>
-                  <span>Duree email</span>
+                  <span>durée email</span>
                   <strong>{formatDurationDays(reportMailPreviewDurationDays)}</strong>
                 </div>
                 <div>
-                  <span>Personne signalee</span>
+                  <span>Personne signalée</span>
                   <strong>{selectedReport.reportedUserName}</strong>
                 </div>
                 
               </div>
-              <div className="admin-report-detail-actions">
-               
-                <button
-                  type="button"
-                  className="admin-mail-btn is-danger"
-                  onClick={handleNotifyBannedUser}
-                  disabled={isSendingEmail}
-                >
-                  {isSendingEmail ? "Envoi..." : "Envoyer un mail a la personne signalée"}
-                </button>
-              </div>
+              
               <div className="admin-ban-config">
                 <label>
-                  <span>Utilisateur a bannir</span>
+                  <span>Utilisateur à bannir</span>
                   <input type="text" value={selectedReport.reportedUserName || ""} disabled />
                 </label>
                 <label>
-                  <span>Duree du ban (jours)</span>
+                  <span>Durée du ban (jours)</span>
                   <input
                     type="number"
                     min="1"
@@ -730,14 +800,17 @@ export default function AdminDashboard() {
                 type="button"
                 className={`admin-ban-wide ${selectedReport.reportedUserIsSuspended ? "is-secondary" : "is-danger"}`}
                 onClick={handleBanReportedUser}
-                disabled={isApplyingReportBan || selectedReport.reportedUserIsSuspended}
+                disabled={isApplyingReportBan}
               >
                 {selectedReport.reportedUserIsSuspended
-                  ? "Utilisateur deja banni"
+                  ? isApplyingReportBan
+                    ? "Mise a jour du ban..."
+                    : "Mettre a jour le ban"
                   : isApplyingReportBan
                     ? "Bannissement..."
-                    : "Bannir l'utilisateur signalee"}
+                    : "Bannir l'utilisateur signalée"}
               </button>
+              <label className="message"> **Un email est envoyé à la personne signalée automatiquement**</label>
             </div>
           </div>
         </div>
@@ -753,9 +826,7 @@ export default function AdminDashboard() {
             aria-labelledby="admin-user-modal-title"
           >
             <div className="admin-report-modal-head">
-              <div>
-                <h2 id="admin-user-modal-title">Informations de l'utilisateur</h2>
-              </div>
+              
               <button type="button" className="admin-modal-close" onClick={closeUserModal}>
                 Fermer
               </button>
@@ -766,7 +837,7 @@ export default function AdminDashboard() {
                 <div>
                   <div className="admin-user">Bloc d'informations utilisateur</div>
                   <p className="admin-user-card-intro">
-                    Les informations completes de l'utilisateur selectionne apparaissent ici.
+                    Les informations completes de l'utilisateur selectionné apparaissent ici.
                   </p>
                 </div>
                 <span className={`admin-status-badge ${selectedUser.isSuspended ? "is-banned" : "is-active"}`}>
@@ -779,15 +850,12 @@ export default function AdminDashboard() {
                 <div><span>Nom et prénom</span><strong>{selectedUser.name}</strong></div>
                 <div><span>Email</span><strong>{selectedUser.email || "-"}</strong></div>
                 <div><span>Role</span><strong>{selectedUser.role}</strong></div>
-                <div><span>Company</span><strong>{selectedUser.company || "-"}</strong></div>
-                <div><span>Title</span><strong>{selectedUser.title || "-"}</strong></div>
+                <div><span>Société</span><strong>{selectedUser.company || "-"}</strong></div>
+                <div><span>Titre</span><strong>{selectedUser.title || "-"}</strong></div>
                 <div><span>Location</span><strong>{selectedUser.location || "-"}</strong></div>
                 <div><span>Phone</span><strong>{selectedUser.phone || "-"}</strong></div>
                 <div><span>Points</span><strong>{selectedUser.points}</strong></div>
-                <div><span>Cree le</span><strong>{formatDate(selectedUser.createdAt)}</strong></div>
-                <div><span>Raison du ban</span><strong>{selectedUser.suspensionReason || "-"}</strong></div>
-                <div><span>Date de retour</span><strong>{formatDate(selectedUser.suspendedUntil)}</strong></div>
-                <div><span>Duree</span><strong>{formatDurationDays(selectedUser.suspensionDurationDays)}</strong></div>
+                <div><span>Créé le</span><strong>{formatDate(selectedUser.createdAt)}</strong></div>
               </div>
 
               <div className="admin-ban-history">
@@ -801,37 +869,21 @@ export default function AdminDashboard() {
                     {selectedUser.banHistory.map((entry) => (
                       <article key={entry.id} className="admin-ban-history-item">
                         <strong>{entry.reason}</strong>
-                        <span>Date du ban: {formatDate(entry.createdAt)}</span>
-                        <span>Date de retour: {formatDate(entry.suspendedUntil)}</span>
-                        <span>Duree: {formatDurationDays(entry.durationDays)}</span>
+                        <span>-Date du ban: {formatDate(entry.createdAt)}</span>
+                        <span>-Date de retour: {formatDate(entry.suspendedUntil)}</span>
+                        <span>-Durée: {formatDurationDays(entry.durationDays)}</span>
+                        <span>-Mail envoyé: {entry.emailSentAt ? formatDate(entry.emailSentAt) : "-"}</span>
+                        <div className="admin-ban-history-mail">
+                          <span>-Contenu du mail :</span>
+                          <pre>{formatMultilineText(entry.emailText)}</pre>
+                        </div>
                       </article>
                     ))}
                   </div>
                 )}
               </div>
 
-              <div className="admin-ban-config">
-                <label>
-                  <span>Raison du ban</span>
-                  <textarea
-                    rows="4"
-                    value={banReason}
-                    onChange={(event) => setBanReason(event.target.value)}
-                    placeholder="Explique la raison du ban"
-                  />
-                </label>
-                <label>
-                  <span>Duree du ban (jours)</span>
-                  <input
-                    type="number"
-                    min="1"
-                    value={banDurationDays}
-                    onChange={(event) => setBanDurationDays(event.target.value)}
-                    placeholder="7"
-                    disabled={selectedUser.isSuspended}
-                  />
-                </label>
-              </div>
+              
 
               <button
                 type="button"
@@ -840,6 +892,37 @@ export default function AdminDashboard() {
                 disabled={isApplyingBan}
               >
                 {isApplyingBan ? "Mise a jour..." : selectedUser.isSuspended ? "Debannir cet utilisateur" : "Bannir cet utilisateur"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {confirmDialog ? (
+        <div className="admin-confirm-backdrop" onClick={closeConfirmDialog}>
+          <div
+            className="admin-confirm-card"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-confirm-title"
+          >
+            <h3 id="admin-confirm-title">{confirmDialog.title}</h3>
+            <p>{confirmDialog.message}</p>
+            {confirmDialog.warning ? (
+              <div className="admin-confirm-warning">{confirmDialog.warning}</div>
+            ) : null}
+            <div className="admin-confirm-actions">
+              <button type="button" className="admin-confirm-cancel" onClick={closeConfirmDialog}>
+                Annuler
+              </button>
+              <button
+                type="button"
+                className="admin-confirm-approve"
+                onClick={handleConfirmAction}
+                disabled={Boolean(confirmDialog.confirmDisabled)}
+              >
+                Confirmer
               </button>
             </div>
           </div>

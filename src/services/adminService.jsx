@@ -74,9 +74,13 @@ export const adminService = {
       method: "PATCH",
     });
   },
-  notifyBannedUser: async (reportId) => {
+  notifyBannedUser: async (reportId, payload) => {
     return request(`/admin/reports/${reportId}/notify-banned-user`, {
       method: "POST",
+      body: JSON.stringify({
+        reason: payload?.reason,
+        durationDays: payload?.durationDays,
+      }),
     });
   },
   notifyReporter: async (reportId, outcome) => {

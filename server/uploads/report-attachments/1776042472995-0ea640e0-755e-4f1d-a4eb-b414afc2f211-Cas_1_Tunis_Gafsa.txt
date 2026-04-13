@@ -1,0 +1,37 @@
+Cas 1 : Tunis → Gafsa
+
+
+Chemin : Tunis → Zaghouan → Kairouan → Gafsa.
+
+Analyse : C'est le chemin le plus court en distance cumulée. L'algorithme a dû explorer plusieurs villes côtières (Sousse, Nabeul) avant de confirmer que passer par l'intérieur (Zaghouan) était moins cher.
+
+
+Cas 2 : Modification des coûts (Tunis-Gabes = 30)
+Le chemin change-t-il ? Oui. Le nouveau chemin devient Tunis → Gabes → Gafsa (190 km).
+
+Pourquoi ? UCS recalcule l'ordre de priorité dans sa file. Comme le coût vers Gabes est tombé à 30, Gabes devient le nœud le plus "proche" de Tunis. L'algorithme l'explore donc en priorité, trouvant Gafsa beaucoup plus vite.
+
+
+
+Cas 3 : Route alternative (Tunis-Kairouan direct)
+Celui choisi par UCS : Tunis → Kairouan → Gafsa (280 km).
+
+Analyse : Bien qu'il y ait plusieurs chemins (via Zaghouan ou via Sfax), UCS sélectionne la route directe vers Kairouan car elle réduit le coût total par rapport aux 350 km originaux.
+
+Cas 4 : Cas extrême (Long vs Court)
+Choix de l'UCS : Le chemin à 4 étapes ( Tunis -> Hammam-Lif -> Nabeul -> Zaghouan -> Bizerte -> Sousse ) coûtant 90 km.
+
+Analyse : UCS ignore la route directe à 500 km. Il prouve ici sa supériorité : il préfère la complexité (plus d'étapes) si cela garantit une économie de distance.
+
+Réponses aux Questions Guidées
+
+
+
+Pourquoi BFS n’est pas adapté ?
+Le BFS (Breadth-First Search) est "aveugle" aux distances. Il considère que chaque route a le même poids (1).
+
+Erreur du BFS : Dans le Cas 4, le BFS aurait choisi Tunis -> Sousse (1 étape) car c'est le plus court en nombre de nœuds. Il vous aurait fait parcourir 500 km au lieu de 80 km !
+
+Conclusion : BFS ne trouve le chemin optimal que si toutes les routes ont la même longueur.
+
+Pourquoi UCS est optimal ?L'UCS (Uniform Cost Search) est une variante de l'algorithme de Dijkstra. Son optimalité repose sur deux piliers :Exploration par couches de coût : Il développe toujours le nœud dont le coût cumulé $g(n)$ est le plus faible. C'est comme une onde qui se propage : il n'atteint un nœud éloigné que s'il a épuisé toutes les possibilités plus proches.La file de priorité : Grâce à la PriorityQueue, il garantit que lorsqu'un nœud "Destination" est extrait de la file, il n'existe mathématiquement aucun autre chemin plus court pour l'atteindre.

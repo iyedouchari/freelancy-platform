@@ -1,5 +1,6 @@
 import { requestRepository } from "./request.repository.js";
 import AppError from "../../utils/AppError.js";
+import { logProjectEvent } from "../../utils/logger.js";
 import { paginate } from "../../utils/pagination.js";
 
 // Transitions de statut autorisées
@@ -13,7 +14,18 @@ export const requestService = {
 
   createRequest: async (clientId, data) => {
     const id = await requestRepository.create({ client_id: clientId, ...data });
-    return requestRepository.findById(id);
+    const createdRequest = await requestRepository.findById(id);
+
+    logProjectEvent("Client a cree un projet", {
+      requestId: createdRequest?.id ?? id,
+      clientId,
+      title: createdRequest?.title ?? data?.title,
+      domain: createdRequest?.domain ?? data?.domain ?? data?.category,
+      budget: createdRequest?.budget ?? data?.budget,
+      status: createdRequest?.status,
+    });
+
+    return createdRequest;
   },
 
   getRequestById: async (id) => {

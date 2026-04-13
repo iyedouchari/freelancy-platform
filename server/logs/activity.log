@@ -1,0 +1,9 @@
+[2026-04-13 01:40:19] Tentative de connexion avec mot de passe incorrect | userId=3 | email=ons.benchaabene@etudiant-fst.utm.tn
+[2026-04-13 01:40:24] Utilisateur connecté | userId=3 | email=ons.benchaabene@etudiant-fst.utm.tn | role=freelancer | ip=::1
+[2026-04-13 01:44:50] Utilisateur connecté | userId=4 | email=eya@gmail.com | role=client | ip=::1
+[2026-04-13 01:58:27] Utilisateur connecté | userId=4 | email=eya@gmail.com | role=client | ip=::1
+[2026-04-13 02:14:49] Utilisateur connecté | userId=6 | email=admin@gmail.com | role=admin | ip=::ffff:127.0.0.1
+[2026-04-13 02:37:25] Utilisateur connecté | userId=6 | email=admin@gmail.com | role=admin | ip=::1
+[2026-04-13 02:39:46] Tentative de connexion avec mot de passe incorrect | userId=4 | email=eya@gmail.com
+[2026-04-13 02:39:59] Utilisateur connecté | userId=4 | email=eya@gmail.com | role=client | ip=::1
+[2026-04-13 02:52:24] Utilisateur connecté | userId=8 | email=ons.benchaabene@fst.utm.tn | role=freelancer | ip=::1

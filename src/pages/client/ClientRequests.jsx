@@ -148,7 +148,7 @@ export default function ClientRequests({
 
       setShowCreateForm(false);
       setSelectedRequestId(createdRequest.id);
-      setNotice("La demande a ete creee. Elle reste modifiable tant qu'aucun accord n'est accepte.");
+      setNotice("La demande a été creee. Elle reste modifiable tant qu'aucun accord n'est accepte.");
     } catch (error) {
       setNotice(error.message || "Impossible de creer la demande.");
     }
@@ -166,7 +166,7 @@ export default function ClientRequests({
       }
 
       setIsEditing(false);
-      setNotice("La demande a ete mise a jour avec succes.");
+      setNotice("La demande a été mise a jour avec succes.");
     } catch (error) {
       setNotice(error.message || "Impossible de mettre a jour la demande.");
     }
@@ -183,7 +183,7 @@ export default function ClientRequests({
         return;
       }
 
-      setNotice("La proposition a ete acceptee.");
+      setNotice("La proposition a été acceptee.");
     } catch (error) {
       setNotice(error.message || "Impossible d'accepter la proposition.");
     }

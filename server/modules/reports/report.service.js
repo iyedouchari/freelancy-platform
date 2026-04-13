@@ -24,21 +24,16 @@ export const reportService = {
       throw new AppError("Vous ne pouvez pas vous signaler vous-meme.", 400, "SELF_REPORT_FORBIDDEN");
     }
 
-    const existing = await reportRepository.findExistingOpenReport(reporterId, reportedUserId, dealId);
-    if (existing) {
-      throw new AppError(
-        "Un report ouvert existe deja pour cet utilisateur sur cet accord.",
-        409,
-        "REPORT_ALREADY_EXISTS",
-      );
-    }
-
     return reportRepository.create({
       reporterId,
       reportedUserId,
       dealId,
       reason: payload.reason,
       details: payload.details,
+      attachmentFileName: payload.attachmentFileName,
+      attachmentFileUrl: payload.attachmentFileUrl,
+      attachmentMimeType: payload.attachmentMimeType,
+      attachmentSize: payload.attachmentSize,
     });
   },
 

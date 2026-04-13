@@ -19,10 +19,18 @@ const parseDurationDays = (value) => {
 
   const parsed = Number.parseInt(value, 10);
   if (Number.isNaN(parsed) || parsed <= 0) {
-    throw new AppError("La duree du ban doit etre un nombre positif de jours.", 400, "INVALID_BAN_DURATION");
+    throw new AppError("La durée du ban doit etre un nombre positif de jours.", 400, "INVALID_BAN_DURATION");
   }
 
   return parsed;
+};
+
+const computeSuspendedUntilFromDuration = (durationDays) => {
+  if (!durationDays) {
+    return null;
+  }
+
+  return new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
 };
 
 const formatDeadline = (value) => {
@@ -46,20 +54,39 @@ const formatDeadline = (value) => {
 const formatDurationLabel = (value) => {
   const days = Number.parseInt(value, 10);
   if (Number.isNaN(days) || days <= 0) {
-    return "duree non definie";
+    return "durée non definie";
   }
 
   return `${days} jour${days > 1 ? "s" : ""}`;
 };
 
 const buildBanDetailsText = ({ reason, suspendedUntil, durationDays }) =>
-  `Raison: ${reason}\nDate de retour: ${formatDeadline(suspendedUntil)}\nDuree: ${formatDurationLabel(durationDays)}`;
+  `Raison: ${reason}\nDate de retour: ${formatDeadline(suspendedUntil)}\ndurée: ${formatDurationLabel(durationDays)}`;
 
 const buildBanDetailsHtml = ({ reason, suspendedUntil, durationDays }) => `
   <p><strong>Raison :</strong> ${reason}</p>
   <p><strong>Date de retour :</strong> ${formatDeadline(suspendedUntil)}</p>
-  <p><strong>Duree :</strong> ${formatDurationLabel(durationDays)}</p>
+  <p><strong>Durée :</strong> ${formatDurationLabel(durationDays)}</p>
 `;
+
+const buildBanEmailPayload = ({ name, reason, suspendedUntil, durationDays }) => ({
+  subject: "Votre compte Freelancy a été banni",
+  text: `Bonjour ${name},\n\nVotre compte a été banni suite a un signalement verifié.\n${buildBanDetailsText({
+    reason,
+    suspendedUntil,
+    durationDays,
+  })}\n\nSi vous pensez qu'il s'agit d'une erreur, merci de contacter le support.`,
+  html: `
+    <p>Bonjour <strong>${name}</strong>,</p>
+    <p>Votre compte Freelancy a été banni suite a un signalement verifié.</p>
+    ${buildBanDetailsHtml({
+      reason,
+      suspendedUntil,
+      durationDays,
+    })}
+    <p>Si vous pensez qu'il s'agit d'une erreur, merci de contacter le support.</p>
+  `,
+});
 
 export const adminService = {
   async listUsers() {
@@ -159,37 +186,36 @@ export const adminService = {
       durationDays,
     });
 
-    await adminRepository.createBanHistoryEntry({
+    const emailPayload = buildBanEmailPayload({
+      name: updatedUser?.name || user.name,
+      reason: updatedUser?.suspensionReason || reason,
+      suspendedUntil: updatedUser?.suspendedUntil,
+      durationDays: updatedUser?.suspensionDurationDays,
+    });
+
+    const banHistoryEntryId = await adminRepository.createBanHistoryEntry({
       userId: normalizedUserId,
       adminUserId: normalizedAdminId,
       reason,
       durationDays: updatedUser?.suspensionDurationDays || durationDays,
       suspendedUntil: updatedUser?.suspendedUntil || null,
+      emailSubject: emailPayload.subject,
+      emailText: emailPayload.text,
+      emailHtml: emailPayload.html,
     });
 
     if (updatedUser?.email) {
       await mailer.sendMail({
         to: updatedUser.email,
-        subject: "Votre compte Freelancy a ete banni",
-        text: `Bonjour ${updatedUser.name},\n\nVotre compte a ete banni.\n${buildBanDetailsText({
-          reason: updatedUser.suspensionReason || reason,
-          suspendedUntil: updatedUser.suspendedUntil,
-          durationDays: updatedUser.suspensionDurationDays,
-        })}\n\nSi vous pensez qu'il s'agit d'une erreur, merci de contacter le support.`,
-        html: `
-          <p>Bonjour <strong>${updatedUser.name}</strong>,</p>
-          <p>Votre compte Freelancy a ete banni.</p>
-          ${buildBanDetailsHtml({
-            reason: updatedUser.suspensionReason || reason,
-            suspendedUntil: updatedUser.suspendedUntil,
-            durationDays: updatedUser.suspensionDurationDays,
-          })}
-          <p>Si vous pensez qu'il s'agit d'une erreur, merci de contacter le support.</p>
-        `,
+        subject: emailPayload.subject,
+        text: emailPayload.text,
+        html: emailPayload.html,
       });
+
+      await adminRepository.markBanHistoryEmailSent(banHistoryEntryId);
     }
 
-    return updatedUser;
+    return adminRepository.findUserById(normalizedUserId);
   },
 
   async unbanUser(userId) {
@@ -204,7 +230,7 @@ export const adminService = {
     });
   },
 
-  async notifyBannedUser(reportId) {
+  async notifyBannedUser(reportId, payload = {}) {
     const report = await this.getReportById(reportId);
 
     if (!report.reportedUserIsSuspended) {
@@ -215,26 +241,34 @@ export const adminService = {
       );
     }
 
+    const overrideReason = String(payload.reason || "").trim();
+    const overrideDurationDays = parseDurationDays(payload.durationDays);
+    const emailReason = overrideReason || report.banReason || report.reason;
+    const emailDurationDays = overrideDurationDays || report.banDurationDays;
+    const emailSuspendedUntil =
+      overrideDurationDays ? computeSuspendedUntilFromDuration(overrideDurationDays) : report.bannedUntil;
+
     await mailer.sendMail({
       to: report.reportedUserEmail,
-      subject: "Votre compte Freelancy a ete suspendu",
-      text: `Bonjour ${report.reportedUserName},\n\nVotre compte a ete suspendu.\n${buildBanDetailsText({
-        reason: report.banReason || report.reason,
-        suspendedUntil: report.bannedUntil,
-        durationDays: report.banDurationDays,
-      })}\n\nMerci de respecter les regles de la plateforme.`,
+      subject: "Votre compte Freelancy a été banni",
+      text: `Bonjour ${report.reportedUserName},\n\nVotre compte a été banni suite a un signalement verifié.\n${buildBanDetailsText({
+        reason: emailReason,
+        suspendedUntil: emailSuspendedUntil,
+        durationDays: emailDurationDays,
+      })}\n\nMerci de respecter les règles de la plateforme.`,
       html: `
         <p>Bonjour <strong>${report.reportedUserName}</strong>,</p>
-        <p>Votre compte Freelancy a ete suspendu.</p>
+        <p>Votre compte Freelancy a été banni suite a un signalement verifié.</p>
         ${buildBanDetailsHtml({
-          reason: report.banReason || report.reason,
-          suspendedUntil: report.bannedUntil,
-          durationDays: report.banDurationDays,
+          reason: emailReason,
+          suspendedUntil: emailSuspendedUntil,
+          durationDays: emailDurationDays,
         })}
-        <p>Merci de respecter les regles de la plateforme.</p>
+        <p>Merci de respecter les règles de la plateforme.</p>
       `,
     });
 
+    await adminRepository.markLatestBanHistoryEmailSentForUser(report.reportedUserId);
     const reportWithEmailFlag = await adminRepository.markReportedUserEmailSent(report.id);
     return adminRepository.updateReportStatus(reportWithEmailFlag.id, "ferme");
   },
@@ -252,31 +286,32 @@ export const adminService = {
     if (isResolved && report.reportedUserIsSuspended && report.reportedUserEmail) {
       await mailer.sendMail({
         to: report.reportedUserEmail,
-        subject: "Votre compte Freelancy a ete banni",
-        text: `Bonjour ${report.reportedUserName},\n\nVotre compte a ete banni suite a un signalement verifie.\n${buildBanDetailsText({
+        subject: "Votre compte Freelancy a été banni",
+        text: `Bonjour ${report.reportedUserName},\n\nVotre compte a été banni suite a un signalement verifié.\n${buildBanDetailsText({
           reason: report.banReason || report.reason,
           suspendedUntil: report.bannedUntil,
           durationDays: report.banDurationDays,
-        })}\n\nMerci de respecter les regles de la plateforme.`,
+        })}\n\nMerci de respecter les règles de la plateforme.`,
         html: `
           <p>Bonjour <strong>${report.reportedUserName}</strong>,</p>
-          <p>Votre compte Freelancy a ete banni suite a un signalement verifie.</p>
+          <p>Votre compte Freelancy a été banni suite a un signalement verifié.</p>
           ${buildBanDetailsHtml({
             reason: report.banReason || report.reason,
             suspendedUntil: report.bannedUntil,
             durationDays: report.banDurationDays,
           })}
-          <p>Merci de respecter les regles de la plateforme.</p>
+          <p>Merci de respecter les règles de la plateforme.</p>
         `,
       });
 
+      await adminRepository.markLatestBanHistoryEmailSentForUser(report.reportedUserId);
       await adminRepository.markReportedUserEmailSent(report.id);
     }
 
     await mailer.sendMail({
       to: report.reporterEmail,
       subject: isResolved
-        ? "Votre signalement a ete traite"
+        ? "Votre signalement a été traite"
         : "Retour sur votre signalement Freelancy",
       text: isResolved
         ? `Bonjour ${report.reporterName},\n\nNous avons examine votre signalement concernant ${report.reportedUserName} et nous avons resolu le probleme. Merci pour votre retour.`

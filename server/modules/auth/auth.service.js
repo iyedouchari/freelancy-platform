@@ -1,7 +1,10 @@
 import AppError from "../../utils/AppError.js";
 import { generateToken } from "../../utils/generateToken.js";
 import { comparePassword, hashPassword } from "../../utils/hashPassword.js";
+import { logAuthError, logAuthEvent } from "../../utils/logger.js";
 import { findAuthUserByEmail, findAuthUserById, insertAuthUser } from "./auth.repository.js";
+
+const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
 
 const buildAuthResponse = (user) => {
   return {
@@ -11,10 +14,15 @@ const buildAuthResponse = (user) => {
 };
 
 export const register = async ({ name, company, title, location, email, phone, password, role }) => {
-  const existingUser = await findAuthUserByEmail(email);
+  const normalizedEmail = normalizeEmail(email);
+  const existingUser = await findAuthUserByEmail(normalizedEmail);
 
   if (existingUser) {
-    throw new AppError("A user with this email already exists.", 409, "EMAIL_ALREADY_USED");
+    throw new AppError(
+      "Un utilisateur avec cette adresse email existe deja.",
+      409,
+      "EMAIL_ALREADY_USED",
+    );
   }
 
   const passwordHash = await hashPassword(password);
@@ -23,7 +31,7 @@ export const register = async ({ name, company, title, location, email, phone, p
     company,
     title,
     location,
-    email,
+    email: normalizedEmail,
     phone,
     passwordHash,
     role,
@@ -34,18 +42,46 @@ export const register = async ({ name, company, title, location, email, phone, p
 };
 
 export const login = async ({ email, password }) => {
-  const user = await findAuthUserByEmail(email, { includePassword: true });
+  const normalizedEmail = normalizeEmail(email);
+  const user = await findAuthUserByEmail(normalizedEmail, { includePassword: true });
 
   if (!user) {
-    throw new AppError("Invalid credentials.", 401, "INVALID_CREDENTIALS");
+    logAuthEvent("Tentative de connexion avec un email introuvable", {
+      email: normalizedEmail,
+    });
+    logAuthError("Echec de connexion : utilisateur introuvable", {
+      email: normalizedEmail,
+    });
+    throw new AppError("Cette adresse email n'est associee a aucun compte.", 401, "INVALID_CREDENTIALS");
   }
 
   const isPasswordValid = await comparePassword(password, user.passwordHash);
   if (!isPasswordValid) {
-    throw new AppError("Invalid credentials.", 401, "INVALID_CREDENTIALS");
+    logAuthEvent("Tentative de connexion avec mot de passe incorrect", {
+      email: normalizedEmail,
+      userId: user.id,
+    });
+    logAuthError("Echec de connexion : mot de passe incorrect", {
+      email: normalizedEmail,
+      userId: user.id,
+    });
+    throw new AppError("Mot de passe incorrect. Veuillez réessayer.", 401, "INVALID_CREDENTIALS");
   }
 
   const { passwordHash, ...safeUser } = user;
+
+  if (safeUser.isSuspended) {
+    logAuthEvent("Connexion refusée : utilisateur suspendu", {
+      userId: safeUser.id,
+      email: safeUser.email,
+      role: safeUser.role,
+    });
+    return {
+      user: safeUser,
+      token: null,
+    };
+  }
+
   return buildAuthResponse(safeUser);
 };
 
@@ -53,9 +89,8 @@ export const getAuthUserById = async (id) => {
   const user = await findAuthUserById(id);
 
   if (!user) {
-    throw new AppError("User not found.", 404, "USER_NOT_FOUND");
+    throw new AppError("Utilisateur non trouvé.", 404, "USER_NOT_FOUND");
   }
 
   return user;
 };
-

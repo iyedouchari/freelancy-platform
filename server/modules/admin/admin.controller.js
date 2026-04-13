@@ -36,7 +36,7 @@ export const listAdminReports = async (_req, res) => {
 export const getAdminReportById = async (req, res) => {
   const report = await adminService.getReportById(req.params.id);
   return successResponse(res, {
-    message: "Details du report charges.",
+    message: "Détails du report chargés.",
     data: report,
   });
 };
@@ -74,7 +74,7 @@ export const unbanAdminUser = async (req, res) => {
 };
 
 export const notifyBannedUserByEmail = async (req, res) => {
-  const report = await adminService.notifyBannedUser(req.params.id);
+  const report = await adminService.notifyBannedUser(req.params.id, req.body);
   return successResponse(res, {
     message: "Email de suspension envoye.",
     data: report,
@@ -84,7 +84,7 @@ export const notifyBannedUserByEmail = async (req, res) => {
 export const notifyReporterByEmail = async (req, res) => {
   const report = await adminService.notifyReporter(req.params.id, req.body?.outcome);
   return successResponse(res, {
-    message: "Email au reporteur envoye.",
+    message: "Email au reporteur envoyé.",
     data: report,
   });
 };

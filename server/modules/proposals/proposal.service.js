@@ -109,7 +109,7 @@ export const proposalService = {
 
     if (proposal.status !== "En attente") {
       throw new AppError(
-        "Cette proposition a deja ete traitee.",
+        "Cette proposition a deja été traitee.",
         400,
         "PROPOSAL_ALREADY_DECIDED",
       );

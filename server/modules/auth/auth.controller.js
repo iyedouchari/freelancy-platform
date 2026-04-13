@@ -1,19 +1,27 @@
 import { successResponse } from "../../utils/apiResponse.js";
+import { logAuthEvent } from "../../utils/logger.js";
 import { getAuthUserById, login, register } from "./auth.service.js";
 
 export const registerController = async (req, res) => {
   const result = await register(req.body);
   return successResponse(res, {
     statusCode: 201,
-    message: "Registration successful.",
+    message: "Inscription réussie.",
     data: result,
   });
 };
 
 export const loginController = async (req, res) => {
   const result = await login(req.body);
+  logAuthEvent("Utilisateur connecté", {
+    userId: result?.user?.id,
+    email: result?.user?.email,
+    role: result?.user?.role,
+    ip: req.ip,
+  });
+
   return successResponse(res, {
-    message: "Login successful.",
+    message: "Connexion réussie.",
     data: result,
   });
 };
@@ -21,14 +29,20 @@ export const loginController = async (req, res) => {
 export const meController = async (req, res) => {
   const user = await getAuthUserById(req.auth.userId);
   return successResponse(res, {
-    message: "Authenticated user retrieved.",
+    message: "Utilisateur authentifié récupéré.",
     data: user,
   });
 };
 
-export const logoutController = async (_req, res) => {
+export const logoutController = async (req, res) => {
+  logAuthEvent("Utilisateur deconnecté", {
+    userId: req.user?.id,
+    email: req.user?.email,
+    role: req.user?.role,
+    ip: req.ip,
+  });
+
   return successResponse(res, {
-    message: "Logout successful on API side. Remove token on client.",
+    message: "Déconnexion réussie côté API. Supprimez le token côté client.",
   });
 };
-

@@ -1,6 +1,86 @@
 import { getDb } from "../../config/db.js";
 
 const db = getDb();
+let ensureReportsTablePromise;
+
+const constraintExists = async (tableName, constraintName) => {
+  const [rows] = await db.query(
+    `
+      SELECT 1
+      FROM information_schema.table_constraints
+      WHERE table_schema = DATABASE()
+        AND table_name = ?
+        AND constraint_name = ?
+      LIMIT 1
+    `,
+    [tableName, constraintName],
+  );
+
+  return Boolean(rows[0]);
+};
+
+const dropIndexIfExists = async (tableName, indexName) => {
+  const [rows] = await db.query(
+    `
+      SELECT 1
+      FROM information_schema.statistics
+      WHERE table_schema = DATABASE()
+        AND table_name = ?
+        AND index_name = ?
+      LIMIT 1
+    `,
+    [tableName, indexName],
+  );
+
+  if (!rows[0]) {
+    return;
+  }
+
+  await db.query(`
+    ALTER TABLE ${tableName}
+    DROP INDEX ${indexName}
+  `);
+};
+
+const dropReportsDealReporterUniqueConstraint = async () => {
+  const hasUniqueIndex = await (async () => {
+    const [rows] = await db.query(
+      `
+        SELECT 1
+        FROM information_schema.statistics
+        WHERE table_schema = DATABASE()
+          AND table_name = 'reports'
+          AND index_name = 'uq_reports_deal_reporter'
+        LIMIT 1
+      `,
+    );
+
+    return Boolean(rows[0]);
+  })();
+
+  if (!hasUniqueIndex) {
+    return;
+  }
+
+  const hasDealForeignKey = await constraintExists("reports", "fk_reports_deal");
+
+  if (hasDealForeignKey) {
+    await db.query(`
+      ALTER TABLE reports
+      DROP FOREIGN KEY fk_reports_deal
+    `);
+  }
+
+  await db.query(`
+    ALTER TABLE reports
+    DROP INDEX uq_reports_deal_reporter
+  `);
+
+  await db.query(`
+    ALTER TABLE reports
+    ADD CONSTRAINT fk_reports_deal FOREIGN KEY (deal_id) REFERENCES deals(id) ON DELETE SET NULL
+  `).catch(() => {});
+};
 
 const formatTimestamp = (value) => {
   if (!value) {
@@ -12,6 +92,20 @@ const formatTimestamp = (value) => {
   }
 
   return new Date(value).toISOString();
+};
+
+const toDatabaseDateTime = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date;
 };
 
 const isStatusTruncationError = (error) =>
@@ -74,6 +168,10 @@ const mapBanHistoryRow = (row) => {
     reason: row.reason || "",
     durationDays: row.duration_days ? Number(row.duration_days) : null,
     suspendedUntil: formatTimestamp(row.suspended_until),
+    emailSubject: row.email_subject || "",
+    emailText: row.email_text || "",
+    emailHtml: row.email_html || "",
+    emailSentAt: formatTimestamp(row.email_sent_at),
     createdAt: formatTimestamp(row.created_at),
   };
 };
@@ -104,6 +202,10 @@ const mapReportRow = (row) => {
     isReportedUserEmailSent: Boolean(row.reported_user_mail_sent),
     reason: row.reason,
     details: row.details || "",
+    attachmentFileName: row.attachment_file_name || "",
+    attachmentFileUrl: row.attachment_file_url || "",
+    attachmentMimeType: row.attachment_mime_type || "",
+    attachmentSize: row.attachment_size ? Number(row.attachment_size) : null,
     status: normalizeReportStatus(row.status),
     createdAt: formatTimestamp(row.created_at),
     closedAt: formatTimestamp(row.closed_at),
@@ -111,6 +213,11 @@ const mapReportRow = (row) => {
 };
 
 export const ensureReportsTable = async () => {
+  if (ensureReportsTablePromise) {
+    return ensureReportsTablePromise;
+  }
+
+  ensureReportsTablePromise = (async () => {
   await db.query(`
     CREATE TABLE IF NOT EXISTS reports (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -119,6 +226,10 @@ export const ensureReportsTable = async () => {
       deal_id INT DEFAULT NULL,
       reason VARCHAR(120) NOT NULL,
       details TEXT DEFAULT NULL,
+      attachment_file_name VARCHAR(255) DEFAULT NULL,
+      attachment_file_url VARCHAR(1024) DEFAULT NULL,
+      attachment_mime_type VARCHAR(255) DEFAULT NULL,
+      attachment_size BIGINT DEFAULT NULL,
       status ENUM('ouvert', 'en_cours', 'ferme', 'refuse') NOT NULL DEFAULT 'en_cours',
       reported_user_mail_sent BOOLEAN NOT NULL DEFAULT FALSE,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -143,6 +254,13 @@ export const ensureReportsTable = async () => {
 
   await db.query(`
     ALTER TABLE reports
+    DROP INDEX uq_reports_deal_id
+  `).catch(() => {});
+
+  await dropReportsDealReporterUniqueConstraint().catch(() => {});
+
+  await db.query(`
+    ALTER TABLE reports
     ADD COLUMN closed_at TIMESTAMP NULL DEFAULT NULL
   `).catch(() => {});
 
@@ -154,6 +272,26 @@ export const ensureReportsTable = async () => {
   await db.query(`
     ALTER TABLE reports
     ADD COLUMN reported_user_mail_sent BOOLEAN NOT NULL DEFAULT FALSE
+  `).catch(() => {});
+
+  await db.query(`
+    ALTER TABLE reports
+    ADD COLUMN attachment_file_name VARCHAR(255) NULL DEFAULT NULL
+  `).catch(() => {});
+
+  await db.query(`
+    ALTER TABLE reports
+    ADD COLUMN attachment_file_url VARCHAR(1024) NULL DEFAULT NULL
+  `).catch(() => {});
+
+  await db.query(`
+    ALTER TABLE reports
+    ADD COLUMN attachment_mime_type VARCHAR(255) NULL DEFAULT NULL
+  `).catch(() => {});
+
+  await db.query(`
+    ALTER TABLE reports
+    ADD COLUMN attachment_size BIGINT NULL DEFAULT NULL
   `).catch(() => {});
 
   await db.query(`
@@ -216,11 +354,41 @@ export const ensureReportsTable = async () => {
       reason TEXT NOT NULL,
       duration_days INT NULL DEFAULT NULL,
       suspended_until TIMESTAMP NULL DEFAULT NULL,
+      email_subject VARCHAR(255) NULL DEFAULT NULL,
+      email_text TEXT NULL DEFAULT NULL,
+      email_html LONGTEXT NULL DEFAULT NULL,
+      email_sent_at TIMESTAMP NULL DEFAULT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_ban_history_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       CONSTRAINT fk_ban_history_admin FOREIGN KEY (admin_user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
+
+  await db.query(`
+    ALTER TABLE ban_history
+    ADD COLUMN email_subject VARCHAR(255) NULL DEFAULT NULL
+  `).catch(() => {});
+
+  await db.query(`
+    ALTER TABLE ban_history
+    ADD COLUMN email_text TEXT NULL DEFAULT NULL
+  `).catch(() => {});
+
+  await db.query(`
+    ALTER TABLE ban_history
+    ADD COLUMN email_html LONGTEXT NULL DEFAULT NULL
+  `).catch(() => {});
+
+  await db.query(`
+    ALTER TABLE ban_history
+    ADD COLUMN email_sent_at TIMESTAMP NULL DEFAULT NULL
+  `).catch(() => {});
+  })().catch((error) => {
+    ensureReportsTablePromise = null;
+    throw error;
+  });
+
+  return ensureReportsTablePromise;
 };
 
 const userSelect = `
@@ -268,6 +436,10 @@ const reportSelect = `
     r.reported_user_email_sent_at,
     r.reason,
     r.details,
+    r.attachment_file_name,
+    r.attachment_file_url,
+    r.attachment_mime_type,
+    r.attachment_size,
     r.status,
     r.created_at,
     r.closed_at
@@ -278,6 +450,8 @@ const reportSelect = `
 
 export const adminRepository = {
   async listUsers() {
+    await ensureReportsTable();
+
     const [rows] = await db.query(`
       ${userSelect}
       GROUP BY
@@ -304,6 +478,8 @@ export const adminRepository = {
   },
 
   async findUserById(userId) {
+    await ensureReportsTable();
+
     const [rows] = await db.query(
       `
         ${userSelect}
@@ -340,6 +516,8 @@ export const adminRepository = {
   },
 
   async findUserByEmail(email) {
+    await ensureReportsTable();
+
     const [rows] = await db.query(
       `
         ${userSelect}
@@ -376,6 +554,8 @@ export const adminRepository = {
   },
 
   async listReports() {
+    await ensureReportsTable();
+
     const [rows] = await db.query(`
       ${reportSelect}
       ORDER BY r.created_at DESC, r.id DESC
@@ -385,6 +565,8 @@ export const adminRepository = {
   },
 
   async findReportById(reportId) {
+    await ensureReportsTable();
+
     const [rows] = await db.query(
       `
         ${reportSelect}
@@ -489,13 +671,70 @@ export const adminRepository = {
     return this.findUserById(userId);
   },
 
-  async createBanHistoryEntry({ userId, adminUserId, reason, durationDays, suspendedUntil }) {
+  async createBanHistoryEntry({
+    userId,
+    adminUserId,
+    reason,
+    durationDays,
+    suspendedUntil,
+    emailSubject = null,
+    emailText = null,
+    emailHtml = null,
+    emailSentAt = null,
+  }) {
+    const [result] = await db.query(
+      `
+        INSERT INTO ban_history (
+          user_id,
+          admin_user_id,
+          reason,
+          duration_days,
+          suspended_until,
+          email_subject,
+          email_text,
+          email_html,
+          email_sent_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        userId,
+        adminUserId,
+        reason,
+        durationDays || null,
+        toDatabaseDateTime(suspendedUntil),
+        emailSubject || null,
+        emailText || null,
+        emailHtml || null,
+        toDatabaseDateTime(emailSentAt),
+      ],
+    );
+
+    return result.insertId;
+  },
+
+  async markBanHistoryEmailSent(entryId, emailSentAt = new Date()) {
     await db.query(
       `
-        INSERT INTO ban_history (user_id, admin_user_id, reason, duration_days, suspended_until)
-        VALUES (?, ?, ?, ?, ?)
+        UPDATE ban_history
+        SET email_sent_at = ?
+        WHERE id = ?
+        LIMIT 1
       `,
-      [userId, adminUserId, reason, durationDays || null, suspendedUntil || null],
+      [toDatabaseDateTime(emailSentAt), entryId],
+    );
+  },
+
+  async markLatestBanHistoryEmailSentForUser(userId, emailSentAt = new Date()) {
+    await db.query(
+      `
+        UPDATE ban_history
+        SET email_sent_at = ?
+        WHERE user_id = ?
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
+      `,
+      [toDatabaseDateTime(emailSentAt), userId],
     );
   },
 
@@ -508,6 +747,10 @@ export const adminRepository = {
           reason,
           duration_days,
           suspended_until,
+          email_subject,
+          email_text,
+          email_html,
+          email_sent_at,
           created_at
         FROM ban_history
         WHERE user_id = ?

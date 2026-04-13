@@ -1,0 +1,11 @@
+{"email":"ons.benchaabene@etudiant-fst.utm.tn","level":"info","message":"Tentative de connexion avec mot de passe incorrect","service":"freelancy-api","timestamp":"2026-04-13T00:40:19.666Z","userId":3}
+{"email":"ons.benchaabene@etudiant-fst.utm.tn","level":"error","message":"Echec de connexion : mot de passe incorrect","service":"freelancy-api","timestamp":"2026-04-13T00:40:19.670Z","userId":3}
+{"email":"ons.benchaabene@etudiant-fst.utm.tn","ip":"::1","level":"info","message":"Utilisateur connecté","role":"freelancer","service":"freelancy-api","timestamp":"2026-04-13T00:40:24.524Z","userId":3}
+{"email":"eya@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"client","service":"freelancy-api","timestamp":"2026-04-13T00:44:50.352Z","userId":4}
+{"email":"eya@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"client","service":"freelancy-api","timestamp":"2026-04-13T00:58:27.937Z","userId":4}
+{"email":"admin@gmail.com","ip":"::ffff:127.0.0.1","level":"info","message":"Utilisateur connecté","role":"admin","service":"freelancy-api","timestamp":"2026-04-13T01:14:49.783Z","userId":6}
+{"email":"admin@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"admin","service":"freelancy-api","timestamp":"2026-04-13T01:37:25.217Z","userId":6}
+{"email":"eya@gmail.com","level":"info","message":"Tentative de connexion avec mot de passe incorrect","service":"freelancy-api","timestamp":"2026-04-13T01:39:46.111Z","userId":4}
+{"email":"eya@gmail.com","level":"error","message":"Echec de connexion : mot de passe incorrect","service":"freelancy-api","timestamp":"2026-04-13T01:39:46.118Z","userId":4}
+{"email":"eya@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"client","service":"freelancy-api","timestamp":"2026-04-13T01:39:59.099Z","userId":4}
+{"email":"ons.benchaabene@fst.utm.tn","ip":"::1","level":"info","message":"Utilisateur connecté","role":"freelancer","service":"freelancy-api","timestamp":"2026-04-13T01:52:24.419Z","userId":8}

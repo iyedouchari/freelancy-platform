@@ -1,12 +1,18 @@
+import { appLogger } from "../utils/logger.js";
+
 export const loggerMiddleware = (req, res, next) => {
   const start = Date.now();
 
   res.on("finish", () => {
     const durationMs = Date.now() - start;
-    const now = new Date().toISOString();
-    console.log(`[${now}] ${req.method} ${req.originalUrl} ${res.statusCode} - ${durationMs}ms`);
+    appLogger.info("HTTP_REQUEST", {
+      method: req.method,
+      url: req.originalUrl,
+      statusCode: res.statusCode,
+      durationMs,
+      ip: req.ip,
+    });
   });
 
   next();
 };
-
