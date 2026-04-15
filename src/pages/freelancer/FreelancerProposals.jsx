@@ -5,6 +5,11 @@ import { showAppFeedback } from "../../utils/appFeedback";
 import "./FreelancerProposals.css";
 
 const STATUS_CONFIG = {
+  pending: {
+    label: "En attente",
+    badgeLabel: "En attente",
+    tone: "pending",
+  },
   accepted: {
     label: "Acceptees",
     badgeLabel: "Acceptee",
@@ -15,14 +20,9 @@ const STATUS_CONFIG = {
     badgeLabel: "Refusee",
     tone: "refused",
   },
-  pending: {
-    label: "En attente",
-    badgeLabel: "En attente",
-    tone: "pending",
-  },
 };
 
-const TAB_ORDER = ["accepted", "refused", "pending"];
+const TAB_ORDER = ["pending", "accepted", "refused"];
 
 const normalizeStatusKey = (status) => {
   const value = String(status || "").toLowerCase();
@@ -90,7 +90,7 @@ function ProposalCard({ proposal, statusKey }) {
 
 export default function FreelancerProposals({ onBack }) {
   const [proposals, setProposals] = useState([]);
-  const [activeTab, setActiveTab] = useState("accepted");
+  const [activeTab, setActiveTab] = useState("pending");
   const [isLoading, setIsLoading] = useState(true);
   const [notice, setNotice] = useState("");
 

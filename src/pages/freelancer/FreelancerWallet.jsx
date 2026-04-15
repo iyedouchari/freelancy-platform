@@ -1,160 +1,453 @@
+import { useEffect, useMemo, useState } from "react";
 import { format } from "../../utils/format";
-import "./FreelancerWallet.css";
+import { walletService } from "../../services/walletService";
+import "../client/ClientWallet.css";
 
-const WALLET_OVERVIEW = {
-  available: 12340,
-  pending: 2860,
-  withdrawn: 19400,
-  nextPayout: "29 mars 2026",
-};
-
-const TRANSACTIONS = [
-  {
-    id: 1,
-    label: "Acompte - Creation d'un Site E-commerce React",
-    date: "2026-03-24",
-    type: "credit",
-    amount: 4200,
-    status: "Disponible",
-  },
-  {
-    id: 2,
-    label: "Retrait vers compte bancaire",
-    date: "2026-03-21",
-    type: "debit",
-    amount: 3000,
-    status: "Traite",
-  },
-  {
-    id: 3,
-    label: "Paiement milestone - Conception mobile",
-    date: "2026-03-19",
-    type: "credit",
-    amount: 2650,
-    status: "En attente",
-  },
-  {
-    id: 4,
-    label: "Commission plateforme",
-    date: "2026-03-19",
-    type: "debit",
-    amount: 180,
-    status: "Deduite",
-  },
+const WITHDRAW_METHODS = [
+  { key: "card", label: "Carte bancaire", icon: "💳", hint: "Retrait vers votre carte bancaire" },
+  { key: "transfer", label: "Virement bancaire", icon: "🏦", hint: "Retrait vers votre compte bancaire" },
+  { key: "d17", label: "D17", icon: "📱", hint: "Retrait mobile D17" },
+  { key: "flouci", label: "Flouci", icon: "💚", hint: "Retrait mobile Flouci" },
 ];
 
-function WalletStat({ label, value, hint }) {
+const QUICK_AMOUNTS = [100, 200, 500, 1000, 2000];
+
+const filterOptions = [
+  { key: "all", label: "Toutes" },
+  { key: "advance_credit", label: "Avances recues" },
+  { key: "final_credit", label: "Paiements finaux" },
+  { key: "refund", label: "Retraits" },
+];
+
+const typeMeta = {
+  refund: { label: "Retrait", className: "debit", prefix: "-" },
+  advance_credit: { label: "Avance", className: "credit", prefix: "+" },
+  final_credit: { label: "Paiement final", className: "credit", prefix: "+" },
+  topup: { label: "Recharge", className: "credit", prefix: "+" },
+};
+
+function exportTransactions(transactions) {
+  const rows = [
+    ["Date", "Libelle", "Detail", "Type", "Montant", "Statut"].join(";"),
+    ...transactions.map((t) =>
+      [t.date, t.label, t.detail, typeMeta[t.type]?.label ?? t.type, t.amount, t.status].join(";"),
+    ),
+  ];
+  const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "freelancer-wallet.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function WithdrawModal({ availableBalance, onClose, onConfirm }) {
+  const [step, setStep] = useState(1);
+  const [method, setMethod] = useState(null);
+  const [amount, setAmount] = useState("");
+  const [customAmt, setCustomAmt] = useState("");
+  const [accountRef, setAccountRef] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const finalAmount = Number(amount || customAmt);
+  const selectedMethod = WITHDRAW_METHODS.find((item) => item.key === method);
+  const withdrawCode = `WD-${Date.now().toString().slice(-6)}`;
+  const isValidAmount = finalAmount >= 100 && finalAmount <= availableBalance;
+
+  const handleConfirm = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await walletService.withdraw(finalAmount, accountRef || selectedMethod?.label || "Retrait");
+      setStep(4);
+      onConfirm?.({ amount: finalAmount, methodLabel: selectedMethod?.label });
+    } catch (err) {
+      setError(err?.message || "Retrait impossible.");
+      setLoading(false);
+    }
+  };
+
+  const progressSteps = ["Methode", "Montant", "Validation"];
+
   return (
-    <div className="freelancer-wallet-stat-card">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{hint}</small>
+    <div className="rm-overlay" onClick={(event) => event.target === event.currentTarget && onClose()}>
+      <div className="rm-modal">
+        <div className="rm-header">
+          <div className="rm-header-left">
+            <div className="rm-header-icon">💸</div>
+            <div>
+              <h2>Retirer des fonds</h2>
+              <p>{selectedMethod ? selectedMethod.label : "Choisissez une methode de retrait"}</p>
+            </div>
+          </div>
+          <button className="rm-close" onClick={onClose}>✕</button>
+        </div>
+
+        {step < 4 && (
+          <div className="rm-progress">
+            {progressSteps.map((label, index) => (
+              <div
+                key={label}
+                className={`rm-progress-step ${step > index ? "done" : ""} ${step === index + 1 ? "active" : ""}`}
+              >
+                <div className="rm-progress-dot">{step > index + 1 ? "✓" : index + 1}</div>
+                <span>{label}</span>
+                {index < 2 && <div className={`rm-progress-line ${step > index + 1 ? "done" : ""}`} />}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {step === 1 && (
+          <div className="rm-body">
+            <p className="rm-subtitle">Selectionnez votre methode de retrait</p>
+            <div className="rm-methods-grid">
+              {WITHDRAW_METHODS.map((item) => (
+                <button
+                  key={item.key}
+                  className="rm-method-card"
+                  onClick={() => {
+                    setMethod(item.key);
+                    setStep(2);
+                  }}
+                  style={{ "--method-color": "#0b5e8e" }}
+                >
+                  <div className="rm-method-icon">{item.icon}</div>
+                  <div className="rm-method-info">
+                    <strong>{item.label}</strong>
+                    <small>{item.hint}</small>
+                  </div>
+                  <div className="rm-method-arrow">→</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="rm-body">
+            <p className="rm-subtitle">{selectedMethod?.icon} {selectedMethod?.label} — Choisissez le montant</p>
+            <div className="rm-quick-grid">
+              {QUICK_AMOUNTS.map((value) => (
+                <button
+                  key={value}
+                  className={`rm-quick-btn ${amount === String(value) ? "active" : ""}`}
+                  onClick={() => {
+                    setAmount(String(value));
+                    setCustomAmt("");
+                  }}
+                >
+                  <strong>{value}</strong>
+                  <span>DT</span>
+                </button>
+              ))}
+            </div>
+            <div className="rm-divider"><span>ou saisir un montant</span></div>
+            <div className="rm-input-group">
+              <label>Montant personnalise (min. 100 DT)</label>
+              <div className="rm-input-with-unit">
+                <input
+                  type="number"
+                  min="100"
+                  placeholder="Ex: 350"
+                  value={customAmt}
+                  onChange={(event) => {
+                    setCustomAmt(event.target.value);
+                    setAmount("");
+                  }}
+                />
+                <span className="rm-input-unit">DT</span>
+              </div>
+            </div>
+            <div className="rm-amount-summary">
+              <div className="rm-amount-row"><span>Solde disponible</span><strong>{format(availableBalance)} DT</strong></div>
+              <div className="rm-amount-row"><span>Montant du retrait</span><strong>{format(finalAmount || 0)} DT</strong></div>
+            </div>
+            <div className="rm-actions">
+              <button className="rm-btn-ghost" onClick={() => setStep(1)}>← Retour</button>
+              <button className="rm-btn-primary" onClick={() => setStep(3)} disabled={!isValidAmount}>
+                Continuer {isValidAmount ? `— ${format(finalAmount)} DT` : ""}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="rm-body">
+            <div className="rm-input-group">
+              <label>
+                {method === "transfer"
+                  ? "Compte bancaire / IBAN"
+                  : method === "card"
+                    ? "Numero de carte"
+                    : method === "flouci"
+                      ? "Numero Flouci"
+                      : "Numero D17"}
+              </label>
+              <input
+                type="text"
+                placeholder={
+                  method === "transfer"
+                    ? "Ex: TN59...."
+                    : method === "card"
+                      ? "Ex: 1234 5678 9012 3456"
+                      : method === "flouci"
+                        ? "Ex: Flouci 55 123 456"
+                        : "Ex: 55 123 456"
+                }
+                value={accountRef}
+                onChange={(event) => setAccountRef(event.target.value)}
+              />
+            </div>
+
+            <div className="rm-d17">
+              <div className="rm-d17-header">
+                <span className="rm-d17-logo">{selectedMethod?.icon} {selectedMethod?.label}</span>
+                <strong>{format(finalAmount)} DT</strong>
+              </div>
+              <div className="rm-d17-steps">
+                <div className="rm-d17-step"><div className="rm-d17-num">1</div><span>Vérifiez la reference de retrait ci-dessous</span></div>
+                <div className="rm-d17-step"><div className="rm-d17-num">2</div><span>Confirmez le compte de destination</span></div>
+                <div className="rm-d17-step"><div className="rm-d17-num">3</div><span>Validez pour enregistrer le retrait</span></div>
+              </div>
+              <div className="rm-d17-code">
+                <span className="rm-d17-code-label">Reference retrait</span>
+                <span className="rm-d17-code-val">{withdrawCode}</span>
+              </div>
+            </div>
+
+            {error ? <div className="rm-error">⚠️ {error}</div> : null}
+
+            <div className="rm-secure-note">Retrait securise vers votre methode choisie.</div>
+
+            <div className="rm-actions">
+              <button className="rm-btn-ghost" onClick={() => setStep(2)} disabled={loading}>← Retour</button>
+              <button
+                className={`rm-btn-primary ${loading ? "loading" : ""}`}
+                onClick={handleConfirm}
+                disabled={loading || !accountRef.trim() || !isValidAmount}
+              >
+                {loading ? "⟳ Traitement..." : `Confirmer retrait ${format(finalAmount)} DT`}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="rm-success">
+            <div className="rm-success-circle"><div className="rm-success-check">✓</div></div>
+            <h3>Retrait enregistre !</h3>
+            <p>Votre demande de retrait de <strong>{format(finalAmount)} DT</strong> a ete prise en compte.</p>
+            <div className="rm-success-method">{selectedMethod?.icon} {selectedMethod?.label}</div>
+            <button className="rm-btn-primary rm-btn-full" onClick={onClose}>Fermer</button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 export default function FreelancerWallet() {
-  return (
-    <div className="freelancer-wallet-page">
-      <div className="freelancer-wallet-shell">
-        <header className="freelancer-wallet-header">
-          <div className="freelancer-wallet-copy">
-            <span className="freelancer-wallet-eyebrow">Portefeuille</span>
-            <h1>Vos encaissements et retraits dans une page dediee</h1>
-            <p>
-              Le wallet du freelancer est maintenant isole du reste de l'interface avec son propre
-              suivi de solde, de virements et d'historique de transactions.
-            </p>
-          </div>
+  const [wallet, setWallet] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [notification, setNotification] = useState(null);
 
-          <div className="freelancer-wallet-stats">
-            <WalletStat
-              label="Disponible"
-              value={`${format(WALLET_OVERVIEW.available)} DT`}
-              hint="pret pour retrait"
-            />
-            <WalletStat
-              label="En attente"
-              value={`${format(WALLET_OVERVIEW.pending)} DT`}
-              hint="milestones non deblocs"
-            />
-            <WalletStat
-              label="Retire"
-              value={`${format(WALLET_OVERVIEW.withdrawn)} DT`}
-              hint="sur les 90 derniers jours"
-            />
-          </div>
-        </header>
+  const loadWalletData = async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const data = await walletService.getWallet();
+      setWallet(data?.wallet ?? null);
+      setTransactions(
+        (Array.isArray(data?.transactions) ? data.transactions : []).sort(
+          (a, b) => new Date(b.date ?? b.created_at) - new Date(a.date ?? a.created_at),
+        ),
+      );
+    } catch (err) {
+      setWallet(null);
+      setTransactions([]);
+      setLoadError(err?.message || "Impossible de charger le wallet freelancer.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        <div className="freelancer-wallet-panels">
-          <section className="freelancer-wallet-balance-card">
-            <span className="freelancer-wallet-card-label">Solde principal</span>
-            <strong>{format(WALLET_OVERVIEW.available)} DT</strong>
-            <p>
-              Votre prochain virement automatique est programme pour le {WALLET_OVERVIEW.nextPayout}.
-            </p>
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+    loadWalletData();
+  }, []);
 
-            <div className="freelancer-wallet-badges">
-              <span>Virement bancaire actif</span>
-              <span>Verification completee</span>
-            </div>
-          </section>
+  const filteredTransactions = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return transactions.filter((transaction) => {
+      const matchesFilter = filter === "all" || transaction.type === filter;
+      const haystack = `${transaction.label || ""} ${transaction.detail || ""}`.toLowerCase();
+      return matchesFilter && (!query || haystack.includes(query));
+    });
+  }, [filter, search, transactions]);
 
-          <section className="freelancer-wallet-payout-card">
-            <h2>Configuration de retrait</h2>
-            <div className="freelancer-wallet-payout-row">
-              <span>Methode</span>
-              <strong>Virement bancaire</strong>
-            </div>
-            <div className="freelancer-wallet-payout-row">
-              <span>Compte</span>
-              <strong>**** **** 7821</strong>
-            </div>
-            <div className="freelancer-wallet-payout-row">
-              <span>Frais estimes</span>
-              <strong>12 DT</strong>
-            </div>
-            <div className="freelancer-wallet-payout-row">
-              <span>Seuil minimum</span>
-              <strong>100 DT</strong>
-            </div>
-          </section>
+  const stats = useMemo(() => {
+    return {
+      availableBalance: Number(wallet?.balance ?? 0),
+      totalReceived: transactions
+        .filter((transaction) => transaction.type === "advance_credit" || transaction.type === "final_credit")
+        .reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount)), 0),
+      totalWithdrawn: transactions
+        .filter((transaction) => transaction.type === "refund")
+        .reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount)), 0),
+    };
+  }, [wallet, transactions]);
+
+  const showNotif = (text) => {
+    setNotification(text);
+    setTimeout(() => setNotification(null), 3500);
+  };
+
+  const handleWithdrawConfirm = async ({ amount }) => {
+    await loadWalletData();
+    showNotif(`Retrait de ${format(amount)} DT enregistre avec succes.`);
+  };
+
+  if (loading) {
+    return (
+      <div className="client-wallet-page">
+        <div className="client-wallet-shell" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "40vh" }}>
+          <p style={{ color: "#64748b", fontSize: "1rem" }}>Chargement du wallet...</p>
         </div>
+      </div>
+    );
+  }
 
-        <section className="freelancer-wallet-history">
-          <div className="freelancer-wallet-section-head">
-            <div>
-              <span className="freelancer-wallet-section-eyebrow">Historique</span>
-              <h2>Mouvements recents</h2>
-            </div>
-            <p>Chaque entree separe credits, debits et statut de traitement.</p>
+  return (
+    <div className="client-wallet-page">
+      <div className="client-wallet-shell">
+        {notification && <div className="client-wallet-toast">{notification}</div>}
+        {loadError && (
+          <div className="client-wallet-empty" style={{ marginBottom: "16px" }}>
+            <strong>Wallet indisponible</strong>
+            <p>{loadError}</p>
+            <button type="button" onClick={loadWalletData}>Reessayer</button>
+          </div>
+        )}
+
+        <section className="client-wallet-hero">
+          <div className="client-wallet-copy">
+            <span className="client-wallet-eyebrow">Wallet freelancer</span>
+            <h1>Suivre votre solde, vos gains et vos retraits</h1>
+            <p>Le freelancer retrouve ici la meme interface wallet que le client, mais adaptee aux paiements recus et aux demandes de retrait.</p>
           </div>
 
-          <div className="freelancer-wallet-transaction-list">
-            {TRANSACTIONS.map((transaction) => (
-              <article key={transaction.id} className="freelancer-wallet-transaction">
-                <div className="freelancer-wallet-transaction-main">
-                  <span className={`freelancer-wallet-direction is-${transaction.type}`}>
-                    {transaction.type === "credit" ? "Credit" : "Debit"}
-                  </span>
-                  <div>
-                    <h3>{transaction.label}</h3>
-                    <p>{format(transaction.date, "date")}</p>
-                  </div>
-                </div>
+          <div className="client-wallet-recharge-card">
+            <span>Retirer mes fonds</span>
+            <p className="recharge-card-hint">Choisissez votre methode de retrait puis le montant a transferer depuis votre wallet.</p>
+            <div className="recharge-methods-preview">
+              {WITHDRAW_METHODS.map((method) => (
+                <div key={method.key} className="recharge-preview-badge" title={method.label}>{method.icon}</div>
+              ))}
+            </div>
+            <button type="button" className="recharge-open-btn" onClick={() => setShowModal(true)}>
+              Demander un retrait
+            </button>
+          </div>
+        </section>
 
-                <div className="freelancer-wallet-transaction-side">
-                  <strong className={transaction.type === "credit" ? "is-credit" : "is-debit"}>
-                    {transaction.type === "credit" ? "+" : "-"}
-                    {format(transaction.amount)} DT
-                  </strong>
-                  <span>{transaction.status}</span>
-                </div>
-              </article>
-            ))}
+        <section className="client-wallet-stats">
+          <article>
+            <span>Solde disponible</span>
+            <strong>{format(stats.availableBalance)} DT</strong>
+          </article>
+          <article>
+            <span>Total recu</span>
+            <strong>{format(stats.totalReceived)} DT</strong>
+          </article>
+          <article>
+            <span>Deja retire</span>
+            <strong>{format(stats.totalWithdrawn)} DT</strong>
+          </article>
+        </section>
+
+        <section className="client-wallet-panel">
+          <div className="client-wallet-panel-head">
+            <div>
+              <span className="client-wallet-panel-eyebrow">Historique</span>
+              <h2>Mouvements du portefeuille</h2>
+            </div>
+            <button type="button" onClick={() => exportTransactions(filteredTransactions)}>Exporter CSV</button>
+          </div>
+
+          <div className="client-wallet-toolbar">
+            <div className="client-wallet-filters">
+              {filterOptions.map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  className={`client-wallet-filter ${filter === option.key ? "active" : ""}`}
+                  onClick={() => setFilter(option.key)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <label className="client-wallet-search">
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Rechercher un mouvement"
+              />
+            </label>
+          </div>
+
+          <div className="client-wallet-transaction-list">
+            {filteredTransactions.length === 0 ? (
+              <div className="client-wallet-empty">
+                <strong>Aucun mouvement correspondant</strong>
+                <p>Les paiements recus et retraits apparaitront ici.</p>
+              </div>
+            ) : (
+              filteredTransactions.map((transaction) => {
+                const meta = typeMeta[transaction.type] ?? typeMeta.refund;
+                return (
+                  <article key={transaction.id} className="client-wallet-transaction-card">
+                    <div className="client-wallet-transaction-top">
+                      <div>
+                        <span className={`client-wallet-badge is-${meta.className}`}>{meta.label}</span>
+                        <h3>{transaction.label}</h3>
+                      </div>
+                      <div className="client-wallet-amount-block">
+                        <strong className={`is-${meta.className}`}>
+                          {meta.prefix}{format(Math.abs(Number(transaction.amount)))} DT
+                        </strong>
+                        <small>{transaction.status}</small>
+                      </div>
+                    </div>
+                    <p>{transaction.detail}</p>
+                    <div className="client-wallet-transaction-footer">
+                      <span>{new Date(transaction.date ?? transaction.created_at).toLocaleDateString("fr-FR")}</span>
+                      <span>Ref. {transaction.id}</span>
+                    </div>
+                  </article>
+                );
+              })
+            )}
           </div>
         </section>
       </div>
+
+      {showModal && (
+        <WithdrawModal
+          availableBalance={Number(wallet?.balance ?? 0)}
+          onClose={() => setShowModal(false)}
+          onConfirm={handleWithdrawConfirm}
+        />
+      )}
     </div>
   );
 }

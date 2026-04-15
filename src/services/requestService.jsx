@@ -69,12 +69,60 @@ const normalizeRequestPayload = (payload) => ({
 export const requestService = {
   listMine: async () => {
     const result = await request("/requests/my");
-    return result?.data ?? [];
+    if (Array.isArray(result)) {
+      return result;
+    }
+
+    return result?.rows ?? result?.data ?? [];
   },
 
   listOpen: async () => {
     const result = await request("/requests?status=Ouverte&limit=100");
-    return result?.data ?? [];
+    if (Array.isArray(result)) {
+      return result;
+    }
+
+    return result?.rows ?? result?.data ?? [];
+  },
+
+  listMatching: async () => {
+    const result = await request("/requests/matching?limit=100");
+    if (Array.isArray(result)) {
+      return result;
+    }
+
+    return result?.rows ?? result?.data ?? [];
+  },
+
+  getMyDomains: async () => {
+    const result = await request("/requests/freelancer/domains");
+    return Array.isArray(result) ? result : result?.data ?? [];
+  },
+
+  addMyDomain: async (domain) => {
+    return request("/requests/freelancer/domains", {
+      method: "POST",
+      body: JSON.stringify({ domain }),
+    });
+  },
+
+  syncFreelancerDomains: async (domains = []) => {
+    const normalizedDomains = [...new Set((Array.isArray(domains) ? domains : []).map((item) => String(item || "").trim()).filter(Boolean))];
+
+    if (!normalizedDomains.length) {
+      return [];
+    }
+
+    const existingDomains = await requestService.getMyDomains().catch(() => []);
+    const existingSet = new Set(existingDomains.map((item) => String(item || "").trim()));
+
+    for (const domain of normalizedDomains) {
+      if (!existingSet.has(domain)) {
+        await requestService.addMyDomain(domain);
+      }
+    }
+
+    return requestService.getMyDomains();
   },
 
   listMyProposals: async () => {
@@ -97,6 +145,18 @@ export const requestService = {
     return request(`/requests/${requestId}`, {
       method: "PUT",
       body: JSON.stringify(normalizeRequestPayload(payload)),
+    });
+  },
+
+  remove: async (requestId) => {
+    return request(`/requests/${requestId}`, {
+      method: "DELETE",
+    });
+  },
+
+  acceptAndPayProposal: async (proposalId) => {
+    return request(`/proposals/${proposalId}/accept-and-pay`, {
+      method: "POST",
     });
   },
 

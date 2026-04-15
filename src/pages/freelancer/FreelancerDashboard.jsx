@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import CategorySelector from "../../components/CategorySelector";
 import FiltersBar from "../../components/FiltersBar";
 import ProjectCard from "../../components/ProjectCard";
@@ -77,6 +77,16 @@ const toUiProject = (request) => ({
   posted: request.postedAt ?? request.createdAt ?? new Date().toISOString().slice(0, 10),
   client: request.clientName ?? "Client privé",
 });
+
+const hasProposalFromCurrentFreelancer = (request, freelancerId) => {
+  if (!freelancerId || !Array.isArray(request?.proposals)) {
+    return false;
+  }
+
+  return request.proposals.some(
+    (proposal) => String(proposal.freelancerId) === String(freelancerId),
+  );
+};
 
 const OfferPanel = ({ project, onSendOffer, onAccept }) => {
   const [price, setPrice] = useState(project ? project.budget : "");
@@ -217,6 +227,7 @@ const OfferPanel = ({ project, onSendOffer, onAccept }) => {
 };
 
 const FreelancerDashboard = forwardRef((_, ref) => {
+  const currentFreelancerId = localStorage.getItem("user_id");
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [budgetFilter, setBudgetFilter] = useState("any");
   const [typeFilter, setTypeFilter] = useState("any");
@@ -226,43 +237,57 @@ const FreelancerDashboard = forwardRef((_, ref) => {
   const [viewMode, setViewMode] = useState("list"); // list | details
   const [isLoading, setIsLoading] = useState(true);
   const [notice, setNotice] = useState("");
+  const loadProjectsRef = useRef(null);
+
+  loadProjectsRef.current = async ({ silent = false } = {}) => {
+    if (!silent) {
+      setIsLoading(true);
+    }
+    setNotice("");
+
+    try {
+      const rows = await requestService.listOpen();
+      const normalizedRows = Array.isArray(rows)
+        ? rows
+            .filter((request) => !hasProposalFromCurrentFreelancer(request, currentFreelancerId))
+            .map(toUiProject)
+        : [];
+      setProjects(normalizedRows);
+      if (!normalizedRows.length) {
+        setNotice("Aucune demande client disponible pour le moment.");
+      }
+    } catch (error) {
+      setProjects([]);
+      setNotice(error.message || "Impossible de charger les projets réels pour le moment.");
+    } finally {
+      if (!silent) {
+        setIsLoading(false);
+      }
+    }
+  };
 
   useEffect(() => {
-    let isMounted = true;
-
-    const loadProjects = async () => {
-      setIsLoading(true);
-      setNotice("");
-
-      try {
-        const rows = await requestService.listOpen();
-        if (!isMounted) {
-          return;
-        }
-
-        const normalizedRows = Array.isArray(rows) ? rows.map(toUiProject) : [];
-        setProjects(normalizedRows);
-        if (!normalizedRows.length) {
-          setNotice("Aucune demande client disponible pour le moment.");
-        }
-      } catch (error) {
-        if (!isMounted) {
-          return;
-        }
-
-        setProjects([]);
-        setNotice(error.message || "Impossible de charger les projets réels pour le moment.");
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
+    const runLoad = (options = {}) => {
+      loadProjectsRef.current?.(options);
     };
 
-    loadProjects();
+    runLoad();
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        runLoad({ silent: true });
+      }
+    }, 8000);
+
+    const handleFocus = () => {
+      runLoad({ silent: true });
+    };
+
+    window.addEventListener("focus", handleFocus);
 
     return () => {
-      isMounted = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
     };
   }, []);
 
@@ -368,10 +393,13 @@ const FreelancerDashboard = forwardRef((_, ref) => {
         coverLetter: payload.cover,
       });
 
+      setProjects((current) => current.filter((item) => item.id !== project.id));
+      setSelectedProjectId((current) => (current === project.id ? null : current));
+
       showAppFeedback({
         tone: "success",
         title: "Offre envoyée",
-        message: "Proposition envoyée au client.",
+        message: "Proposition envoyée au client. Elle est maintenant dans Propositions en attente.",
       });
 
       backToList();
@@ -405,10 +433,13 @@ const FreelancerDashboard = forwardRef((_, ref) => {
         coverLetter: "J'accepte les conditions du client et je suis disponible pour commencer rapidement.",
       });
 
+      setProjects((current) => current.filter((item) => item.id !== project.id));
+      setSelectedProjectId((current) => (current === project.id ? null : current));
+
       showAppFeedback({
         tone: "success",
         title: "Accord envoyé",
-        message: "Votre accord a été envoyé au client.",
+        message: "Votre proposition a été envoyée. Elle est maintenant dans Propositions en attente.",
       });
     } catch (error) {
       showAppFeedback({

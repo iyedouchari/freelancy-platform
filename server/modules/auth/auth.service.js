@@ -2,6 +2,7 @@ import AppError from "../../utils/AppError.js";
 import { generateToken } from "../../utils/generateToken.js";
 import { comparePassword, hashPassword } from "../../utils/hashPassword.js";
 import { logAuthError, logAuthEvent } from "../../utils/logger.js";
+import { mailer } from "../../utils/mailer.js";
 import { findAuthUserByEmail, findAuthUserById, insertAuthUser } from "./auth.repository.js";
 
 const normalizeEmail = (value) => String(value || "").trim().toLowerCase();

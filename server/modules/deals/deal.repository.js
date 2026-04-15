@@ -2,6 +2,14 @@ import { getDb } from "../../config/db.js";
 
 const db = getDb();
 
+const addColumnIfMissing = async (tableName, columnName, columnDefinition) => {
+  const [rows] = await db.query(`SHOW COLUMNS FROM ${tableName} LIKE ?`, [columnName]);
+
+  if (rows.length === 0) {
+    await db.query(`ALTER TABLE ${tableName} ADD COLUMN ${columnDefinition}`);
+  }
+};
+
 const normalizeDate = (value) => {
   if (!value) {
     return null;
@@ -79,6 +87,11 @@ const mapDealRow = (row) => {
     createdAt: normalizeTimestamp(row.created_at),
     submittedAt: normalizeTimestamp(row.submitted_at),
     finalPaidAt: normalizeTimestamp(row.final_paid_at),
+    paymentNote: row.payment_note ?? "",
+    paidAmount: Number(row.paid_amount ?? 0),
+    remainingAmount: Math.max(Number(row.final_price) - Number(row.paid_amount ?? 0), 0),
+    advancePaid: Number(row.advance_paid_count ?? 0) > 0,
+    finalPaid: Number(row.final_paid_count ?? 0) > 0,
   };
 };
 
@@ -88,7 +101,26 @@ const baseSelect = `
     r.title AS request_title,
     r.description AS request_description,
     cu.name AS client_name,
-    fu.name AS freelancer_name
+    fu.name AS freelancer_name,
+    COALESCE((
+      SELECT SUM(p.amount)
+      FROM payments p
+      WHERE p.deal_id = d.id AND p.status = 'Paye'
+    ), 0) AS paid_amount,
+    COALESCE((
+      SELECT COUNT(*)
+      FROM payments p
+      WHERE p.deal_id = d.id
+        AND p.payment_type = 'Avance'
+        AND p.status = 'Paye'
+    ), 0) AS advance_paid_count,
+    COALESCE((
+      SELECT COUNT(*)
+      FROM payments p
+      WHERE p.deal_id = d.id
+        AND p.payment_type = 'Paiement final'
+        AND p.status = 'Paye'
+    ), 0) AS final_paid_count
   FROM deals d
   JOIN requests r ON r.id = d.request_id
   JOIN users cu ON cu.id = d.client_id
@@ -110,12 +142,14 @@ export const ensureDealsTable = async () => {
       penalty_cycles INT NOT NULL DEFAULT 0,
       submitted_at DATETIME DEFAULT NULL,
       final_paid_at DATETIME DEFAULT NULL,
+      payment_note TEXT DEFAULT NULL,
       status ENUM(
         'En cours',
+        'Totalité payé',
+        'Terminé',
         'Actif',
         'Soumis',
         'En attente paiement final',
-        'Termine',
         'Annule'
       ) NOT NULL DEFAULT 'En cours',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -128,6 +162,85 @@ export const ensureDealsTable = async () => {
       CONSTRAINT fk_deal_freelancer FOREIGN KEY (freelancer_id)
         REFERENCES users(id) ON DELETE RESTRICT
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+
+  // Migrate any rows with deprecated statuses before altering the ENUM
+  try {
+    await db.query("UPDATE deals SET status = 'En cours' WHERE status = 'En attente acompte'");
+  } catch { /* status may not exist in ENUM yet — safe to ignore */ }
+  try {
+    await db.query("UPDATE deals SET status = 'En cours' WHERE status = 'Avance payé'");
+  } catch { /* status may not exist in ENUM yet — safe to ignore */ }
+
+  await db.query(`
+    ALTER TABLE deals
+    MODIFY COLUMN status ENUM(
+      'En cours',
+      'Totalité payé',
+      'Terminé',
+      'Actif',
+      'Soumis',
+      'En attente paiement final',
+      'Annule'
+    ) NOT NULL DEFAULT 'En cours'
+  `);
+
+  await addColumnIfMissing(
+    "deals",
+    "payment_note",
+    "payment_note TEXT DEFAULT NULL AFTER final_paid_at",
+  );
+};
+
+export const ensureDealTriggers = async () => {
+  await db.query("DROP TRIGGER IF EXISTS trig_after_proposal_accept");
+  await db.query("DROP TRIGGER IF EXISTS trig_before_payment_update");
+  await db.query("DROP TRIGGER IF EXISTS trig_after_payment_update");
+
+  // NOTE: trig_after_proposal_accept has been removed.
+  // Deals are now created explicitly in proposalService.acceptAndPay().
+
+  await db.query(`
+    CREATE TRIGGER trig_before_payment_update
+    BEFORE UPDATE ON payments
+    FOR EACH ROW
+    BEGIN
+      IF NEW.status = 'Paye' AND OLD.status <> 'Paye' THEN
+        SET NEW.paid_at = CURRENT_TIMESTAMP;
+      END IF;
+
+      IF NEW.status <> 'Paye' THEN
+        SET NEW.paid_at = NULL;
+      END IF;
+    END
+  `);
+
+  await db.query(`
+    CREATE TRIGGER trig_after_payment_update
+    AFTER UPDATE ON payments
+    FOR EACH ROW
+    BEGIN
+      IF NEW.status = 'Paye' AND OLD.status <> 'Paye'
+         AND NEW.payment_type = 'Avance' THEN
+        UPDATE deals
+        SET status = 'En cours'
+        WHERE id = NEW.deal_id;
+      END IF;
+
+      IF NEW.status = 'Paye' AND OLD.status <> 'Paye'
+         AND NEW.payment_type = 'Paiement final' THEN
+        UPDATE deals
+        SET status = 'Totalité payé',
+            final_paid_at = CURRENT_TIMESTAMP
+        WHERE id = NEW.deal_id;
+      END IF;
+
+      IF NEW.status = 'Rembourse' AND OLD.status <> 'Rembourse' THEN
+        UPDATE deals
+        SET status = 'Annule'
+        WHERE id = NEW.deal_id;
+      END IF;
+    END
   `);
 };
 
@@ -155,7 +268,7 @@ export const dealRepository = {
         request.clientId,
         proposal.freelancerId,
         proposedPrice,
-        Number((proposedPrice * 0.1).toFixed(2)),
+        Number((proposedPrice * 0.3).toFixed(2)),
         formatDateForMySQL(proposal.proposedDeadline, true),
       ],
     );
@@ -191,6 +304,41 @@ export const dealRepository = {
     );
 
     return rows.map(mapDealRow);
+  },
+
+  async findByIdForClient(dealId, clientId, connection = db) {
+    const [rows] = await connection.query(
+      `${baseSelect} WHERE d.id = ? AND d.client_id = ? LIMIT 1`,
+      [dealId, clientId],
+    );
+    return mapDealRow(rows[0]);
+  },
+
+  async findByClientId(clientId, connection = db) {
+    const [rows] = await connection.query(
+      `${baseSelect} WHERE d.client_id = ? ORDER BY d.created_at DESC`,
+      [clientId],
+    );
+    return rows.map(mapDealRow);
+  },
+
+  async findDetailedByIdForClient(dealId, clientId, connection = db) {
+    return this.findByIdForClient(dealId, clientId, connection);
+  },
+
+  async updateStatusForClient({ dealId, clientId, status }, connection = db) {
+    const [result] = await connection.query(
+      `UPDATE deals SET status = ? WHERE id = ? AND client_id = ?`,
+      [status, dealId, clientId],
+    );
+    return result.affectedRows > 0;
+  },
+
+  async updatePaymentNote({ dealId, note }, connection = db) {
+    await connection.query(
+      `UPDATE deals SET payment_note = ? WHERE id = ?`,
+      [note || null, dealId],
+    );
   },
 };
 

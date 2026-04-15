@@ -1,188 +1,359 @@
-// ─── payment.service.js ───────────────────────────────────────────────────────
-// Logique métier des paiements : acompte (Avance), paiement final, remboursement.
-// Adapté au schéma du groupe.
-//
-// ⚠️  Les triggers MySQL font le travail automatiquement :
-//   - trig_after_payment_update → change deal.status quand payment.status = 'Paye'
-//   - trig_after_proposal_accept → crée le deal quand proposal.status = 'Acceptee'
-//
-// Ce service s'occupe uniquement de :
-//   1. Débiter/créditer les wallets
-//   2. Créer les transactions wallet
-//   3. Mettre à jour le statut du paiement → le trigger fait le reste
-
+import db from "../../config/db.js";
+import { dealRepository } from "../deals/deal.repository.js";
 import * as paymentRepo from "./payment.repository.js";
-import * as walletRepo  from "../wallet/wallet.repository.js";
-
-// ─── Stripe Dummy (exporté pour wallet.service.js) ───────────────────────────
+import {
+  createTransaction,
+  creditWallet,
+  debitWallet,
+  ensureSystemWalletOwner,
+  findSystemWallet,
+  findWalletByOwnerId,
+} from "../wallet/wallet.repository.js";
 
 export async function stripeDummy({ amount, metadata = {} }) {
-  await new Promise((r) => setTimeout(r, 300));
+  await new Promise((resolve) => setTimeout(resolve, 300));
   if (Math.random() < 0.05) {
-    throw new Error("STRIPE_ERROR: Paiement refusé par la banque émettrice.");
+    throw new Error("STRIPE_ERROR: Paiement refuse par la banque emettrice.");
   }
   return {
-    id:      `pi_dummy_${Date.now()}`,
+    id: `pi_dummy_${Date.now()}`,
     amount,
-    status:  "succeeded",
+    status: "succeeded",
     metadata,
     created: new Date().toISOString(),
   };
 }
 
-// ─── Lecture ──────────────────────────────────────────────────────────────────
+async function resolveFreelancerId(dealId, freelancerIdFromRequest, connection = db) {
+  if (freelancerIdFromRequest) {
+    const wallet = await findWalletByOwnerId(freelancerIdFromRequest, connection);
+    if (wallet) return freelancerIdFromRequest;
+  }
+
+  const [rows] = await connection.query(
+    "SELECT freelancer_id FROM deals WHERE id = ?",
+    [dealId],
+  );
+  if (!rows[0]) throw new Error("Deal introuvable.");
+  const realFreelancerId = rows[0].freelancer_id;
+
+  const wallet = await findWalletByOwnerId(realFreelancerId, connection);
+  if (!wallet) throw new Error(`Wallet freelancer introuvable pour le deal #${dealId}.`);
+
+  return realFreelancerId;
+}
+
+function formatDealDate(value) {
+  if (!value) {
+    return "date limite indisponible";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "date limite indisponible";
+  }
+
+  return parsed.toLocaleDateString("fr-FR");
+}
+
+async function runPaymentTransaction(callback) {
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+    const result = await callback(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+async function updateDealAfterPayment(connection, { dealId, note, status }) {
+  await connection.query(
+    `UPDATE deals
+     SET payment_note = ?, status = ?
+     WHERE id = ?`,
+    [note || null, status, dealId],
+  );
+}
+
+async function guardDuplicatePayment(connection, dealId, paymentType, errorMessage) {
+  const existing = await paymentRepo.findPaymentByDealAndType(dealId, paymentType, connection);
+  if (existing?.status === "Paye") {
+    throw new Error(errorMessage);
+  }
+}
 
 export async function getPaymentsByDeal(dealId) {
   return paymentRepo.findPaymentsByDealId(dealId);
 }
 
-// ─── Acompte — 'Avance' ───────────────────────────────────────────────────────
-// Appelé quand le client veut payer l'acompte du deal.
-// Le deal est déjà créé par le trigger trig_after_proposal_accept.
-// L'acompte = deals.advance_amount (calculé par le Membre 3).
-
 export async function payAdvance({ dealId, clientId, freelancerId, amount }) {
-  // 1. Vérifier le wallet client
-  const clientWallet = await walletRepo.findWalletByOwnerId(clientId);
-  if (!clientWallet) throw new Error("Wallet client introuvable.");
-  if (Number(clientWallet.balance) < Number(amount)) {
-    throw new Error("Solde insuffisant pour payer l'acompte.");
-  }
+  return runPaymentTransaction(async (connection) => {
+    await guardDuplicatePayment(connection, dealId, "Avance", "L'avance a deja ete payee pour ce deal.");
 
-  // 2. Créer le paiement en DB (status: 'En attente')
-  const payment = await paymentRepo.createPayment({
-    dealId,
-    clientId,
-    freelancerId,
-    amount,
-    paymentType: "Avance",
+    await ensureSystemWalletOwner(connection);
+    const systemWallet = await findSystemWallet(connection);
+    const realFreelancerId = await resolveFreelancerId(dealId, freelancerId, connection);
+    const clientWallet = await findWalletByOwnerId(clientId, connection);
+    const clientBalanceBefore = Number(clientWallet.balance);
+
+    if (clientBalanceBefore < Number(amount)) {
+      throw new Error("Solde insuffisant dans le wallet pour payer l'avance.");
+    }
+
+    const payment = await paymentRepo.createPayment({
+      dealId,
+      clientId,
+      freelancerId: realFreelancerId,
+      amount,
+      paymentType: "Avance",
+    }, connection);
+
+    await stripeDummy({ amount, metadata: { dealId, type: "Avance", clientId } });
+
+    await debitWallet(clientId, amount, connection);
+    const clientBalanceAfter = clientBalanceBefore - Number(amount);
+    await createTransaction({
+      walletId: clientWallet.id,
+      dealId,
+      type: "advance_debit",
+      amount,
+      balanceBefore: clientBalanceBefore,
+      balanceAfter: clientBalanceAfter,
+    }, connection);
+
+    await createTransaction({
+      walletId: systemWallet.id,
+      dealId,
+      type: "advance_credit",
+      amount,
+      balanceBefore: Number(systemWallet.balance),
+      balanceAfter: Number(systemWallet.balance) + Number(amount),
+    }, connection);
+    await creditWallet(systemWallet.owner_id, amount, connection);
+
+    await paymentRepo.updatePaymentStatus(payment.id, "Paye", connection);
+
+    const deal = await dealRepository.findById(dealId, connection);
+    const remainingAmount = Math.max(Number(deal.finalPrice) - Number(amount), 0);
+    const note = `Avance payee. Reste a payer : ${remainingAmount.toFixed(2)} DT avant le ${formatDealDate(deal.deadline)}.`;
+    await updateDealAfterPayment(connection, {
+      dealId,
+      note,
+      status: "En cours",
+    });
+
+    return {
+      payment: { ...payment, status: "Paye" },
+      deal: await dealRepository.findById(dealId, connection),
+    };
   });
-
-  // 3. Appel Stripe dummy
-  await stripeDummy({ amount, metadata: { dealId, type: "Avance", clientId } });
-
-  // 4. Débiter le wallet client
-  const clientBalanceBefore = Number(clientWallet.balance);
-  await walletRepo.debitWallet(clientId, amount);
-  const clientBalanceAfter = clientBalanceBefore - Number(amount);
-
-  await walletRepo.createTransaction({
-    walletId:      clientWallet.id,
-    dealId,
-    type:          "advance_debit",
-    amount,
-    balanceBefore: clientBalanceBefore,
-    balanceAfter:  clientBalanceAfter,
-  });
-
-  // 5. Créditer le wallet freelancer
-  const freelancerWallet = await walletRepo.findWalletByOwnerId(freelancerId);
-  const freelancerBalanceBefore = Number(freelancerWallet.balance);
-  await walletRepo.creditWallet(freelancerId, amount);
-  const freelancerBalanceAfter = freelancerBalanceBefore + Number(amount);
-
-  await walletRepo.createTransaction({
-    walletId:      freelancerWallet.id,
-    dealId,
-    type:          "advance_credit",
-    amount,
-    balanceBefore: freelancerBalanceBefore,
-    balanceAfter:  freelancerBalanceAfter,
-  });
-
-  // 6. Marquer le paiement comme 'Paye'
-  // → le trigger trig_after_payment_update met deal.status = 'Actif' automatiquement
-  await paymentRepo.updatePaymentStatus(payment.id, "Paye");
-
-  return { payment: { ...payment, status: "Paye" } };
 }
-
-// ─── Paiement final — 'Paiement final' ───────────────────────────────────────
-// Appelé quand le client valide la livraison.
-// → le trigger met deal.status = 'Termine' automatiquement.
 
 export async function payFinal({ dealId, clientId, freelancerId, amount }) {
-  // 1. Vérifier le wallet client
-  const clientWallet = await walletRepo.findWalletByOwnerId(clientId);
-  if (!clientWallet) throw new Error("Wallet client introuvable.");
-  if (Number(clientWallet.balance) < Number(amount)) {
-    throw new Error("Solde insuffisant pour le paiement final.");
-  }
+  return runPaymentTransaction(async (connection) => {
+    await guardDuplicatePayment(connection, dealId, "Paiement final", "Le paiement final a deja ete effectue pour ce deal.");
 
-  // 2. Créer le paiement
-  const payment = await paymentRepo.createPayment({
-    dealId,
-    clientId,
-    freelancerId,
-    amount,
-    paymentType: "Paiement final",
+    await ensureSystemWalletOwner(connection);
+    const systemWallet = await findSystemWallet(connection);
+    const realFreelancerId = await resolveFreelancerId(dealId, freelancerId, connection);
+    const clientWallet = await findWalletByOwnerId(clientId, connection);
+    const clientBalanceBefore = Number(clientWallet.balance);
+    const deal = await dealRepository.findById(dealId, connection);
+    const escrowAmount = Number(deal?.advanceAmount ?? 0);
+
+    if (clientBalanceBefore < Number(amount)) {
+      throw new Error("Solde insuffisant dans le wallet pour payer le montant final.");
+    }
+
+    if (Number(systemWallet.balance) < escrowAmount) {
+      throw new Error("Le wallet technique 999 ne contient pas l'avance attendue pour ce deal.");
+    }
+
+    const payment = await paymentRepo.createPayment({
+      dealId,
+      clientId,
+      freelancerId: realFreelancerId,
+      amount,
+      paymentType: "Paiement final",
+    }, connection);
+
+    await stripeDummy({ amount, metadata: { dealId, type: "Paiement final", clientId } });
+
+    await debitWallet(clientId, amount, connection);
+    const clientBalanceAfter = clientBalanceBefore - Number(amount);
+    await createTransaction({
+      walletId: clientWallet.id,
+      dealId,
+      type: "final_debit",
+      amount,
+      balanceBefore: clientBalanceBefore,
+      balanceAfter: clientBalanceAfter,
+    }, connection);
+
+    const freelancerWallet = await findWalletByOwnerId(realFreelancerId, connection);
+    const freelancerBalanceBefore = Number(freelancerWallet.balance);
+
+    await debitWallet(systemWallet.owner_id, escrowAmount, connection);
+    await creditWallet(realFreelancerId, escrowAmount, connection);
+    await creditWallet(realFreelancerId, amount, connection);
+    const freelancerBalanceAfter = freelancerBalanceBefore + escrowAmount + Number(amount);
+
+    await createTransaction({
+      walletId: freelancerWallet.id,
+      dealId,
+      type: "advance_credit",
+      amount: escrowAmount,
+      balanceBefore: freelancerBalanceBefore,
+      balanceAfter: freelancerBalanceBefore + escrowAmount,
+    }, connection);
+
+    await createTransaction({
+      walletId: freelancerWallet.id,
+      dealId,
+      type: "final_credit",
+      amount,
+      balanceBefore: freelancerBalanceBefore + escrowAmount,
+      balanceAfter: freelancerBalanceAfter,
+    }, connection);
+
+    await paymentRepo.updatePaymentStatus(payment.id, "Paye", connection);
+    await updateDealAfterPayment(connection, {
+      dealId,
+      note: "Montant total paye.",
+      status: "Totalité payé",
+    });
+
+    return {
+      payment: { ...payment, status: "Paye" },
+      deal: await dealRepository.findById(dealId, connection),
+    };
   });
-
-  // 3. Stripe dummy
-  await stripeDummy({ amount, metadata: { dealId, type: "Paiement final", clientId } });
-
-  // 4. Débiter client
-  const clientBalanceBefore = Number(clientWallet.balance);
-  await walletRepo.debitWallet(clientId, amount);
-  const clientBalanceAfter = clientBalanceBefore - Number(amount);
-
-  await walletRepo.createTransaction({
-    walletId:      clientWallet.id,
-    dealId,
-    type:          "final_debit",
-    amount,
-    balanceBefore: clientBalanceBefore,
-    balanceAfter:  clientBalanceAfter,
-  });
-
-  // 5. Créditer freelancer
-  const freelancerWallet = await walletRepo.findWalletByOwnerId(freelancerId);
-  const freelancerBalanceBefore = Number(freelancerWallet.balance);
-  await walletRepo.creditWallet(freelancerId, amount);
-  const freelancerBalanceAfter = freelancerBalanceBefore + Number(amount);
-
-  await walletRepo.createTransaction({
-    walletId:      freelancerWallet.id,
-    dealId,
-    type:          "final_credit",
-    amount,
-    balanceBefore: freelancerBalanceBefore,
-    balanceAfter:  freelancerBalanceAfter,
-  });
-
-  // 6. Marquer 'Paye'
-  // → trigger met deal.status = 'Termine' et deals.final_paid_at = NOW()
-  await paymentRepo.updatePaymentStatus(payment.id, "Paye");
-
-  return { payment: { ...payment, status: "Paye" } };
 }
 
-// ─── Remboursement ────────────────────────────────────────────────────────────
-// → trigger met deal.status = 'Annule' automatiquement.
+export async function payTotal({ dealId, clientId, freelancerId, totalAmount, advanceAmount, deadline }) {
+  return runPaymentTransaction(async (connection) => {
+    await guardDuplicatePayment(connection, dealId, "Avance", "Une avance a deja ete payee pour ce deal.");
+    await guardDuplicatePayment(connection, dealId, "Paiement final", "Le montant total a deja ete paye pour ce deal.");
+
+    const realFreelancerId = await resolveFreelancerId(dealId, freelancerId, connection);
+    const remainingAmount = Math.max(Number(totalAmount) - Number(advanceAmount), 0);
+    const clientWallet = await findWalletByOwnerId(clientId, connection);
+    const clientBalanceBefore = Number(clientWallet.balance);
+
+    if (clientBalanceBefore < Number(totalAmount)) {
+      throw new Error("Solde insuffisant dans le wallet pour payer le montant total.");
+    }
+
+    const advancePayment = await paymentRepo.createPayment({
+      dealId,
+      clientId,
+      freelancerId: realFreelancerId,
+      amount: Number(advanceAmount),
+      paymentType: "Avance",
+    }, connection);
+
+    const finalPayment = await paymentRepo.createPayment({
+      dealId,
+      clientId,
+      freelancerId: realFreelancerId,
+      amount: remainingAmount,
+      paymentType: "Paiement final",
+    }, connection);
+
+    await stripeDummy({ amount: totalAmount, metadata: { dealId, type: "Paiement total", clientId } });
+
+    await debitWallet(clientId, Number(advanceAmount), connection);
+    await debitWallet(clientId, remainingAmount, connection);
+    const clientBalanceAfter = clientBalanceBefore - Number(totalAmount);
+
+    await createTransaction({
+      walletId: clientWallet.id,
+      dealId,
+      type: "advance_debit",
+      amount: Number(advanceAmount),
+      balanceBefore: clientBalanceBefore,
+      balanceAfter: clientBalanceBefore - Number(advanceAmount),
+    }, connection);
+
+    await createTransaction({
+      walletId: clientWallet.id,
+      dealId,
+      type: "final_debit",
+      amount: remainingAmount,
+      balanceBefore: clientBalanceBefore - Number(advanceAmount),
+      balanceAfter: clientBalanceAfter,
+    }, connection);
+
+    const freelancerWallet = await findWalletByOwnerId(realFreelancerId, connection);
+    const freelancerBalanceBefore = Number(freelancerWallet.balance);
+    await creditWallet(realFreelancerId, Number(advanceAmount), connection);
+    await creditWallet(realFreelancerId, remainingAmount, connection);
+    const freelancerBalanceAfter = freelancerBalanceBefore + Number(totalAmount);
+
+    await createTransaction({
+      walletId: freelancerWallet.id,
+      dealId,
+      type: "advance_credit",
+      amount: Number(advanceAmount),
+      balanceBefore: freelancerBalanceBefore,
+      balanceAfter: freelancerBalanceBefore + Number(advanceAmount),
+    }, connection);
+
+    await createTransaction({
+      walletId: freelancerWallet.id,
+      dealId,
+      type: "final_credit",
+      amount: remainingAmount,
+      balanceBefore: freelancerBalanceBefore + Number(advanceAmount),
+      balanceAfter: freelancerBalanceAfter,
+    }, connection);
+
+    await paymentRepo.updatePaymentStatus(advancePayment.id, "Paye", connection);
+    await paymentRepo.updatePaymentStatus(finalPayment.id, "Paye", connection);
+
+    await updateDealAfterPayment(connection, {
+      dealId,
+      note: `Montant total paye avant le ${formatDealDate(deadline)}.`,
+      status: "Totalité payé",
+    });
+
+    return {
+      payments: [
+        { ...advancePayment, status: "Paye" },
+        { ...finalPayment, status: "Paye" },
+      ],
+      deal: await dealRepository.findById(dealId, connection),
+    };
+  });
+}
 
 export async function refundPayment({ paymentId, clientId }) {
   const payment = await paymentRepo.findPaymentById(paymentId);
   if (!payment) throw new Error("Paiement introuvable.");
   if (payment.status !== "Paye") {
-    throw new Error("Seuls les paiements payés peuvent être remboursés.");
+    throw new Error("Seuls les paiements payes peuvent etre rembourses.");
   }
 
-  // Rembourser le client
-  const clientWallet = await walletRepo.findWalletByOwnerId(clientId);
+  const clientWallet = await findWalletByOwnerId(clientId);
   const balanceBefore = Number(clientWallet.balance);
-  await walletRepo.creditWallet(clientId, payment.amount);
+  await creditWallet(clientId, payment.amount);
   const balanceAfter = balanceBefore + Number(payment.amount);
 
-  await walletRepo.createTransaction({
-    walletId:      clientWallet.id,
-    dealId:        payment.deal_id,
-    type:          "refund",
-    amount:        payment.amount,
+  await createTransaction({
+    walletId: clientWallet.id,
+    dealId: payment.deal_id,
+    type: "refund",
+    amount: payment.amount,
     balanceBefore,
     balanceAfter,
   });
 
-  // Marquer 'Rembourse' → trigger met deal.status = 'Annule'
   await paymentRepo.updatePaymentStatus(paymentId, "Rembourse");
 
   return { refunded: true, amount: payment.amount };

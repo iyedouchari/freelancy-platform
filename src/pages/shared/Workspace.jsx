@@ -37,7 +37,7 @@ function getWorkspaceMeta(viewerRole, selectedDeal) {
   return {
     counterpartLabel: "Client",
     counterpartName: readDealField(selectedDeal, "clientName", "client_name") || "Client",
-    actionLabel: "Soumettre une livraison",
+    actionLabel: "Soumission finale",
     receiverId: readDealField(selectedDeal, "clientId", "client_id"),
   };
 }
@@ -227,6 +227,7 @@ export default function Workspace({
   const dealStatus = readDealField(selectedDeal, "status", "status");
   const finalPrice = readDealField(selectedDeal, "finalPrice", "final_price");
   const deadline = readDealField(selectedDeal, "deadline", "deadline");
+  const paymentNote = readDealField(selectedDeal, "paymentNote", "payment_note");
   const timeRemainingLabel = formatRemainingTime(deadline);
 
   const openReportModal = () => {
@@ -417,6 +418,12 @@ export default function Workspace({
                 </div>
               </div>
             </div>
+
+            {paymentNote ? (
+              <div className="workspace-payment-note">
+                {paymentNote}
+              </div>
+            ) : null}
           </div>
 
           <div className="workspace-actions-card">

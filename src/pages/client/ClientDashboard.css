@@ -222,6 +222,100 @@
   font-weight: 800;
 }
 
+.client-dashboard-deal-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.client-dashboard-toast {
+  position: sticky;
+  top: 16px;
+  z-index: 20;
+  padding: 14px 18px;
+  border-radius: 18px;
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.client-dashboard-toast.is-error {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.client-dashboard-payment-note {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-weight: 600;
+  line-height: 1.7;
+}
+
+.client-dashboard-payment-choice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.client-dashboard-choice-btn {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #dbe3f1;
+  background: #fff;
+  color: #334155;
+  font-weight: 700;
+}
+
+.client-dashboard-choice-btn.active {
+  border-color: transparent;
+  background: linear-gradient(135deg, #162f6b, #2a52be);
+  color: #fff;
+}
+
+.client-dashboard-wallet-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-weight: 700;
+}
+
+.client-dashboard-wallet-inline span {
+  color: #64748b;
+}
+
+.client-dashboard-wallet-inline strong.is-ok {
+  color: #15803d;
+}
+
+.client-dashboard-wallet-inline strong.is-low {
+  color: #b91c1c;
+}
+
+.cdb-btn-workspace,
+.cdb-btn-pay {
+  border: none;
+  border-radius: 14px;
+  padding: 13px 16px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #162f6b, #2a52be);
+  box-shadow: 0 12px 28px rgba(22, 47, 107, 0.18);
+}
+
+.cdb-btn-pay {
+  background: linear-gradient(135deg, #b45309, #ea580c);
+}
+
 @media (max-width: 1080px) {
   .client-dashboard-hero {
     grid-template-columns: 1fr;

@@ -51,3 +51,13 @@ export const sendClientProposalResponse = async (req, res) => {
 
   return sendSuccess(res, proposal, "Reponse client enregistree.");
 };
+
+export const acceptAndPayProposal = async (req, res) => {
+  const result = await proposalService.acceptAndPay(
+    req.params.id,
+    req.user.id,
+    req.user.role,
+  );
+
+  return sendSuccess(res, result, "Proposition acceptee et avance payee.");
+};

@@ -5,7 +5,6 @@ const API_UNREACHABLE_MESSAGE =
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem("auth_token");
-
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -16,11 +15,10 @@ const parseErrorMessage = async (response) => {
   try {
     const payload = await response.json();
     if (payload?.message) return payload.message;
-    if (payload?.error) return payload.error;
   } catch (_error) {
     // Ignore JSON parsing errors.
   }
-  return `Erreur ${response.status} — ${response.statusText || "Une erreur est survenue."}`;
+  return "Une erreur est survenue.";
 };
 
 const sendRequest = async (path, options = {}) => {
@@ -41,42 +39,29 @@ const sendRequest = async (path, options = {}) => {
   return response.json();
 };
 
-export const walletService = {
-  getWallet: () => sendRequest("/wallet"),
+export const paymentService = {
+  getByDeal: (dealId) => sendRequest(`/payments/deal/${dealId}`),
 
-  getTransactions: (params = {}) => {
-    const query = new URLSearchParams(params).toString();
-    return sendRequest(`/wallet/transactions${query ? `?${query}` : ""}`);
-  },
-
-  topup: (amount) =>
-    sendRequest("/wallet/topup", {
+  payAdvance: ({ dealId, freelancerId = null, amount }) =>
+    sendRequest("/payments/advance", {
       method: "POST",
-      body: JSON.stringify({ amount }),
+      body: JSON.stringify({ dealId, freelancerId, amount }),
     }),
 
-  withdraw: (amount, bankAccountMasked) =>
-    sendRequest("/wallet/withdraw", {
+  payFinal: ({ dealId, freelancerId = null, amount }) =>
+    sendRequest("/payments/final", {
       method: "POST",
-      body: JSON.stringify({ amount, bankAccountMasked }),
+      body: JSON.stringify({ dealId, freelancerId, amount }),
     }),
 
-  getDealPaymentSummary: (dealId) =>
-    sendRequest(`/wallet/deals/${dealId}/summary`),
-
-  payAdvance: (dealId) =>
-    sendRequest(`/wallet/deals/${dealId}/pay-advance`, {
+  payTotal: ({ dealId, freelancerId = null, totalAmount, advanceAmount, deadline }) =>
+    sendRequest("/payments/total", {
       method: "POST",
+      body: JSON.stringify({ dealId, freelancerId, totalAmount, advanceAmount, deadline }),
     }),
 
-  payFinal: (dealId, amount) =>
-    sendRequest(`/wallet/deals/${dealId}/pay-final`, {
-      method: "POST",
-      body: JSON.stringify({ amount }),
-    }),
-
-  payTotal: (dealId) =>
-    sendRequest(`/wallet/deals/${dealId}/pay-total`, {
+  refund: ({ paymentId }) =>
+    sendRequest(`/payments/${paymentId}/refund`, {
       method: "POST",
     }),
 };

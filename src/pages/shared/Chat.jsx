@@ -51,8 +51,11 @@ export default function Chat({
   const [sending, setSending] = useState(false);
   const messagesContainerRef = useRef(null);
   const fileRef = useRef(null);
-  const hasLoadedInitialMessages = useRef(false);
-  const shouldAutoScrollRef = useRef(false);
+  const bottomRef = useRef(null);
+
+  const scrollToLatestMessage = (behavior = "smooth") => {
+    bottomRef.current?.scrollIntoView({ behavior, block: "end" });
+  };
 
   useEffect(() => {
     if (!socket || !myUserId || !dealId) return;
@@ -64,7 +67,10 @@ export default function Chat({
         const res = await fetch(`${API_BASE}/api/chat/history/${dealId}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        setMessages(Array.isArray(data) ? data.map((message) => createMessageItem(message, myUserId, username)) : []);
+        const nextMessages = Array.isArray(data)
+          ? data.map((message) => createMessageItem(message, myUserId, username))
+          : [];
+        setMessages(nextMessages);
       } catch (err) {
         console.error("Erreur chargement historique :", err);
       }
@@ -77,7 +83,6 @@ export default function Chat({
       const isFromOther = data.senderId?.toString() !== myUserId?.toString();
 
       if (isSameDeal && isFromOther) {
-        shouldAutoScrollRef.current = true;
         setMessages((prev) => [...prev, createMessageItem(data, myUserId, username)]);
       }
     };
@@ -96,22 +101,14 @@ export default function Chat({
   }, [socket, myUserId, dealId, username]);
 
   useEffect(() => {
-    if (!messages.length) return;
-
-    if (!hasLoadedInitialMessages.current) {
-      hasLoadedInitialMessages.current = true;
+    if (!messages.length) {
       return;
     }
 
-    if (!shouldAutoScrollRef.current) {
-      return;
-    }
-
-    messagesContainerRef.current?.scrollTo({
-      top: messagesContainerRef.current.scrollHeight,
-      behavior: "smooth",
+    const behavior = messages.length === 1 ? "auto" : "smooth";
+    window.requestAnimationFrame(() => {
+      scrollToLatestMessage(behavior);
     });
-    shouldAutoScrollRef.current = false;
   }, [messages]);
 
   const sendMessage = () => {
@@ -241,6 +238,7 @@ export default function Chat({
             </div>
           ))
         )}
+        <div ref={bottomRef} />
       </div>
 
       <div className="workspace-chat-input">

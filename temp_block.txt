@@ -1,0 +1,81 @@
+﻿    if (createdDeal) {
+      setSelectedDeal(createdDeal);
+      setPage("workspace");
+    } else {
+      setPage("dashboard");
+    }
+    
+    setProposalToAccept(null);
+  };
+
+      const agreement = request.negotiable
+        ? {
+            price: Number(proposal.rate),
+            deadline: proposal.proposedDeadline ?? request.deadline,
+          }
+        : {
+            price: Number(request.budget),
+            deadline: request.deadline,
+          };
+
+      const syncResult = await dealService.syncAcceptedDeal({
+        request: {
+          title: request.title,
+          description: request.description,
+          category: request.category,
+          budget: request.budget,
+          deadline: request.deadline,
+          negotiable: request.negotiable,
+        },
+        proposal: {
+          freelancerId: proposal.freelancerId,
+          freelancerName: proposal.freelancerName,
+          title: proposal.title,
+          rate: proposal.rate,
+          proposedDeadline: proposal.proposedDeadline,
+          summary: proposal.summary,
+        },
+        agreement,
+      });
+
+      acceptedDeal = syncResult?.deal ? toUiDeal(syncResult.deal) : null;
+    }
+
+    const [nextRequests, nextDeals] = await Promise.all([
+      requestService.listMine(),
+      loadDealsWithRetry((deal) => deal.requestId === requestId && deal.proposalId === proposalId),
+    ]);
+    const createdDeal =
+      acceptedDeal ??
+      nextDeals.find((deal) => deal.requestId === requestId && deal.proposalId === proposalId) ??
+      null;
+
+    if (!createdDeal) {
+      throw new Error("Le deal vient d'etre accepte mais n'a pas encore pu etre charge. Reessaie une fois.");
+    }
+
+    setRequests((current) => {
+      const apiRequests = Array.isArray(nextRequests) ? nextRequests : [];
+      const filteredCurrent = current.filter((item) => item.id !== requestId);
+      if (apiRequests.length > 0) {
+        return apiRequests.filter((item) => item.status === "Ouverte");
+      }
+      return filteredCurrent;
+    });
+
+    setDeals((current) => {
+      if (!createdDeal) {
+        return Array.isArray(nextDeals) ? nextDeals : current;
+      }
+
+      const mergedDeals = Array.isArray(nextDeals) && nextDeals.length > 0 ? nextDeals : current;
+      const withoutDuplicate = mergedDeals.filter((deal) => deal.id !== createdDeal.id);
+      return [createdDeal, ...withoutDuplicate];
+    });
+
+    setPendingAdvanceDeal(createdDeal);
+    setSelectedDeal(createdDeal);
+    return createdDeal;
+  };
+
+  const handleAdvancePaymentSuccess = async (result) => {

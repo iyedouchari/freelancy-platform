@@ -22,6 +22,7 @@ function formatSuspendedUntil(value) {
 
 export default function BlockedAccess() {
   const navigate = useNavigate();
+  const isSuspended = localStorage.getItem("is_suspended") === "true";
   const reason = localStorage.getItem("suspension_reason") || "Violation des règles de la plateforme.";
   const suspendedUntil = localStorage.getItem("suspended_until");
 

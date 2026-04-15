@@ -83,14 +83,15 @@ CREATE TABLE IF NOT EXISTS deals (
     penalty_cycles INT NOT NULL DEFAULT 0,
     submitted_at DATETIME DEFAULT NULL,
     final_paid_at DATETIME DEFAULT NULL,
+    payment_note TEXT DEFAULT NULL,
     status ENUM(
         'En cours',
         'Actif',
         'Soumis',
         'En attente paiement final',
-        'En attente acompte',
-        'Termine',
-        'Annule'
+        'Terminé',
+        'Annule',
+        'Totalité payé'
     ) NOT NULL DEFAULT 'En cours',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_deal_proposal FOREIGN KEY (proposal_id)
@@ -237,37 +238,6 @@ BEGIN
     END IF;
 END //
 
-CREATE TRIGGER trig_after_proposal_accept
-AFTER UPDATE ON proposals
-FOR EACH ROW
-BEGIN
-    IF NEW.status = 'Acceptee' AND OLD.status <> 'Acceptee' THEN
-        INSERT INTO deals (
-            proposal_id,
-            request_id,
-            client_id,
-            freelancer_id,
-            final_price,
-            advance_amount,
-            advance_due_at,
-            deadline,
-            status
-        )
-        SELECT
-            NEW.id,
-            NEW.request_id,
-            r.client_id,
-            NEW.freelancer_id,
-            NEW.proposed_price,
-            ROUND(NEW.proposed_price * 0.10, 2),
-            DATE_ADD(NOW(), INTERVAL 24 HOUR),
-            NEW.proposed_deadline_at,
-            'En cours'
-        FROM requests r
-        WHERE r.id = NEW.request_id;
-    END IF;
-END //
-
 CREATE TRIGGER trig_before_payment_update
 BEFORE UPDATE ON payments
 FOR EACH ROW
@@ -288,14 +258,14 @@ BEGIN
     IF NEW.status = 'Paye' AND OLD.status <> 'Paye'
        AND NEW.payment_type = 'Avance' THEN
         UPDATE deals
-        SET status = 'Actif'
+        SET status = 'En cours'
         WHERE id = NEW.deal_id;
     END IF;
 
     IF NEW.status = 'Paye' AND OLD.status <> 'Paye'
        AND NEW.payment_type = 'Paiement final' THEN
         UPDATE deals
-        SET status = 'Termine',
+        SET status = 'Totalité payé',
             final_paid_at = CURRENT_TIMESTAMP
         WHERE id = NEW.deal_id;
     END IF;

@@ -1,6 +1,7 @@
 import AppError from "../../utils/AppError.js";
 import { mailer } from "../../utils/mailer.js";
 import { adminRepository } from "./admin.repository.js";
+import { disconnectUser } from "../../config/socketManager.js";
 
 const parsePositiveId = (value, label = "Id") => {
   const parsed = Number.parseInt(value, 10);
@@ -214,6 +215,12 @@ export const adminService = {
 
       await adminRepository.markBanHistoryEmailSent(banHistoryEntryId);
     }
+
+    // Disconnect the banned user from all active socket connections
+    disconnectUser(normalizedUserId, {
+      message: `Vous avez ete banni. Raison: ${reason}`,
+      suspendedUntil: updatedUser?.suspendedUntil || "",
+    });
 
     return adminRepository.findUserById(normalizedUserId);
   },

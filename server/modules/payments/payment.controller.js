@@ -1,14 +1,5 @@
-import { successResponse } from "../../utils/apiResponse.js";
-
-// ─── payment.controller.js ───────────────────────────────────────────────────
-// Reçoit req/res pour les endpoints /api/payments.
-
 import * as paymentService from "./payment.service.js";
 
-/**
- * GET /api/payments/deal/:dealId
- * Retourne tous les paiements liés à un deal.
- */
 export async function getPaymentsByDeal(req, res) {
   try {
     const payments = await paymentService.getPaymentsByDeal(req.params.dealId);
@@ -18,20 +9,15 @@ export async function getPaymentsByDeal(req, res) {
   }
 }
 
-/**
- * POST /api/payments/advance
- * Body : { dealId, freelancerId, amount }
- * Paye l'acompte — deal passe en 'Actif' via trigger.
- */
 export async function payAdvance(req, res) {
   try {
     const { dealId, freelancerId, amount } = req.body;
 
     const result = await paymentService.payAdvance({
-      dealId:       Number(dealId),
-      clientId:     req.user.id,
-      freelancerId: Number(freelancerId),
-      amount:       Number(amount),
+      dealId: Number(dealId),
+      clientId: req.user.id,
+      freelancerId: freelancerId ? Number(freelancerId) : null,
+      amount: Number(amount),
     });
 
     return res.status(201).json(result);
@@ -40,20 +26,15 @@ export async function payAdvance(req, res) {
   }
 }
 
-/**
- * POST /api/payments/final
- * Body : { dealId, freelancerId, amount }
- * Paye le solde final — deal passe en 'Termine' via trigger.
- */
 export async function payFinal(req, res) {
   try {
     const { dealId, freelancerId, amount } = req.body;
 
     const result = await paymentService.payFinal({
-      dealId:       Number(dealId),
-      clientId:     req.user.id,
-      freelancerId: Number(freelancerId),
-      amount:       Number(amount),
+      dealId: Number(dealId),
+      clientId: req.user.id,
+      freelancerId: freelancerId ? Number(freelancerId) : null,
+      amount: Number(amount),
     });
 
     return res.status(201).json(result);
@@ -62,15 +43,30 @@ export async function payFinal(req, res) {
   }
 }
 
-/**
- * POST /api/payments/:paymentId/refund
- * Rembourse un paiement — deal passe en 'Annule' via trigger.
- */
+export async function payTotal(req, res) {
+  try {
+    const { dealId, freelancerId, totalAmount, advanceAmount, deadline } = req.body;
+
+    const result = await paymentService.payTotal({
+      dealId: Number(dealId),
+      clientId: req.user.id,
+      freelancerId: freelancerId ? Number(freelancerId) : null,
+      totalAmount: Number(totalAmount),
+      advanceAmount: Number(advanceAmount),
+      deadline,
+    });
+
+    return res.status(201).json(result);
+  } catch (err) {
+    return res.status(400).json({ message: err.message });
+  }
+}
+
 export async function refundPayment(req, res) {
   try {
     const result = await paymentService.refundPayment({
       paymentId: Number(req.params.paymentId),
-      clientId:  req.user.id,
+      clientId: req.user.id,
     });
 
     return res.json(result);

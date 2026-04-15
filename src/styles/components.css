@@ -417,6 +417,17 @@
   flex-direction: column;
   gap: 20px;
 }
+
+.workspace-payment-note {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+  font-weight: 600;
+  line-height: 1.7;
+}
 .workspace-deal-info-label {
   font-size: 0.82rem;
   font-weight: 600;

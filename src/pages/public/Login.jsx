@@ -37,7 +37,10 @@ const Login = () => {
       }
 
       if (user.isSuspended) {
+        localStorage.removeItem("token");
         localStorage.removeItem("auth_token");
+        localStorage.removeItem("access_token");
+        sessionStorage.removeItem("token");
         localStorage.removeItem("app_role");
         localStorage.removeItem("user_id");
         localStorage.removeItem("client_entry_page");
@@ -54,6 +57,12 @@ const Login = () => {
         throw new Error("Réponse de connexion invalide.");
       }
 
+      localStorage.removeItem("is_suspended");
+      localStorage.removeItem("suspension_reason");
+      localStorage.removeItem("suspended_until");
+      localStorage.removeItem("token");
+      localStorage.removeItem("access_token");
+      sessionStorage.removeItem("token");
       localStorage.setItem("auth_token", token);
       localStorage.setItem("app_role", role);
       localStorage.setItem("user_id", String(user.id ?? user.userId ?? ""));

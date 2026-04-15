@@ -70,6 +70,7 @@ export default function ClientRequests({
   errorMessage = "",
   onCreateRequest,
   onUpdateRequest,
+  onDeleteRequest,
   onAcceptProposal,
   onRejectProposal,
   onViewFreelancerProfile,
@@ -183,9 +184,44 @@ export default function ClientRequests({
         return;
       }
 
-      setNotice("La proposition a été acceptee.");
+      setNotice("La proposition a ete acceptee. Il faut maintenant payer l'avance pour demarrer le deal.");
     } catch (error) {
       setNotice(error.message || "Impossible d'accepter la proposition.");
+    }
+  };
+
+  const handleDeleteRequest = async () => {
+    if (!selectedRequest) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Voulez-vous vraiment supprimer cette demande ? Cette action est definitive.",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const deleted = await onDeleteRequest?.(selectedRequest.id);
+      if (!deleted) {
+        return;
+      }
+
+      setIsEditing(false);
+      setShowFreelancers(false);
+      setSelectedRequestId((current) => {
+        if (current !== selectedRequest.id) {
+          return current;
+        }
+
+        const nextRequest = requests.find((request) => request.id !== selectedRequest.id);
+        return nextRequest?.id ?? null;
+      });
+      setNotice("La demande a ete supprimee avec succes.");
+    } catch (error) {
+      setNotice(error.message || "Impossible de supprimer la demande.");
     }
   };
 
@@ -416,9 +452,6 @@ export default function ClientRequests({
                   )}
 
                   <div className="client-request-detail-actions">
-                    <button type="button" onClick={() => setIsEditing((current) => !current)}>
-                      {isEditing ? "Fermer la modification" : "Modifier cette demande"}
-                    </button>
                     <button
                       type="button"
                       className="primary"
@@ -427,6 +460,19 @@ export default function ClientRequests({
                       {showFreelancers
                         ? "Masquer les freelances proposés"
                         : "Voir les freelances proposés"}
+                    </button>
+                    <button type="button" onClick={() => setIsEditing((current) => !current)}>
+                      {isEditing ? "Fermer la modification" : "Modifier cette demande"}
+                    </button>
+                  </div>
+
+                  <div className="client-request-detail-actions">
+                    <button
+                      type="button"
+                      className="ghost danger"
+                      onClick={handleDeleteRequest}
+                    >
+                      Supprimer cette demande
                     </button>
                   </div>
 

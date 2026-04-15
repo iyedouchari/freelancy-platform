@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authenticate } from "../../middleware/authMiddleware.js";
 import asyncHandler from "../../utils/asyncHandler.js";
-import { getDealById, getdealStatus, listDeals } from "./deal.controller.js";
+import { getDealById, getdealStatus, getMyDeals, listDeals, syncAcceptedDeal, updateDealStatus } from "./deal.controller.js";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
@@ -20,6 +20,9 @@ const localDeliveriesDir = path.resolve(__dirname, "../../uploads/deliveries");
 
 router.get("/status", asyncHandler(getdealStatus));
 router.use(authenticate);
+router.get("/my", asyncHandler(getMyDeals));
+router.post("/sync-accepted", asyncHandler(syncAcceptedDeal));
+router.patch("/:dealId/status", asyncHandler(updateDealStatus));
 router.get("/", asyncHandler(listDeals));
 router.get("/:id", asyncHandler(getDealById));
 
@@ -263,6 +266,16 @@ router.post(
         `INSERT INTO deliveries (deal_id, sender_id, receiver_id, file_name, file_url)
          VALUES (?, ?, ?, ?, ?)`,
         [id, senderId, receiverId, safeOriginalName, storedFileUrl]
+      );
+
+      await db.execute(
+        `UPDATE deals
+         SET status = CASE
+           WHEN freelancer_id = ? THEN 'Terminé'
+           ELSE status
+         END
+         WHERE id = ?`,
+        [Number(senderId), id]
       );
 
       const [rows] = await db.execute(

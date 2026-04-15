@@ -31,7 +31,23 @@ export const validateRequest = (validator, source = "body") => {
     try {
       const payload = req[source];
       const sanitizedPayload = runValidator(validator, payload);
-      req[source] = sanitizedPayload;
+
+      if (source === "body") {
+        req.body = sanitizedPayload;
+      } else {
+        const target = req[source];
+
+        if (target && typeof target === "object") {
+          Object.keys(target).forEach((key) => {
+            delete target[key];
+          });
+
+          if (sanitizedPayload && typeof sanitizedPayload === "object") {
+            Object.assign(target, sanitizedPayload);
+          }
+        }
+      }
+
       next();
     } catch (error) {
       const validationError =

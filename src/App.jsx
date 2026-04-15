@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import AppFeedbackHost from "./components/AppFeedbackHost";
+import AppErrorBoundary from "./components/AppErrorBoundary";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import FreelancerDashboard from "./pages/freelancer/FreelancerDashboard";
 import FreelancerDeals from "./pages/freelancer/FreelancerDeals";
@@ -19,6 +20,10 @@ import { dealService } from "./services/dealService";
 
 // Socket initialisé une seule fois
 import socket from "./services/socket.js"; // ou le chemin où tu mets le fichier
+const FREELANCER_PAGE_KEY = "freelancer_active_page";
+const FREELANCER_DEAL_KEY = "freelancer_selected_deal_id";
+const CLIENT_PAGE_KEY = "client_active_page";
+const CLIENT_DEAL_KEY = "client_selected_deal_id";
 function getStoredSession() {
   return {
     role: localStorage.getItem("app_role"),
@@ -32,14 +37,84 @@ function isAuthenticated() {
   return Boolean(role && token);
 }
 
+function hasRole(expectedRole) {
+  const { role, token } = getStoredSession();
+  return Boolean(token && role === expectedRole);
+}
+
+function clearInvalidSession() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("auth_token");
+  localStorage.removeItem("access_token");
+  sessionStorage.removeItem("token");
+  localStorage.removeItem("app_role");
+  localStorage.removeItem("user_id");
+  localStorage.removeItem("client_entry_page");
+  localStorage.removeItem(FREELANCER_PAGE_KEY);
+  localStorage.removeItem(FREELANCER_DEAL_KEY);
+  localStorage.removeItem(CLIENT_PAGE_KEY);
+  localStorage.removeItem(CLIENT_DEAL_KEY);
+}
+
+const ProtectedRoute = ({ role, children }) => {
+  if (!isAuthenticated()) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!hasRole(role)) {
+    clearInvalidSession();
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
+
+const SessionAwareFallback = () => {
+  const { role, token } = getStoredSession();
+
+  if (!token || !role) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (role === "client") {
+    return <Navigate to="/client" replace />;
+  }
+
+  if (role === "admin") {
+    return <Navigate to="/admin" replace />;
+  }
+
+  if (role === "freelancer") {
+    return <Navigate to="/app" replace />;
+  }
+
+  clearInvalidSession();
+  return <Navigate to="/login" replace />;
+};
+
 // ── Shell Freelancer ──────────────────────────────────────────────────────────
 const FreelancerShell = () => {
   const dashboardRef = useRef(null);
-  const [page, setPage] = useState("dashboard");
-  const [selectedDealId, setSelectedDealId] = useState(null);
+  const [page, setPage] = useState(() => localStorage.getItem(FREELANCER_PAGE_KEY) || "dashboard");
+  const [selectedDealId, setSelectedDealId] = useState(
+    () => localStorage.getItem(FREELANCER_DEAL_KEY) || null,
+  );
   const [deals, setDeals] = useState([]);
   const [isLoadingDeals, setIsLoadingDeals] = useState(true);
   const session = getStoredSession();
+
+  useEffect(() => {
+    localStorage.setItem(FREELANCER_PAGE_KEY, page);
+  }, [page]);
+
+  useEffect(() => {
+    if (selectedDealId === null || selectedDealId === undefined || selectedDealId === "") {
+      localStorage.removeItem(FREELANCER_DEAL_KEY);
+      return;
+    }
+
+    localStorage.setItem(FREELANCER_DEAL_KEY, String(selectedDealId));
+  }, [selectedDealId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -117,29 +192,41 @@ const FreelancerShell = () => {
 };
 
 // ── Gardes de routes ──────────────────────────────────────────────────────────
-const FreelancerRoute = () =>
-  isAuthenticated() ? <FreelancerShell /> : <Navigate to="/login" replace />;
+const FreelancerRoute = () => (
+  <ProtectedRoute role="freelancer">
+    <FreelancerShell />
+  </ProtectedRoute>
+);
 
-const ClientRoute = () =>
-  isAuthenticated() ? <ClientShell /> : <Navigate to="/login" replace />;
+const ClientRoute = () => (
+  <ProtectedRoute role="client">
+    <ClientShell />
+  </ProtectedRoute>
+);
 
-const AdminRoute = () =>
-  isAuthenticated() ? <AdminDashboard /> : <Navigate to="/login" replace />;
+const AdminRoute = () => (
+  <ProtectedRoute role="admin">
+    <AdminDashboard />
+  </ProtectedRoute>
+);
 
 // ── App principale ────────────────────────────────────────────────────────────
 const App = () => (
-  <>
-    <Routes>
-      <Route path="/" element={<Landing />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/blocked-access" element={<BlockedAccess />} />
-      <Route path="/admin" element={<AdminRoute />} />
-      <Route path="/app/*" element={<FreelancerRoute />} />
-      <Route path="/client/*" element={<ClientRoute />} />
-    </Routes>
-    <AppFeedbackHost />
-  </>
+  <AppErrorBoundary>
+    <>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/blocked-access" element={<BlockedAccess />} />
+        <Route path="/admin" element={<AdminRoute />} />
+        <Route path="/app/*" element={<FreelancerRoute />} />
+        <Route path="/client/*" element={<ClientRoute />} />
+        <Route path="*" element={<SessionAwareFallback />} />
+      </Routes>
+      <AppFeedbackHost />
+    </>
+  </AppErrorBoundary>
 );
 
 export default App;

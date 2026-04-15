@@ -7,7 +7,7 @@ const OfferForm = ({ project, onAcceptDeal }) => {
 
       <div className="space-y-2 rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm text-slate-700">
         <p>Ce projet est <strong>non négociable</strong>. Consultez les détails puis acceptez si cela vous convient.</p>
-        <p>Budget : {format(project.budget)} €</p>
+        <p>Budget : {format(project.budget)} DT</p>
         <p>Date limite : {format(project.deadline, "date")}</p>
       </div>
 
@@ -19,8 +19,8 @@ const OfferForm = ({ project, onAcceptDeal }) => {
         <p className="font-semibold text-slate-800">Notes importantes</p>
         <ul className="list-disc list-inside space-y-1">
           <li>Paiement sécurisé en escrow</li>
-          <li>10% d'acompte à l'accord</li>
-          <li>90% restants après livraison</li>
+          <li>30% d'avance à l'accord</li>
+          <li>70% restants selon le mode de paiement choisi</li>
         </ul>
       </div>
     </div>

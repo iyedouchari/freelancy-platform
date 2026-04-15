@@ -24,19 +24,12 @@ const run = async () => {
           'En attente acompte',
           'Termine',
           'Annule'
-        ) NOT NULL DEFAULT 'En cours'`
+        ) NOT NULL DEFAULT 'En attente acompte'`
       );
       console.log("✓ Altered status column");
     } catch (error) {
       console.log("Column already has all needed values");
     }
-
-    // Update all deals with old status values
-    const [result] = await connection.execute(
-      `UPDATE deals SET status = 'En cours' WHERE status IN ('En attente acompte')`
-    );
-
-    console.log(`✓ Updated ${result.affectedRows} deals`);
 
     await connection.end();
     console.log("✓ Migration completed successfully");

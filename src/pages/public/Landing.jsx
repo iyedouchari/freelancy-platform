@@ -1,6 +1,17 @@
 import { Link } from "react-router-dom";
 import "../../styles/landing.css";
 
+function resetSessionForLogin() {
+  localStorage.removeItem("auth_token");
+  localStorage.removeItem("app_role");
+  localStorage.removeItem("user_id");
+  localStorage.removeItem("client_entry_page");
+  localStorage.removeItem("freelancer_active_page");
+  localStorage.removeItem("freelancer_selected_deal_id");
+  localStorage.removeItem("client_active_page");
+  localStorage.removeItem("client_selected_deal_id");
+}
+
 const Landing = () => (
   <div>
     {/* ─── Navbar ─── */}
@@ -16,7 +27,7 @@ const Landing = () => (
           <li><a href="#trust">Caractéristiques</a></li>
         </ul>
         <div className="landing-nav-actions">
-          <Link to="/login" className="btn-login">Se connecter</Link>
+          <Link to="/login" className="btn-login" onClick={resetSessionForLogin}>Se connecter</Link>
           <Link to="/register" className="btn-signup">S'inscrire</Link>
         </div>
       </div>

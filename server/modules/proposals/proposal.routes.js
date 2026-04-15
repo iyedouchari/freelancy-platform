@@ -10,6 +10,7 @@ import {
   listMyProposals,
   listProposalsByRequest,
   sendClientProposalResponse,
+  acceptAndPayProposal,
 } from "./proposal.controller.js";
 import {
   clientProposalResponseSchema,
@@ -35,6 +36,12 @@ router.patch(
   "/:id/client-response",
   validate(clientProposalResponseSchema),
   asyncHandler(sendClientProposalResponse),
+);
+
+router.post(
+  "/:id/accept-and-pay",
+  authorize("client"),
+  asyncHandler(acceptAndPayProposal),
 );
 
 export default router;

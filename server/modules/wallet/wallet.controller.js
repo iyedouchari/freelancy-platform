@@ -1,13 +1,13 @@
-
 import { successResponse } from "../../utils/apiResponse.js";
 import * as walletService from "./wallet.service.js";
 
 export const getwalletStatus = async (_req, res) => {
   return successResponse(res, {
-    statusCode: 501,
-    message: "wallet module is scaffolded but not implemented yet.",
+    statusCode: 200,
+    message: "wallet module is ready.",
   });
 };
+
 export async function getMyWallet(req, res) {
   try {
     const data = await walletService.getWalletWithTransactions(req.user.id);
@@ -17,11 +17,6 @@ export async function getMyWallet(req, res) {
   }
 }
 
-/**
- * POST /api/wallet/topup
- * Body : { amount: number }
- * Recharge le solde du client via API de paiement.
- */
 export async function topupWallet(req, res) {
   try {
     const amount = Number(req.body.amount);
@@ -41,11 +36,6 @@ export async function topupWallet(req, res) {
   }
 }
 
-/**
- * POST /api/wallet/withdraw
- * Body : { amount: number, bankAccountMasked: string }
- * Demande de retrait pour le freelancer.
- */
 export async function withdrawWallet(req, res) {
   try {
     const amount = Number(req.body.amount);
@@ -61,6 +51,69 @@ export async function withdrawWallet(req, res) {
       bankAccountMasked,
     });
 
+    return res.status(201).json(result);
+  } catch (err) {
+    return res.status(400).json({ message: err.message });
+  }
+}
+
+export async function getMyTransactions(req, res) {
+  try {
+    const data = await walletService.getWalletWithTransactions(req.user.id);
+    return res.json({ transactions: data.transactions ?? [] });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+}
+
+export async function getDealPaymentSummary(req, res) {
+  try {
+    const dealId = Number(req.params.dealId);
+    const summary = await walletService.getDealPaymentSummary({
+      dealId,
+      clientId: req.user.id,
+    });
+    return res.json(summary);
+  } catch (err) {
+    return res.status(400).json({ message: err.message });
+  }
+}
+
+export async function payDealAdvance(req, res) {
+  try {
+    const dealId = Number(req.params.dealId);
+    const result = await walletService.payDealAdvance({
+      dealId,
+      clientId: req.user.id,
+    });
+    return res.status(201).json(result);
+  } catch (err) {
+    return res.status(400).json({ message: err.message });
+  }
+}
+
+export async function payDealFinal(req, res) {
+  try {
+    const dealId = Number(req.params.dealId);
+    const amount = req.body?.amount ? Number(req.body.amount) : null;
+    const result = await walletService.payDealFinal({
+      dealId,
+      clientId: req.user.id,
+      amount,
+    });
+    return res.status(201).json(result);
+  } catch (err) {
+    return res.status(400).json({ message: err.message });
+  }
+}
+
+export async function payDealTotal(req, res) {
+  try {
+    const dealId = Number(req.params.dealId);
+    const result = await walletService.payDealTotal({
+      dealId,
+      clientId: req.user.id,
+    });
     return res.status(201).json(result);
   } catch (err) {
     return res.status(400).json({ message: err.message });
