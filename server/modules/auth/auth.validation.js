@@ -27,6 +27,8 @@ export const validateRegisterPayload = (body) => {
   const location = String(body?.location || "").trim();
   const email = String(body?.email || "").trim().toLowerCase();
   const phone = String(body?.phone || "").trim();
+  const bio = String(body?.bio || "").trim();
+  const avatarUrl = String(body?.avatarUrl ?? body?.profileImage ?? "").trim();
   const password = String(body?.password || "");
   const role = sanitizeRole(body?.role);
 
@@ -54,7 +56,7 @@ export const validateRegisterPayload = (body) => {
     throw new AppError("Phone is required.", 400, "PHONE_REQUIRED");
   }
 
-  return { name, company, title, location, email, phone, password, role };
+  return { name, company, title, location, email, phone, bio, avatarUrl, password, role };
 };
 
 export const validateLoginPayload = (body) => {

@@ -71,3 +71,14 @@
 [2026-04-16 12:56:24] Tentative de connexion avec mot de passe incorrect | userId=4 | email=eya@gmail.com
 [2026-04-16 12:56:26] Tentative de connexion avec mot de passe incorrect | userId=4 | email=eya@gmail.com
 [2026-04-16 12:56:33] Utilisateur connecté | userId=4 | email=eya@gmail.com | role=client | ip=::1
+[2026-04-16 22:44:13] Utilisateur connecté | userId=1 | email=iyed.ouchari123@gmail.com | role=freelancer | ip=::1
+[2026-04-16 22:45:13] Utilisateur connecté | userId=4 | email=bachir@gmail.com | role=client | ip=::1
+[2026-04-16 22:50:31] Utilisateur connecté | userId=1 | email=iyed.ouchari123@gmail.com | role=freelancer | ip=::1
+[2026-04-16 23:11:16] Utilisateur connecté | userId=4 | email=bachir@gmail.com | role=client | ip=::1
+[2026-04-16 23:47:56] Utilisateur connecté | userId=1 | email=iyed.ouchari123@gmail.com | role=freelancer | ip=::ffff:127.0.0.1
+[2026-04-16 23:48:43] Utilisateur connecté | userId=4 | email=bachir@gmail.com | role=client | ip=::1
+[2026-04-16 23:49:14] Tentative de connexion avec mot de passe incorrect | userId=1 | email=iyed.ouchari123@gmail.com
+[2026-04-16 23:49:17] Utilisateur connecté | userId=1 | email=iyed.ouchari123@gmail.com | role=freelancer | ip=::1
+[2026-04-16 23:52:09] Utilisateur connecté | userId=1 | email=iyed.ouchari123@gmail.com | role=freelancer | ip=::1
+[2026-04-16 23:54:40] Utilisateur connecté | userId=4 | email=bachir@gmail.com | role=client | ip=::1
+[2026-04-16 23:55:08] Client a cree un projet | projet=50 | titre="final" | statut=Ouverte

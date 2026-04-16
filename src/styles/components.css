@@ -606,6 +606,24 @@
 }
 
 /* Workspace Chat */
+.workspace-chat-user-btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font-weight: 700;
+}
+
+.workspace-chat-user-btn:disabled {
+  cursor: default;
+}
+
+.workspace-chat-user-btn:not(:disabled):hover {
+  text-decoration: underline;
+}
 .workspace-chat {
   background: linear-gradient(180deg, #fafbff, #f5f7ff);
   border-radius: 20px;

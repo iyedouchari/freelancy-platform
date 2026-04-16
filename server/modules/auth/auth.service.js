@@ -55,7 +55,18 @@ const sendWelcomeEmail = async (user) => {
   }
 };
 
-export const register = async ({ name, company, title, location, email, phone, password, role }) => {
+export const register = async ({
+  name,
+  company,
+  title,
+  location,
+  email,
+  phone,
+  bio,
+  avatarUrl,
+  password,
+  role,
+}) => {
   const normalizedEmail = normalizeEmail(email);
   const existingUser = await findAuthUserByEmail(normalizedEmail);
 
@@ -75,6 +86,8 @@ export const register = async ({ name, company, title, location, email, phone, p
     location,
     email: normalizedEmail,
     phone,
+    bio,
+    avatarUrl,
     passwordHash,
     role,
   });

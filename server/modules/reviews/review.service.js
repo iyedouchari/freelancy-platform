@@ -1,5 +1,6 @@
 import AppError from "../../utils/AppError.js";
 import { reviewRepository } from "./review.repository.js";
+import { dealRepository } from "../deals/deal.repository.js";
 
 const ensurePositiveId = (value, label) => {
   const id = Number.parseInt(value, 10);
@@ -18,6 +19,7 @@ export const reviewService = {
   },
 
   async createReview(user, payload) {
+    const dealId = ensurePositiveId(payload.dealId, "Deal id");
     const toUserId = ensurePositiveId(payload.toUserId, "Target user id");
 
     if (user.id === toUserId) {
@@ -28,16 +30,33 @@ export const reviewService = {
       );
     }
 
-    const existingReview = await reviewRepository.findExisting(user.id, toUserId);
+    const deal = await dealRepository.findById(dealId);
+    if (!deal) {
+      throw new AppError("Accord introuvable.", 404, "DEAL_NOT_FOUND");
+    }
+
+    const isParticipant = [Number(deal.clientId), Number(deal.freelancerId)].includes(Number(user.id));
+    if (!isParticipant) {
+      throw new AppError("Action non autorisee pour cet accord.", 403, "FORBIDDEN");
+    }
+
+    const expectedTargetUserId =
+      Number(deal.clientId) === Number(user.id) ? Number(deal.freelancerId) : Number(deal.clientId);
+
+    if (Number(toUserId) !== expectedTargetUserId) {
+      throw new AppError("La cible de l'avis ne correspond pas a cet accord.", 400, "INVALID_REVIEW_TARGET");
+    }
+
+    const existingReview = await reviewRepository.findByDealAndAuthor(dealId, user.id);
     if (existingReview) {
-      throw new AppError(
-        "Vous avez deja laisse un avis pour ce profil.",
-        409,
-        "REVIEW_ALREADY_EXISTS",
-      );
+      return reviewRepository.update(existingReview.id, {
+        score: payload.score,
+        comment: payload.comment,
+      });
     }
 
     return reviewRepository.create({
+      dealId,
       fromUserId: user.id,
       toUserId,
       score: payload.score,

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import AppFeedbackHost from "./components/AppFeedbackHost";
@@ -94,11 +94,13 @@ const SessionAwareFallback = () => {
 
 // ── Shell Freelancer ──────────────────────────────────────────────────────────
 const FreelancerShell = () => {
+  const location = useLocation();
   const dashboardRef = useRef(null);
   const [page, setPage] = useState(() => localStorage.getItem(FREELANCER_PAGE_KEY) || "dashboard");
   const [selectedDealId, setSelectedDealId] = useState(
     () => localStorage.getItem(FREELANCER_DEAL_KEY) || null,
   );
+  const [selectedProfileUserId, setSelectedProfileUserId] = useState(null);
   const [deals, setDeals] = useState([]);
   const [isLoadingDeals, setIsLoadingDeals] = useState(true);
   const session = getStoredSession();
@@ -143,6 +145,18 @@ const FreelancerShell = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search || "");
+    const sharedProfileUserId = params.get("viewProfileUserId");
+
+    if (!sharedProfileUserId) {
+      return;
+    }
+
+    setSelectedProfileUserId(sharedProfileUserId);
+    setPage("publicProfile");
+  }, [location.search]);
+
   const goToDashboard = () => setPage("dashboard");
   const goToProposals = () => setPage("proposals");
   const goToDeals    = () => setPage("deals");
@@ -152,6 +166,14 @@ const FreelancerShell = () => {
   const goToWorkspace = (dealId) => {
     setSelectedDealId(dealId);
     setPage("workspace");
+  };
+
+  const openProfileFromWorkspace = ({ userId, dealId }) => {
+    setSelectedProfileUserId(userId || null);
+    if (dealId) {
+      setSelectedDealId(dealId);
+    }
+    setPage("publicProfile");
   };
 
   return (
@@ -177,12 +199,28 @@ const FreelancerShell = () => {
         )}
         {page === "wallet" && <FreelancerWallet />}
         {page === "profile" && <FreelancerProfile onBack={goToDashboard} />}
+        {page === "publicProfile" && selectedProfileUserId && (
+          <FreelancerProfile
+            mode="public"
+            publicUserId={selectedProfileUserId}
+            dealId={selectedDealId}
+            onBack={() => {
+              if (selectedDealId) {
+                setPage("workspace");
+                return;
+              }
+
+              setPage("dashboard");
+            }}
+          />
+        )}
         {page === "workspace" && (
           <Workspace
             dealId={selectedDealId}
             socket={socket}
             myUserId={session.userId}
             onBack={goToDeals}
+            onOpenProfile={openProfileFromWorkspace}
           />
         )}
       </main>

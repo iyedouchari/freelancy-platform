@@ -45,6 +45,7 @@ export default function Chat({
   dealId,
   chatTitle,
   onOpenReport,
+  onOpenProfile,
 }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -196,7 +197,14 @@ export default function Chat({
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
         <div className="workspace-chat-title-block">
-          <small>{chatTitle || "Destinataire"}</small>
+          <button
+            type="button"
+            className="workspace-chat-user-btn"
+            onClick={() => onOpenProfile?.()}
+            disabled={!onOpenProfile}
+          >
+            {chatTitle || "Destinataire"}
+          </button>
         </div>
         {onOpenReport ? (
           <button type="button" className="workspace-report-btn" onClick={onOpenReport}>

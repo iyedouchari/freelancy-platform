@@ -68,10 +68,23 @@ export const insertAuthUser = async ({
   location,
   email,
   phone,
+  bio,
+  avatarUrl,
   passwordHash,
   role,
 }) => {
-  return createUser({ name, company, title, location, email, phone, passwordHash, role });
+  return createUser({
+    name,
+    company,
+    title,
+    location,
+    email,
+    phone,
+    bio,
+    avatarUrl,
+    passwordHash,
+    role,
+  });
 };
 
 export const findAuthUserByEmail = async (email, { includePassword = false } = {}) => {

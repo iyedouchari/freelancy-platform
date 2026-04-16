@@ -94,6 +94,7 @@ export default function Workspace({
   dealId,
   deal,
   onBack,
+  onOpenProfile,
   viewerRole = "freelancer",
   participantName: participantNameProp,
   backLabel = "Retour à mes accords",
@@ -496,6 +497,12 @@ export default function Workspace({
           receiverId={workspaceMeta.receiverId}
           dealId={resolvedDealId}
           onOpenReport={openReportModal}
+          onOpenProfile={() =>
+            onOpenProfile?.({
+              userId: workspaceMeta.receiverId,
+              dealId: resolvedDealId,
+            })
+          }
         />
       </div>
 

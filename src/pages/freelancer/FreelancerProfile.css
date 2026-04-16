@@ -79,6 +79,68 @@
   margin: 0;
 }
 
+.profile-reviews-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.profile-review-form {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 20px;
+  border: 1px solid #dbe3f1;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #ffffff, #f8fbff);
+}
+
+.profile-review-form label {
+  display: grid;
+  gap: 10px;
+}
+
+.profile-review-form label.wide {
+  grid-column: 2;
+}
+
+.profile-review-form span {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.profile-review-form select,
+.profile-review-form textarea {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid #dbe3f1;
+  background: #fff;
+  padding: 14px 16px;
+  font: inherit;
+  color: #0f172a;
+  box-sizing: border-box;
+}
+
+.profile-review-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.profile-reviews-list {
+  display: grid;
+  gap: 16px;
+}
+
 /* ─── Simple hero (view mode) ───────────────────────────────── */
 .profile-simple-hero {
   display: flex;
@@ -98,6 +160,13 @@
   display: flex;
   align-items: center;
   gap: 24px;
+  flex-wrap: wrap;
+}
+
+.profile-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -513,6 +582,14 @@
 
   .profile-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .profile-review-form {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-review-form label.wide {
+    grid-column: auto;
   }
 }
 

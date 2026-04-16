@@ -144,6 +144,7 @@ export const ensureDealsTable = async () => {
       final_paid_at DATETIME DEFAULT NULL,
       payment_note TEXT DEFAULT NULL,
       status ENUM(
+        'En attente acompte',
         'En cours',
         'Totalité payé',
         'Terminé',
@@ -166,15 +167,13 @@ export const ensureDealsTable = async () => {
 
   // Migrate any rows with deprecated statuses before altering the ENUM
   try {
-    await db.query("UPDATE deals SET status = 'En cours' WHERE status = 'En attente acompte'");
-  } catch { /* status may not exist in ENUM yet — safe to ignore */ }
-  try {
     await db.query("UPDATE deals SET status = 'En cours' WHERE status = 'Avance payé'");
   } catch { /* status may not exist in ENUM yet — safe to ignore */ }
 
   await db.query(`
     ALTER TABLE deals
     MODIFY COLUMN status ENUM(
+      'En attente acompte',
       'En cours',
       'Totalité payé',
       'Terminé',

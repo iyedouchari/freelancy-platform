@@ -24,6 +24,7 @@ const canAccessDeal = (deal, user) => {
 const STATUS_BY_CLIENT_ACTION = {
   active: "En cours",
   completed: "Terminé",
+  fully_paid: "Totalité payé",
 };
 
 const normalizeDateOnly = (value) => {
@@ -193,7 +194,7 @@ export const dealService = {
     const targetStatus = STATUS_BY_CLIENT_ACTION[normalized];
 
     if (!targetStatus) {
-      throw new AppError("Statut de deal invalide. Valeurs attendues: active, completed.", 400, "INVALID_DEAL_STATUS");
+      throw new AppError("Statut de deal invalide. Valeurs attendues: active, completed, fully_paid.", 400, "INVALID_DEAL_STATUS");
     }
 
     const existingDeal = await dealRepository.findByIdForClient(dealId, clientId);

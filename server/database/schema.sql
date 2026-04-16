@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     location VARCHAR(120) DEFAULT NULL,
     phone VARCHAR(30) DEFAULT NULL,
     bio VARCHAR(500) DEFAULT NULL,
-    avatar_url VARCHAR(500) DEFAULT NULL,
+    avatar_url LONGTEXT DEFAULT NULL,
     points INT NOT NULL DEFAULT 0,
     is_suspended BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -203,6 +203,26 @@ CREATE TABLE IF NOT EXISTS ratings (
     CONSTRAINT fk_rat_from FOREIGN KEY (from_user_id)
         REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_rat_to FOREIGN KEY (to_user_id)
+        REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS reviews (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    deal_id INT NOT NULL,
+    from_user_id INT NOT NULL,
+    to_user_id INT NOT NULL,
+    score INT NOT NULL,
+    comment TEXT DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT uq_reviews_from_to_user UNIQUE (from_user_id, to_user_id),
+    CONSTRAINT chk_reviews_score CHECK (score BETWEEN 1 AND 5),
+    CONSTRAINT chk_reviews_not_self CHECK (from_user_id <> to_user_id),
+    CONSTRAINT fk_reviews_deal FOREIGN KEY (deal_id)
+        REFERENCES deals(id) ON DELETE CASCADE,
+    CONSTRAINT fk_reviews_from_user FOREIGN KEY (from_user_id)
+        REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_reviews_to_user FOREIGN KEY (to_user_id)
         REFERENCES users(id) ON DELETE CASCADE
 );
 

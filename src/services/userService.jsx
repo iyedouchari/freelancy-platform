@@ -58,11 +58,17 @@ const normalizeUserPayload = (payload = {}) => ({
   telephone: payload.telephone ?? payload.phone,
   location: payload.location,
   bio: payload.bio,
+  avatarUrl: payload.profileImage ?? payload.avatarUrl,
+  profileImage: payload.profileImage ?? payload.avatarUrl,
 });
 
 export const userService = {
   getMe: async () => {
     return request("/users/me");
+  },
+
+  getById: async (userId) => {
+    return request(`/users/${userId}`);
   },
 
   updateMe: async (payload = {}) => {

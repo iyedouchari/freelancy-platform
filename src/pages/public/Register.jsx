@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { DOMAIN_OPTIONS } from "../../data/domains";
 import { authService } from "../../services/authService";
+import { userService } from "../../services/userService";
 import { showAppFeedback } from "../../utils/appFeedback";
 import "../../styles/landing.css";
 
@@ -285,6 +286,7 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [pendingFreelancerAuth, setPendingFreelancerAuth] = useState(null);
   const [registrationSuccess, setRegistrationSuccess] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -336,7 +338,7 @@ const Register = () => {
     const normalizedPhone = phone.trim();
 
     try {
-      await authService.register({
+      const registerResult = await authService.register({
         name: normalizedName,
         company: normalizedCompany,
         title: normalizedTitle,
@@ -352,6 +354,10 @@ const Register = () => {
       localStorage.removeItem("client_entry_page");
 
       if (role === "freelancer") {
+        setPendingFreelancerAuth({
+          token: registerResult?.token || "",
+          userId: registerResult?.user?.id || "",
+        });
         setShowOnboarding(true);
       } else {
         localStorage.setItem("client_name", normalizedName);
@@ -373,28 +379,60 @@ const Register = () => {
     }
   };
 
-  const handleOnboardingComplete = (data) => {
+  const handleOnboardingComplete = async (data) => {
     const normalizedName = name.trim();
     const normalizedEmail = email.trim().toLowerCase();
+    const previousToken = localStorage.getItem("auth_token");
+    const previousUserId = localStorage.getItem("user_id");
 
-    localStorage.removeItem("app_role");
-    localStorage.setItem("freelancer_fields", JSON.stringify(data.fields));
-    localStorage.setItem("freelancer_bio", data.bio);
-    localStorage.setItem("freelancer_name", normalizedName);
-    localStorage.setItem("freelancer_title", title.trim());
-    localStorage.setItem("freelancer_location", location.trim());
-    localStorage.setItem("freelancer_email", normalizedEmail);
-    localStorage.setItem("freelancer_phone", phone.trim());
-    localStorage.removeItem("client_entry_page");
-    if (data.profileImage) {
-      localStorage.setItem("freelancer_image", data.profileImage);
+    try {
+      if (pendingFreelancerAuth?.token) {
+        localStorage.setItem("auth_token", pendingFreelancerAuth.token);
+      }
+      if (pendingFreelancerAuth?.userId) {
+        localStorage.setItem("user_id", String(pendingFreelancerAuth.userId));
+      }
+
+      await userService.updateMe({
+        bio: data.bio,
+        profileImage: data.profileImage || "",
+      });
+
+      localStorage.removeItem("app_role");
+      localStorage.setItem("freelancer_fields", JSON.stringify(data.fields));
+      localStorage.setItem("freelancer_bio", data.bio);
+      localStorage.setItem("freelancer_name", normalizedName);
+      localStorage.setItem("freelancer_title", title.trim());
+      localStorage.setItem("freelancer_location", location.trim());
+      localStorage.setItem("freelancer_email", normalizedEmail);
+      localStorage.setItem("freelancer_phone", phone.trim());
+      localStorage.removeItem("client_entry_page");
+      if (data.profileImage) {
+        localStorage.setItem("freelancer_image", data.profileImage);
+      }
+
+      setShowOnboarding(false);
+      setPendingFreelancerAuth(null);
+      setRegistrationSuccess({
+        title: "Inscription freelance réussie",
+        message:
+          "Votre profil freelance est prêt. Connectez-vous pour commencer à explorer les projets.",
+      });
+    } catch (error) {
+      setErrorMessage(error.message || "Impossible d'enregistrer la photo de profil.");
+    } finally {
+      if (previousToken) {
+        localStorage.setItem("auth_token", previousToken);
+      } else {
+        localStorage.removeItem("auth_token");
+      }
+
+      if (previousUserId) {
+        localStorage.setItem("user_id", previousUserId);
+      } else {
+        localStorage.removeItem("user_id");
+      }
     }
-    setShowOnboarding(false);
-    setRegistrationSuccess({
-      title: "Inscription freelance réussie",
-      message:
-        "Votre profil freelance est prêt. Connectez-vous pour commencer à explorer les projets.",
-    });
   };
 
   if (registrationSuccess) {

@@ -17,5 +17,5 @@ export const listReviewsForUser = async (req, res) => {
 
 export const createReview = async (req, res) => {
   const review = await reviewService.createReview(req.user, req.body);
-  return sendSuccess(res, review, "Avis ajoute.", 201);
+  return sendSuccess(res, review, "Avis enregistre.", 201);
 };

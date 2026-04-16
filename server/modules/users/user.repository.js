@@ -22,6 +22,7 @@ const mapUserRow = (row, { includePassword = false } = {}) => {
     email: row.email,
     phone: row.phone,
     bio: row.bio || "",
+    avatarUrl: row.avatar_url || "",
     role: normalizeRoleFromDb(row.role),
     isSuspended: Boolean(row.is_suspended),
     suspensionReason: row.suspension_reason || "",
@@ -52,7 +53,7 @@ export const ensureUsersTable = async () => {
       location VARCHAR(120) DEFAULT NULL,
       phone VARCHAR(30) DEFAULT NULL,
       bio VARCHAR(500) DEFAULT NULL,
-      avatar_url VARCHAR(500) DEFAULT NULL,
+      avatar_url LONGTEXT DEFAULT NULL,
       points INT NOT NULL DEFAULT 0,
       is_suspended BOOLEAN NOT NULL DEFAULT FALSE,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -76,6 +77,16 @@ export const ensureUsersTable = async () => {
   );
   await addColumnIfMissing("location", "location VARCHAR(120) DEFAULT NULL");
   await addColumnIfMissing("phone", "phone VARCHAR(30) DEFAULT NULL");
+  await addColumnIfMissing("avatar_url", "avatar_url LONGTEXT DEFAULT NULL");
+
+  const [avatarColumnRows] = await db.query("SHOW COLUMNS FROM users LIKE 'avatar_url'");
+  if (avatarColumnRows.length > 0) {
+    const avatarColumnType = String(avatarColumnRows[0].Type || "").toLowerCase();
+    if (avatarColumnType.includes("varchar")) {
+      await db.query("ALTER TABLE users MODIFY COLUMN avatar_url LONGTEXT DEFAULT NULL");
+    }
+  }
+
   await addColumnIfMissing("is_suspended", "is_suspended BOOLEAN NOT NULL DEFAULT FALSE");
   await addColumnIfMissing("suspension_reason", "suspension_reason VARCHAR(255) DEFAULT NULL");
   await addColumnIfMissing("suspended_until", "suspended_until TIMESTAMP NULL DEFAULT NULL");
@@ -89,13 +100,26 @@ export const createUser = async ({
   location,
   email,
   phone,
+  bio,
+  avatarUrl,
   passwordHash,
   role,
 }) => {
   const db = getDb();
   const [result] = await db.query(
-    "INSERT INTO users (name, company, professional_title, location, email, phone, password, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    [name, company || null, title, location, email, phone, passwordHash, normalizeRoleForDb(role)],
+    "INSERT INTO users (name, company, professional_title, location, email, phone, bio, avatar_url, password, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    [
+      name,
+      company || null,
+      title,
+      location,
+      email,
+      phone,
+      bio || null,
+      avatarUrl || null,
+      passwordHash,
+      normalizeRoleForDb(role),
+    ],
   );
 
   return result.insertId;
@@ -104,7 +128,7 @@ export const createUser = async ({
 export const findUserByEmail = async (email, { includePassword = false } = {}) => {
   const db = getDb();
   const [rows] = await db.query(
-    "SELECT id, name, company, professional_title, location, email, phone, bio, role, password AS password_hash, is_suspended, suspension_reason, suspended_until, suspension_duration_days, created_at FROM users WHERE email = ? LIMIT 1",
+    "SELECT id, name, company, professional_title, location, email, phone, bio, avatar_url, role, password AS password_hash, is_suspended, suspension_reason, suspended_until, suspension_duration_days, created_at FROM users WHERE email = ? LIMIT 1",
     [email],
   );
 
@@ -114,7 +138,7 @@ export const findUserByEmail = async (email, { includePassword = false } = {}) =
 export const findUserById = async (id) => {
   const db = getDb();
   const [rows] = await db.query(
-    "SELECT id, name, company, professional_title, location, email, phone, bio, role, is_suspended, suspension_reason, suspended_until, suspension_duration_days, created_at FROM users WHERE id = ? LIMIT 1",
+    "SELECT id, name, company, professional_title, location, email, phone, bio, avatar_url, role, is_suspended, suspension_reason, suspended_until, suspension_duration_days, created_at FROM users WHERE id = ? LIMIT 1",
     [id],
   );
   return mapUserRow(rows[0]);
@@ -123,7 +147,7 @@ export const findUserById = async (id) => {
 export const findUserByIdWithPassword = async (id) => {
   const db = getDb();
   const [rows] = await db.query(
-    "SELECT id, name, company, professional_title, location, email, phone, bio, role, password AS password_hash, is_suspended, suspension_reason, suspended_until, suspension_duration_days, created_at FROM users WHERE id = ? LIMIT 1",
+    "SELECT id, name, company, professional_title, location, email, phone, bio, avatar_url, role, password AS password_hash, is_suspended, suspension_reason, suspended_until, suspension_duration_days, created_at FROM users WHERE id = ? LIMIT 1",
     [id],
   );
   return mapUserRow(rows[0], { includePassword: true });
@@ -162,6 +186,11 @@ export const updateUserById = async (id, updates = {}) => {
   if (updates.bio !== undefined) {
     fields.push("bio = ?");
     values.push(updates.bio);
+  }
+
+  if (updates.avatarUrl !== undefined) {
+    fields.push("avatar_url = ?");
+    values.push(updates.avatarUrl || null);
   }
 
   if (updates.passwordHash !== undefined) {

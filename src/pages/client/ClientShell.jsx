@@ -1,12 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import Footer from "../../components/Footer";
 import Navbar from "../../components/Navbar";
-import {
-  getFreelancerProfileById,
-  initialFreelancerFeedbackById,
-} from "../../data/clientData";
 import ClientDashboard from "./ClientDashboard";
-import ClientFreelancerProfile from "./ClientFreelancerProfile";
 import ClientRequests from "./ClientRequests";
 import ClientWallet from "./ClientWallet";
 import FreelancerProfile from "../freelancer/FreelancerProfile";
@@ -17,9 +12,9 @@ import { walletService } from "../../services/walletService";
 import socket from "../../services/socket.js";
 import "../../components/PaymentModal.css";
 
-const FEEDBACK_STORAGE_KEY = "client_feedback_directory";
 const CLIENT_PAGE_KEY = "client_active_page";
 const CLIENT_DEAL_KEY = "client_selected_deal_id";
+const CLIENT_PROFILE_USER_KEY = "client_selected_profile_user_id";
 const CLIENT_DEALS_STORAGE_KEY = "client_deals_state";
 const CLIENT_REQUESTS_STORAGE_KEY = "client_requests_state";
 
@@ -65,19 +60,6 @@ function resolveInitialClientPage(hasDeal) {
   }
 
   return "dashboard";
-}
-
-function loadFeedbackDirectory() {
-  try {
-    const stored = localStorage.getItem(FEEDBACK_STORAGE_KEY);
-    if (!stored) {
-      return initialFreelancerFeedbackById;
-    }
-
-    return { ...initialFreelancerFeedbackById, ...JSON.parse(stored) };
-  } catch {
-    return initialFreelancerFeedbackById;
-  }
 }
 
 function wait(ms) {
@@ -234,10 +216,11 @@ export default function ClientShell() {
   const [requests, setRequests] = useState(() => loadPersistedList(CLIENT_REQUESTS_STORAGE_KEY));
   const [deals, setDeals] = useState(() => loadPersistedList(CLIENT_DEALS_STORAGE_KEY));
   const [selectedDeal, setSelectedDeal] = useState(initialDeal);
-  const [selectedFreelancerId, setSelectedFreelancerId] = useState(null);
+  const [selectedFreelancerId, setSelectedFreelancerId] = useState(
+    () => localStorage.getItem(CLIENT_PROFILE_USER_KEY) || null,
+  );
   const [pendingAdvanceDeal, setPendingAdvanceDeal] = useState(null);
   const [proposalToAccept, setProposalToAccept] = useState(null);
-  const [feedbackDirectory, setFeedbackDirectory] = useState(loadFeedbackDirectory);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [requestsError, setRequestsError] = useState("");
 
@@ -255,6 +238,15 @@ export default function ClientShell() {
   }, [selectedDeal]);
 
   useEffect(() => {
+    if (selectedFreelancerId === null || selectedFreelancerId === undefined || selectedFreelancerId === "") {
+      localStorage.removeItem(CLIENT_PROFILE_USER_KEY);
+      return;
+    }
+
+    localStorage.setItem(CLIENT_PROFILE_USER_KEY, String(selectedFreelancerId));
+  }, [selectedFreelancerId]);
+
+  useEffect(() => {
     localStorage.setItem(CLIENT_REQUESTS_STORAGE_KEY, JSON.stringify(requests));
   }, [requests]);
 
@@ -269,10 +261,6 @@ export default function ClientShell() {
   );
   const activeDealsCount = deals.filter((deal) => deal.daysLeft !== null).length;
   const completedDealsCount = deals.filter((deal) => deal.daysLeft === null).length;
-  const selectedFreelancerProfile = selectedFreelancerId
-    ? getFreelancerProfileById(selectedFreelancerId)
-    : null;
-
   const loadDealsWithRetry = async (matcher = null) => {
     let latestDeals = [];
 
@@ -357,6 +345,12 @@ export default function ClientShell() {
     setPage("freelancerProfile");
   };
 
+  const openProfileFromWorkspace = ({ userId }) => {
+    if (!userId) return;
+    setSelectedFreelancerId(userId);
+    setPage("freelancerProfile");
+  };
+
   const handleCreateRequest = async (payload) => {
     const createdRequest = await requestService.create(payload);
     setRequests((current) => [createdRequest, ...current]);
@@ -435,30 +429,6 @@ export default function ClientShell() {
     return updatedProposal;
   };
 
-  const handleAddFeedback = (freelancerId, payload) => {
-    const clientCompany = localStorage.getItem("client_company") || "Client";
-    const nextEntry = {
-      client: clientName,
-      title: clientCompany,
-      comment: payload.comment,
-      stars: payload.stars,
-      date: new Date().toLocaleDateString("fr-FR", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }),
-    };
-
-    setFeedbackDirectory((current) => {
-      const nextDirectory = {
-        ...current,
-        [freelancerId]: [nextEntry, ...(current[freelancerId] ?? [])],
-      };
-      localStorage.setItem(FEEDBACK_STORAGE_KEY, JSON.stringify(nextDirectory));
-      return nextDirectory;
-    });
-  };
-
   const activeNavPage =
     page === "workspace" ? "dashboard" : page === "freelancerProfile" ? "requests" : page;
 
@@ -488,16 +458,39 @@ export default function ClientShell() {
       ),
     );
 
-    if (dealStatusUpdate.updatedDeal?.id) {
-      setSelectedDeal((current) =>
-        current?.id === dealStatusUpdate.updatedDeal.id ? dealStatusUpdate.updatedDeal : current,
-      );
-    }
+    setSelectedDeal((current) => {
+      if (!current || current.id !== dealStatusUpdate.dealId) {
+        return current;
+      }
 
-    dealService.updateStatus({
-      dealId: dealStatusUpdate.dealId,
-      newStatus: dealStatusUpdate.newStatus,
-    }).catch(() => null);
+      if (dealStatusUpdate.updatedDeal?.id) {
+        return dealStatusUpdate.updatedDeal;
+      }
+
+      return {
+        ...current,
+        status:
+          dealStatusUpdate.newStatus === "completed"
+            ? "Terminé"
+            : dealStatusUpdate.newStatus === "fully_paid"
+              ? "Totalité payé"
+              : "En cours",
+        statusType:
+          dealStatusUpdate.newStatus === "completed"
+            ? "done"
+            : dealStatusUpdate.newStatus === "fully_paid"
+              ? "fully_paid"
+              : "progress",
+        daysLeft: dealStatusUpdate.newStatus === "completed" ? null : current.daysLeft,
+      };
+    });
+
+    if (dealStatusUpdate.newStatus === "active" || dealStatusUpdate.newStatus === "completed") {
+      dealService.updateStatus({
+        dealId: dealStatusUpdate.dealId,
+        newStatus: dealStatusUpdate.newStatus,
+      }).catch(() => null);
+    }
   };
 
   return (
@@ -568,12 +561,12 @@ export default function ClientShell() {
 
         {page === "wallet" && <ClientWallet />}
 
-        {page === "freelancerProfile" && selectedFreelancerProfile && (
-          <ClientFreelancerProfile
-            profile={selectedFreelancerProfile}
-            feedbackEntries={feedbackDirectory[selectedFreelancerProfile.id] ?? []}
-            onBack={() => setPage("requests")}
-            onAddFeedback={handleAddFeedback}
+        {page === "freelancerProfile" && selectedFreelancerId && (
+          <FreelancerProfile
+            mode="public"
+            publicUserId={selectedFreelancerId}
+            dealId={selectedDeal?.id}
+            onBack={() => setPage(selectedDeal ? "workspace" : "requests")}
           />
         )}
 
@@ -581,6 +574,7 @@ export default function ClientShell() {
           <Workspace
             deal={selectedDeal}
             onBack={() => setPage("dashboard")}
+            onOpenProfile={openProfileFromWorkspace}
             viewerRole="client"
             participantName={clientName}
             backLabel="Retour au tableau de bord client"

@@ -49,6 +49,10 @@ export const updateCurrentUserProfile = async (userId, payload = {}) => {
         : undefined,
     location: payload.location !== undefined ? String(payload.location || "").trim() : undefined,
     bio: payload.bio !== undefined ? String(payload.bio || "").trim() : undefined,
+    avatarUrl:
+      payload.avatarUrl !== undefined || payload.profileImage !== undefined
+        ? String(payload.avatarUrl ?? payload.profileImage ?? "").trim()
+        : undefined,
   });
 };
 

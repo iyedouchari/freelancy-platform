@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authService } from "../../services/authService";
+import { userService } from "../../services/userService";
 import "../../styles/landing.css";
 
 function formatFreelancerName(email) {
@@ -91,6 +92,14 @@ const Login = () => {
       localStorage.setItem("freelancer_location", user.location || "Remote");
       localStorage.setItem("freelancer_email", user.email || normalizedEmail);
       localStorage.setItem("freelancer_phone", user.phone || "");
+      const legacyLocalImage = localStorage.getItem("freelancer_image");
+      if (user.avatarUrl) {
+        localStorage.setItem("freelancer_image", user.avatarUrl);
+      } else if (legacyLocalImage) {
+        userService.updateMe({ profileImage: legacyLocalImage }).catch(() => {});
+      } else {
+        localStorage.removeItem("freelancer_image");
+      }
       localStorage.removeItem("client_entry_page");
       navigate("/app");
     } catch (error) {
