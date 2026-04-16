@@ -140,7 +140,7 @@ export async function withdrawWallet({ userId, amount, bankAccountMasked }) {
 
 async function findClientDealById({ dealId, clientId }) {
   const [rows] = await db.query(
-    `SELECT id, client_id, freelancer_id, final_price, advance_amount, status, deadline
+    `SELECT id, client_id, freelancer_id, final_price, advance_amount, status, deadline, penalty_cycles
      FROM deals
      WHERE id = ? AND client_id = ?`,
     [dealId, clientId],
@@ -157,6 +157,7 @@ export async function getDealPaymentSummary({ dealId, clientId }) {
   const payments = await paymentService.getPaymentsByDeal(dealId);
   const advancePayment = payments.find((p) => p.payment_type === "Avance" && p.status === "Paye");
   const finalPayment = payments.find((p) => p.payment_type === "Paiement final" && p.status === "Paye");
+  const finalPaidByStatus = String(deal.status || "") === "Totalité payé";
 
   const advanceAmount = Number(deal.advance_amount);
   const finalAmount = Math.max(0, Number(deal.final_price) - advanceAmount);
@@ -168,10 +169,11 @@ export async function getDealPaymentSummary({ dealId, clientId }) {
       finalPrice: Number(deal.final_price),
       advanceAmount,
       finalAmount,
+      penaltyCycles: Number(deal.penalty_cycles ?? 0),
     },
     progress: {
       advancePaid: Boolean(advancePayment),
-      finalPaid: Boolean(finalPayment),
+      finalPaid: Boolean(finalPayment) || finalPaidByStatus,
     },
     payments,
   };

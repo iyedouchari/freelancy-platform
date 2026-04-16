@@ -10,6 +10,12 @@ import {
   findWalletByOwnerId,
 } from "../wallet/wallet.repository.js";
 
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const PENALTY_RATE = 0.1;
+const PENALTY_CYCLE_DAYS = 3;
+
+const roundMoney = (value) => Math.round(Number(value) * 100) / 100;
+
 export async function stripeDummy({ amount, metadata = {} }) {
   await new Promise((resolve) => setTimeout(resolve, 300));
   if (Math.random() < 0.05) {
@@ -56,6 +62,48 @@ function formatDealDate(value) {
   return parsed.toLocaleDateString("fr-FR");
 }
 
+function computeDelayPenalty(deal) {
+  if (!deal?.deadline) {
+    return {
+      daysLate: 0,
+      cycles: 0,
+      penaltyAmount: 0,
+      hasPenalty: false,
+    };
+  }
+
+  const deadlineDate = new Date(`${deal.deadline}T23:59:59`);
+  if (Number.isNaN(deadlineDate.getTime())) {
+    return {
+      daysLate: 0,
+      cycles: 0,
+      penaltyAmount: 0,
+      hasPenalty: false,
+    };
+  }
+
+  const referenceDate = deal.submittedAt ? new Date(deal.submittedAt) : new Date();
+  if (Number.isNaN(referenceDate.getTime())) {
+    return {
+      daysLate: 0,
+      cycles: 0,
+      penaltyAmount: 0,
+      hasPenalty: false,
+    };
+  }
+
+  const daysLate = Math.max(0, Math.floor((referenceDate.getTime() - deadlineDate.getTime()) / DAY_IN_MS));
+  const cycles = Math.floor(daysLate / PENALTY_CYCLE_DAYS);
+  const penaltyAmount = roundMoney(Number(deal.finalPrice ?? 0) * PENALTY_RATE * cycles);
+
+  return {
+    daysLate,
+    cycles,
+    penaltyAmount,
+    hasPenalty: penaltyAmount > 0,
+  };
+}
+
 async function runPaymentTransaction(callback) {
   const connection = await db.getConnection();
 
@@ -72,12 +120,14 @@ async function runPaymentTransaction(callback) {
   }
 }
 
-async function updateDealAfterPayment(connection, { dealId, note, status }) {
+async function updateDealAfterPayment(connection, { dealId, note, status, penaltyCycles = 0 }) {
   await connection.query(
     `UPDATE deals
-     SET payment_note = ?, status = ?
+     SET payment_note = ?,
+         status = ?,
+         penalty_cycles = ?
      WHERE id = ?`,
-    [note || null, status, dealId],
+    [note || null, status, Number.isFinite(penaltyCycles) ? penaltyCycles : 0, dealId],
   );
 }
 
@@ -146,6 +196,7 @@ export async function payAdvance({ dealId, clientId, freelancerId, amount }) {
       dealId,
       note,
       status: "En cours",
+      penaltyCycles: 0,
     });
 
     return {
@@ -166,8 +217,25 @@ export async function payFinal({ dealId, clientId, freelancerId, amount }) {
     const clientBalanceBefore = Number(clientWallet.balance);
     const deal = await dealRepository.findById(dealId, connection);
     const escrowAmount = Number(deal?.advanceAmount ?? 0);
+    const finalAmountDue = roundMoney(Number(amount));
 
-    if (clientBalanceBefore < Number(amount)) {
+    if (deal?.status === "Totalité payé") {
+      throw new Error("Le paiement final a deja ete effectue pour ce deal.");
+    }
+
+    if (!Number.isFinite(finalAmountDue) || finalAmountDue < 0) {
+      throw new Error("Montant final invalide.");
+    }
+
+    const penalty = computeDelayPenalty(deal);
+    const grossDue = roundMoney(escrowAmount + finalAmountDue);
+    const penaltyAmount = Math.min(roundMoney(penalty.penaltyAmount), grossDue);
+    const penaltyFromFinal = Math.min(penaltyAmount, finalAmountDue);
+    const penaltyFromEscrow = roundMoney(penaltyAmount - penaltyFromFinal);
+    const adjustedFinalAmount = roundMoney(Math.max(finalAmountDue - penaltyFromFinal, 0));
+    const escrowReleaseAmount = roundMoney(Math.max(escrowAmount - penaltyFromEscrow, 0));
+
+    if (clientBalanceBefore < adjustedFinalAmount) {
       throw new Error("Solde insuffisant dans le wallet pour payer le montant final.");
     }
 
@@ -175,62 +243,112 @@ export async function payFinal({ dealId, clientId, freelancerId, amount }) {
       throw new Error("Le wallet technique 999 ne contient pas l'avance attendue pour ce deal.");
     }
 
-    const payment = await paymentRepo.createPayment({
-      dealId,
-      clientId,
-      freelancerId: realFreelancerId,
-      amount,
-      paymentType: "Paiement final",
-    }, connection);
+    let payment = null;
+    if (adjustedFinalAmount > 0) {
+      payment = await paymentRepo.createPayment({
+        dealId,
+        clientId,
+        freelancerId: realFreelancerId,
+        amount: adjustedFinalAmount,
+        paymentType: "Paiement final",
+      }, connection);
 
-    await stripeDummy({ amount, metadata: { dealId, type: "Paiement final", clientId } });
+      await stripeDummy({
+        amount: adjustedFinalAmount,
+        metadata: { dealId, type: "Paiement final", clientId, penaltyCycles: penalty.cycles },
+      });
+    }
 
-    await debitWallet(clientId, amount, connection);
-    const clientBalanceAfter = clientBalanceBefore - Number(amount);
-    await createTransaction({
-      walletId: clientWallet.id,
-      dealId,
-      type: "final_debit",
-      amount,
-      balanceBefore: clientBalanceBefore,
-      balanceAfter: clientBalanceAfter,
-    }, connection);
+    let clientBalanceAfter = clientBalanceBefore;
+    if (adjustedFinalAmount > 0) {
+      await debitWallet(clientId, adjustedFinalAmount, connection);
+      clientBalanceAfter = roundMoney(clientBalanceAfter - adjustedFinalAmount);
+      await createTransaction({
+        walletId: clientWallet.id,
+        dealId,
+        type: "final_debit",
+        amount: adjustedFinalAmount,
+        balanceBefore: clientBalanceBefore,
+        balanceAfter: clientBalanceAfter,
+      }, connection);
+    }
+
+    if (penaltyFromEscrow > 0) {
+      await creditWallet(clientId, penaltyFromEscrow, connection);
+      const clientBalanceBeforePenaltyCredit = clientBalanceAfter;
+      clientBalanceAfter = roundMoney(clientBalanceAfter + penaltyFromEscrow);
+      await createTransaction({
+        walletId: clientWallet.id,
+        dealId,
+        type: "penalty",
+        amount: penaltyFromEscrow,
+        balanceBefore: clientBalanceBeforePenaltyCredit,
+        balanceAfter: clientBalanceAfter,
+      }, connection);
+    }
 
     const freelancerWallet = await findWalletByOwnerId(realFreelancerId, connection);
     const freelancerBalanceBefore = Number(freelancerWallet.balance);
 
     await debitWallet(systemWallet.owner_id, escrowAmount, connection);
-    await creditWallet(realFreelancerId, escrowAmount, connection);
-    await creditWallet(realFreelancerId, amount, connection);
-    const freelancerBalanceAfter = freelancerBalanceBefore + escrowAmount + Number(amount);
+    if (escrowReleaseAmount > 0) {
+      await creditWallet(realFreelancerId, escrowReleaseAmount, connection);
+    }
+    if (adjustedFinalAmount > 0) {
+      await creditWallet(realFreelancerId, adjustedFinalAmount, connection);
+    }
 
-    await createTransaction({
-      walletId: freelancerWallet.id,
-      dealId,
-      type: "advance_credit",
-      amount: escrowAmount,
-      balanceBefore: freelancerBalanceBefore,
-      balanceAfter: freelancerBalanceBefore + escrowAmount,
-    }, connection);
+    let freelancerBalanceCursor = freelancerBalanceBefore;
+    if (escrowReleaseAmount > 0) {
+      const nextBalance = roundMoney(freelancerBalanceCursor + escrowReleaseAmount);
+      await createTransaction({
+        walletId: freelancerWallet.id,
+        dealId,
+        type: "advance_credit",
+        amount: escrowReleaseAmount,
+        balanceBefore: freelancerBalanceCursor,
+        balanceAfter: nextBalance,
+      }, connection);
+      freelancerBalanceCursor = nextBalance;
+    }
 
-    await createTransaction({
-      walletId: freelancerWallet.id,
-      dealId,
-      type: "final_credit",
-      amount,
-      balanceBefore: freelancerBalanceBefore + escrowAmount,
-      balanceAfter: freelancerBalanceAfter,
-    }, connection);
+    if (adjustedFinalAmount > 0) {
+      const nextBalance = roundMoney(freelancerBalanceCursor + adjustedFinalAmount);
+      await createTransaction({
+        walletId: freelancerWallet.id,
+        dealId,
+        type: "final_credit",
+        amount: adjustedFinalAmount,
+        balanceBefore: freelancerBalanceCursor,
+        balanceAfter: nextBalance,
+      }, connection);
+      freelancerBalanceCursor = nextBalance;
+    }
 
-    await paymentRepo.updatePaymentStatus(payment.id, "Paye", connection);
+    if (payment) {
+      await paymentRepo.updatePaymentStatus(payment.id, "Paye", connection);
+    }
+
+    const note = penalty.hasPenalty
+      ? `Paiement final traite avec penalite de retard: ${penaltyAmount.toFixed(2)} DT (${penalty.cycles} cycle(s), ${penalty.daysLate} jour(s) de retard). Montant final debite: ${adjustedFinalAmount.toFixed(2)} DT.`
+      : "Montant total paye.";
+
     await updateDealAfterPayment(connection, {
       dealId,
-      note: "Montant total paye.",
+      note,
       status: "Totalité payé",
+      penaltyCycles: penalty.cycles,
     });
 
     return {
-      payment: { ...payment, status: "Paye" },
+      payment: payment ? { ...payment, status: "Paye" } : null,
+      penalty: {
+        daysLate: penalty.daysLate,
+        cycles: penalty.cycles,
+        amount: penaltyAmount,
+        amountFromFinal: penaltyFromFinal,
+        amountFromEscrow: penaltyFromEscrow,
+      },
       deal: await dealRepository.findById(dealId, connection),
     };
   });
@@ -321,6 +439,7 @@ export async function payTotal({ dealId, clientId, freelancerId, totalAmount, ad
       dealId,
       note: `Montant total paye avant le ${formatDealDate(deadline)}.`,
       status: "Totalité payé",
+      penaltyCycles: 0,
     });
 
     return {

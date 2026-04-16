@@ -273,9 +273,13 @@ router.post(
          SET status = CASE
            WHEN freelancer_id = ? THEN 'Terminé'
            ELSE status
-         END
+         END,
+             submitted_at = CASE
+               WHEN freelancer_id = ? THEN COALESCE(submitted_at, NOW())
+               ELSE submitted_at
+             END
          WHERE id = ?`,
-        [Number(senderId), id]
+        [Number(senderId), Number(senderId), id]
       );
 
       const [rows] = await db.execute(

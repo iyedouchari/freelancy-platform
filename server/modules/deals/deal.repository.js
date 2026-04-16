@@ -84,6 +84,7 @@ const mapDealRow = (row) => {
     advanceAmount: Number(row.advance_amount),
     advanceDueAt: normalizeTimestamp(row.advance_due_at),
     deadline: normalizeDate(row.deadline),
+    penaltyCycles: Number(row.penalty_cycles ?? 0),
     createdAt: normalizeTimestamp(row.created_at),
     submittedAt: normalizeTimestamp(row.submitted_at),
     finalPaidAt: normalizeTimestamp(row.final_paid_at),
@@ -188,6 +189,18 @@ export const ensureDealsTable = async () => {
     "deals",
     "payment_note",
     "payment_note TEXT DEFAULT NULL AFTER final_paid_at",
+  );
+
+  await addColumnIfMissing(
+    "deals",
+    "penalty_cycles",
+    "penalty_cycles INT NOT NULL DEFAULT 0 AFTER deadline",
+  );
+
+  await addColumnIfMissing(
+    "deals",
+    "submitted_at",
+    "submitted_at DATETIME DEFAULT NULL AFTER penalty_cycles",
   );
 };
 
