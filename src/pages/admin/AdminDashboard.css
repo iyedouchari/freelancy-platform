@@ -175,6 +175,12 @@ width: min(1380px, calc(100% - 8px));  margin: 0 auto;
   color: #28416c;
 }
 
+.admin-ban-wide.is-danger-soft {
+  background: linear-gradient(135deg, #b91c1c, #dc2626);
+  color: #fff;
+  box-shadow: 0 14px 30px rgba(185, 28, 28, 0.25);
+}
+
 .admin-mail-btn.is-muted {
   background: linear-gradient(135deg, #475569, #64748b);
 }
@@ -385,6 +391,11 @@ width: min(1380px, calc(100% - 8px));  margin: 0 auto;
 .admin-report-detail-actions {
   display: grid;
   gap: 16px;
+}
+
+.admin-user-actions {
+  display: grid;
+  gap: 10px;
 }
 
 .admin-user-card {

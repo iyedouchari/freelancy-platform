@@ -26,6 +26,11 @@ const parseDurationDays = (value) => {
   return parsed;
 };
 
+const isForeignKeyConstraintError = (error) =>
+  error?.errno === 1451 ||
+  error?.code === "ER_ROW_IS_REFERENCED_2" ||
+  String(error?.sqlMessage || error?.message || "").includes("a foreign key constraint fails");
+
 const computeSuspendedUntilFromDuration = (durationDays) => {
   if (!durationDays) {
     return null;
@@ -248,6 +253,51 @@ export const adminService = {
     });
 
     return adminRepository.findUserById(normalizedUserId);
+  },
+
+  async deleteUser(adminUserId, userId) {
+    const normalizedAdminId = parsePositiveId(adminUserId, "Admin id");
+    const normalizedUserId = parsePositiveId(userId, "User id");
+
+    if (normalizedAdminId === normalizedUserId) {
+      throw new AppError(
+        "Un administrateur ne peut pas supprimer son propre compte.",
+        400,
+        "SELF_DELETE_FORBIDDEN",
+      );
+    }
+
+    const user = await adminRepository.findUserById(normalizedUserId);
+    if (!user) {
+      throw new AppError("Utilisateur introuvable.", 404, "USER_NOT_FOUND");
+    }
+
+    if (String(user.role || "").toLowerCase() === "admin") {
+      throw new AppError(
+        "La suppression d'un compte administrateur est interdite.",
+        403,
+        "ADMIN_DELETE_FORBIDDEN",
+      );
+    }
+
+    try {
+      await adminRepository.deleteUserById(normalizedUserId);
+    } catch (error) {
+      if (!isForeignKeyConstraintError(error)) {
+        throw error;
+      }
+
+      throw new AppError(
+        "Suppression impossible: ce compte est lie a des contrats ou paiements existants.",
+        409,
+        "USER_DELETE_CONFLICT",
+      );
+    }
+
+    return {
+      id: normalizedUserId,
+      deleted: true,
+    };
   },
 
   async unbanUser(userId) {

@@ -34,6 +34,9 @@ const parseBoolean = (value, fallback = false) => {
 export const env = Object.freeze({
   NODE_ENV: process.env.NODE_ENV || "development",
   PORT: parseNumber(process.env.PORT, 4000),
+  NON_PAYMENT_RULE_ENABLED: parseBoolean(process.env.NON_PAYMENT_RULE_ENABLED, true),
+  NON_PAYMENT_RULE_GRACE_HOURS: parseNumber(process.env.NON_PAYMENT_RULE_GRACE_HOURS, 24),
+  NON_PAYMENT_RULE_INTERVAL_MS: parseNumber(process.env.NON_PAYMENT_RULE_INTERVAL_MS, 300000),
   SYSTEM_WALLET_OWNER_ID: parseNumber(process.env.SYSTEM_WALLET_OWNER_ID, 999),
   SYSTEM_WALLET_EMAIL: process.env.SYSTEM_WALLET_EMAIL || "system-wallet-999@platform.local",
   SYSTEM_WALLET_NAME: process.env.SYSTEM_WALLET_NAME || "System Wallet",

@@ -1,4 +1,5 @@
 import db from "../../config/db.js";
+import { env } from "../../config/env.js";
 import { dealRepository } from "../deals/deal.repository.js";
 import * as paymentRepo from "./payment.repository.js";
 import {
@@ -13,8 +14,20 @@ import {
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const PENALTY_RATE = 0.1;
 const PENALTY_CYCLE_DAYS = 3;
+const NON_PAYMENT_GRACE_HOURS = Math.max(1, env.NON_PAYMENT_RULE_GRACE_HOURS);
+const NON_PAYMENT_WATCH_INTERVAL_MS = Math.max(60000, env.NON_PAYMENT_RULE_INTERVAL_MS);
+const NON_PAYMENT_ACTIVE_DEAL_STATUSES = [
+  "En cours",
+  "Actif",
+  "Soumis",
+  "En attente paiement final",
+  "Terminé",
+];
 
 const roundMoney = (value) => Math.round(Number(value) * 100) / 100;
+
+let nonPaymentRuleTimer = null;
+let nonPaymentRuleRunning = false;
 
 export async function stripeDummy({ amount, metadata = {} }) {
   await new Promise((resolve) => setTimeout(resolve, 300));
@@ -102,6 +115,232 @@ function computeDelayPenalty(deal) {
     penaltyAmount,
     hasPenalty: penaltyAmount > 0,
   };
+}
+
+function isFinalPaymentGraceExpired(submittedAt, now = new Date()) {
+  if (!submittedAt) {
+    return false;
+  }
+
+  const submittedDate = new Date(submittedAt);
+  if (Number.isNaN(submittedDate.getTime()) || Number.isNaN(now.getTime())) {
+    return false;
+  }
+
+  return now.getTime() - submittedDate.getTime() >= NON_PAYMENT_GRACE_HOURS * 60 * 60 * 1000;
+}
+
+async function isPaymentTypePaid(connection, dealId, paymentType) {
+  const [rows] = await connection.query(
+    `SELECT 1
+     FROM payments
+     WHERE deal_id = ?
+       AND payment_type = ?
+       AND status = 'Paye'
+     LIMIT 1`,
+    [dealId, paymentType],
+  );
+
+  return rows.length > 0;
+}
+
+async function applyAutoCancellationForNonPayment(connection, deal) {
+  const dealId = Number(deal?.id);
+  const dealStatus = String(deal?.status || "");
+  const submittedAt = deal?.submittedAt ?? deal?.submitted_at ?? null;
+  const freelancerId = Number(deal?.freelancerId ?? deal?.freelancer_id);
+  const advanceAmount = roundMoney(Number(deal?.advanceAmount ?? deal?.advance_amount ?? 0));
+
+  if (!dealId || !freelancerId) {
+    return { applied: false, reason: "invalid_deal" };
+  }
+
+  if (dealStatus === "Annule" || dealStatus === "Totalité payé") {
+    return { applied: false, reason: "terminal_status" };
+  }
+
+  if (!isFinalPaymentGraceExpired(submittedAt)) {
+    return { applied: false, reason: "grace_not_expired" };
+  }
+
+  const finalPaid = await isPaymentTypePaid(connection, dealId, "Paiement final");
+  if (finalPaid) {
+    return { applied: false, reason: "final_paid" };
+  }
+
+  const advancePaid = await isPaymentTypePaid(connection, dealId, "Avance");
+
+  if (advancePaid && advanceAmount > 0) {
+    await ensureSystemWalletOwner(connection);
+    const systemWallet = await findSystemWallet(connection);
+
+    if (Number(systemWallet.balance) < advanceAmount) {
+      throw new Error(`Solde wallet systeme insuffisant pour reverser l'acompte du deal #${dealId}.`);
+    }
+
+    const freelancerWallet = await findWalletByOwnerId(freelancerId, connection);
+    const freelancerBalanceBefore = Number(freelancerWallet.balance);
+
+    await debitWallet(systemWallet.owner_id, advanceAmount, connection);
+    await creditWallet(freelancerId, advanceAmount, connection);
+
+    await createTransaction(
+      {
+        walletId: freelancerWallet.id,
+        dealId,
+        type: "advance_credit",
+        amount: advanceAmount,
+        balanceBefore: freelancerBalanceBefore,
+        balanceAfter: roundMoney(freelancerBalanceBefore + advanceAmount),
+      },
+      connection,
+    );
+  }
+
+  const note = advancePaid
+    ? `Contrat annule automatiquement: solde non paye sous ${NON_PAYMENT_GRACE_HOURS}h apres livraison. Acompte de ${advanceAmount.toFixed(2)} DT reverse au freelance.`
+    : `Contrat annule automatiquement: solde non paye sous ${NON_PAYMENT_GRACE_HOURS}h apres livraison.`;
+
+  await connection.query(
+    `UPDATE deals
+     SET status = 'Annule',
+         payment_note = ?
+     WHERE id = ?`,
+    [note, dealId],
+  );
+
+  return {
+    applied: true,
+    dealId,
+    releasedAdvanceAmount: advancePaid ? advanceAmount : 0,
+  };
+}
+
+async function findOverdueUnpaidDealIds() {
+  const placeholders = NON_PAYMENT_ACTIVE_DEAL_STATUSES.map(() => "?").join(", ");
+  const [rows] = await db.query(
+    `SELECT d.id
+     FROM deals d
+     WHERE d.submitted_at IS NOT NULL
+       AND d.status IN (${placeholders})
+       AND TIMESTAMPDIFF(HOUR, d.submitted_at, NOW()) >= ?
+       AND EXISTS (
+         SELECT 1
+         FROM payments p
+         WHERE p.deal_id = d.id
+           AND p.payment_type = 'Avance'
+           AND p.status = 'Paye'
+       )
+       AND NOT EXISTS (
+         SELECT 1
+         FROM payments p
+         WHERE p.deal_id = d.id
+           AND p.payment_type = 'Paiement final'
+           AND p.status = 'Paye'
+       )`,
+    [...NON_PAYMENT_ACTIVE_DEAL_STATUSES, NON_PAYMENT_GRACE_HOURS],
+  );
+
+  return rows
+    .map((row) => Number(row.id))
+    .filter((dealId) => Number.isInteger(dealId) && dealId > 0);
+}
+
+export async function enforceNonPaymentFinalRule() {
+  if (!env.NON_PAYMENT_RULE_ENABLED) {
+    return { enabled: false, candidates: 0, processed: 0, skipped: 0, failed: 0 };
+  }
+
+  if (nonPaymentRuleRunning) {
+    return { enabled: true, candidates: 0, processed: 0, skipped: 0, failed: 0, running: true };
+  }
+
+  nonPaymentRuleRunning = true;
+
+  try {
+    const candidateDealIds = await findOverdueUnpaidDealIds();
+    let processed = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (const dealId of candidateDealIds) {
+      try {
+        const outcome = await runPaymentTransaction(async (connection) => {
+          const [rows] = await connection.query(
+            `SELECT id, freelancer_id, advance_amount, submitted_at, status
+             FROM deals
+             WHERE id = ?
+             FOR UPDATE`,
+            [dealId],
+          );
+
+          if (!rows[0]) {
+            return { applied: false, reason: "deal_not_found" };
+          }
+
+          return applyAutoCancellationForNonPayment(connection, rows[0]);
+        });
+
+        if (outcome?.applied) {
+          processed += 1;
+        } else {
+          skipped += 1;
+        }
+      } catch (error) {
+        failed += 1;
+        console.error(`[non-payment-rule] deal #${dealId} failed:`, error.message);
+      }
+    }
+
+    return {
+      enabled: true,
+      candidates: candidateDealIds.length,
+      processed,
+      skipped,
+      failed,
+    };
+  } finally {
+    nonPaymentRuleRunning = false;
+  }
+}
+
+export function startNonPaymentFinalRuleWatcher() {
+  if (!env.NON_PAYMENT_RULE_ENABLED) {
+    return null;
+  }
+
+  if (nonPaymentRuleTimer) {
+    return nonPaymentRuleTimer;
+  }
+
+  const runTick = async () => {
+    try {
+      const summary = await enforceNonPaymentFinalRule();
+      if (summary.processed > 0 || summary.failed > 0) {
+        console.log(
+          `[non-payment-rule] candidates=${summary.candidates} processed=${summary.processed} failed=${summary.failed}`,
+        );
+      }
+    } catch (error) {
+      console.error("[non-payment-rule] unexpected watcher error:", error.message);
+    }
+  };
+
+  void runTick();
+  nonPaymentRuleTimer = setInterval(() => {
+    void runTick();
+  }, NON_PAYMENT_WATCH_INTERVAL_MS);
+
+  return nonPaymentRuleTimer;
+}
+
+export function stopNonPaymentFinalRuleWatcher() {
+  if (!nonPaymentRuleTimer) {
+    return;
+  }
+
+  clearInterval(nonPaymentRuleTimer);
+  nonPaymentRuleTimer = null;
 }
 
 async function runPaymentTransaction(callback) {
@@ -218,6 +457,23 @@ export async function payFinal({ dealId, clientId, freelancerId, amount }) {
     const deal = await dealRepository.findById(dealId, connection);
     const escrowAmount = Number(deal?.advanceAmount ?? 0);
     const finalAmountDue = roundMoney(Number(amount));
+
+    if (deal?.status === "Annule") {
+      throw new Error("Le deal est annule.");
+    }
+
+    if (isFinalPaymentGraceExpired(deal?.submittedAt)) {
+      const cancellation = await applyAutoCancellationForNonPayment(connection, deal);
+      if (cancellation.applied) {
+        throw new Error(
+          `Le delai de paiement final (${NON_PAYMENT_GRACE_HOURS}h) est depasse. Le contrat a ete annule et l'acompte reverse au freelance.`,
+        );
+      }
+
+      throw new Error(
+        `Le delai de paiement final (${NON_PAYMENT_GRACE_HOURS}h) est depasse.`,
+      );
+    }
 
     if (deal?.status === "Totalité payé") {
       throw new Error("Le paiement final a deja ete effectue pour ce deal.");

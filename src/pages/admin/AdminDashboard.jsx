@@ -97,6 +97,7 @@ export default function AdminDashboard() {
   const [banReason, setBanReason] = useState("");
   const [banDurationDays, setBanDurationDays] = useState("7");
   const [isApplyingBan, setIsApplyingBan] = useState(false);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [reportBanReason, setReportBanReason] = useState("");
   const [reportBanDurationDays, setReportBanDurationDays] = useState("7");
   const [isApplyingReportBan, setIsApplyingReportBan] = useState(false);
@@ -344,6 +345,38 @@ export default function AdminDashboard() {
           setErrorMessage(error.message || "Impossible de mettre a jour le ban.");
         } finally {
           setIsApplyingBan(false);
+        }
+      },
+    });
+  };
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+    const userId = Number(selectedUser.id);
+    const userRole = String(selectedUser.role || "").toLowerCase();
+    const isAdminAccount = userRole === "admin";
+
+    openConfirmDialog({
+      title: "Supprimer ce compte utilisateur ?",
+      message: `Le compte #${userId} sera supprime definitivement.`,
+      warning: isAdminAccount
+        ? "La suppression d'un compte administrateur est interdite."
+        : "Cette action est irreversible.",
+      confirmDisabled: isAdminAccount,
+      onConfirm: async () => {
+        setNotice("");
+        setErrorMessage("");
+        setIsDeletingUser(true);
+
+        try {
+          await adminService.deleteUser(userId);
+          setSelectedUser(null);
+          setNotice(`Le compte #${userId} a ete supprime avec succes.`);
+          await loadAdminData();
+        } catch (error) {
+          setErrorMessage(error.message || "Impossible de supprimer ce compte.");
+        } finally {
+          setIsDeletingUser(false);
         }
       },
     });
@@ -885,14 +918,28 @@ export default function AdminDashboard() {
 
               
 
-              <button
-                type="button"
-                className={`admin-ban-wide ${selectedUser.isSuspended ? "is-secondary" : "is-danger"}`}
-                onClick={handleBanSubmit}
-                disabled={isApplyingBan}
-              >
-                {isApplyingBan ? "Mise a jour..." : selectedUser.isSuspended ? "Debannir cet utilisateur" : "Bannir cet utilisateur"}
-              </button>
+              <div className="admin-user-actions">
+                <button
+                  type="button"
+                  className={`admin-ban-wide ${selectedUser.isSuspended ? "is-secondary" : "is-danger"}`}
+                  onClick={handleBanSubmit}
+                  disabled={isApplyingBan || isDeletingUser}
+                >
+                  {isApplyingBan ? "Mise a jour..." : selectedUser.isSuspended ? "Debannir cet utilisateur" : "Bannir cet utilisateur"}
+                </button>
+                <button
+                  type="button"
+                  className="admin-ban-wide is-danger-soft"
+                  onClick={handleDeleteUser}
+                  disabled={
+                    isDeletingUser ||
+                    isApplyingBan ||
+                    String(selectedUser.role || "").toLowerCase() === "admin"
+                  }
+                >
+                  {isDeletingUser ? "Suppression..." : "Supprimer ce compte"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

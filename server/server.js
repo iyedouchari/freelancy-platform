@@ -6,6 +6,7 @@ import { attachSocket } from "./config/socket.js";
 import { prepareAuthStorage } from "./modules/auth/auth.repository.js";
 import { ensureDealsTable, ensureDealTriggers } from "./modules/deals/deal.repository.js";
 import { ensurePaymentsTable } from "./modules/payments/payment.repository.js";
+import { startNonPaymentFinalRuleWatcher } from "./modules/payments/payment.service.js";
 import { ensureProposalsTable } from "./modules/proposals/proposal.repository.js";
 import { ensureRequestsTable } from "./modules/requests/request.repository.js";
 import { ensureReviewsTable } from "./modules/reviews/review.repository.js";
@@ -96,6 +97,8 @@ export const startServer = async () => {
           `Port ${env.PORT} is busy. API server listening on port ${port} instead.`,
         );
       }
+
+      startNonPaymentFinalRuleWatcher();
 
       return server;
     } catch (error) {

@@ -73,6 +73,14 @@ export const unbanAdminUser = async (req, res) => {
   });
 };
 
+export const deleteAdminUser = async (req, res) => {
+  const result = await adminService.deleteUser(req.auth.userId, req.params.id);
+  return successResponse(res, {
+    message: "Utilisateur supprime avec succes.",
+    data: result,
+  });
+};
+
 export const notifyBannedUserByEmail = async (req, res) => {
   const report = await adminService.notifyBannedUser(req.params.id, req.body);
   return successResponse(res, {

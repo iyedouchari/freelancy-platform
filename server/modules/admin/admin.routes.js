@@ -4,6 +4,7 @@ import { roleMiddleware } from "../../middleware/roleMiddleware.js";
 import asyncHandler from "../../utils/asyncHandler.js";
 import {
   banAdminUser,
+  deleteAdminUser,
   getAdminReportById,
   getAdminUserByEmail,
   getAdminUserById,
@@ -25,6 +26,7 @@ router.get("/users/search", asyncHandler(getAdminUserByEmail));
 router.get("/users/:id", asyncHandler(getAdminUserById));
 router.patch("/users/:id/ban", asyncHandler(banAdminUser));
 router.patch("/users/:id/unban", asyncHandler(unbanAdminUser));
+router.delete("/users/:id", asyncHandler(deleteAdminUser));
 router.get("/reports", asyncHandler(listAdminReports));
 router.get("/reports/:id", asyncHandler(getAdminReportById));
 router.patch("/reports/:id/close", asyncHandler(closeAdminReport));

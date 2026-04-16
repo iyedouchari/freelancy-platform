@@ -747,6 +747,17 @@ export const adminRepository = {
     return result.insertId;
   },
 
+  async deleteUserById(userId) {
+    await db.query(
+      `
+        DELETE FROM users
+        WHERE id = ?
+        LIMIT 1
+      `,
+      [userId],
+    );
+  },
+
   async markBanHistoryEmailSent(entryId, emailSentAt = new Date()) {
     await db.query(
       `

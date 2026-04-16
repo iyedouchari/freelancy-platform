@@ -74,6 +74,11 @@ export const adminService = {
       method: "PATCH",
     });
   },
+  deleteUser: async (userId) => {
+    return request(`/admin/users/${userId}`, {
+      method: "DELETE",
+    });
+  },
   notifyBannedUser: async (reportId, payload) => {
     return request(`/admin/reports/${reportId}/notify-banned-user`, {
       method: "POST",

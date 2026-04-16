@@ -166,10 +166,40 @@ export const ensureDealsTable = async () => {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
 
-  // Migrate any rows with deprecated statuses before altering the ENUM
-  try {
-    await db.query("UPDATE deals SET status = 'En cours' WHERE status = 'Avance payé'");
-  } catch { /* status may not exist in ENUM yet — safe to ignore */ }
+  // Normalize legacy status values safely before tightening the ENUM.
+  // Step 1: convert to VARCHAR to avoid enum truncation during migration.
+  await db.query(`
+    ALTER TABLE deals
+    MODIFY COLUMN status VARCHAR(64) NOT NULL DEFAULT 'En cours'
+  `);
+
+  // Step 2: map all legacy/unexpected values to the canonical set.
+  await db.query(`
+    UPDATE deals
+    SET status = CASE
+      WHEN status IS NULL THEN 'En cours'
+      WHEN TRIM(status) = '' THEN 'En cours'
+      WHEN status IN (
+        'En attente acompte',
+        'Avance payé',
+        'Avance payee',
+        'Termine',
+        'Totalite payé',
+        'Totalite paye',
+        'Totalité paye'
+      ) THEN 'En cours'
+      WHEN status IN (
+        'En cours',
+        'Totalité payé',
+        'Terminé',
+        'Actif',
+        'Soumis',
+        'En attente paiement final',
+        'Annule'
+      ) THEN status
+      ELSE 'En cours'
+    END
+  `);
 
   await db.query(`
     ALTER TABLE deals
