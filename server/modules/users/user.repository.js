@@ -21,6 +21,7 @@ const mapUserRow = (row, { includePassword = false } = {}) => {
     location: row.location,
     email: row.email,
     phone: row.phone,
+    bio: row.bio || "",
     role: normalizeRoleFromDb(row.role),
     isSuspended: Boolean(row.is_suspended),
     suspensionReason: row.suspension_reason || "",
@@ -103,7 +104,7 @@ export const createUser = async ({
 export const findUserByEmail = async (email, { includePassword = false } = {}) => {
   const db = getDb();
   const [rows] = await db.query(
-    "SELECT id, name, company, professional_title, location, email, phone, role, password AS password_hash, is_suspended, suspension_reason, suspended_until, suspension_duration_days, created_at FROM users WHERE email = ? LIMIT 1",
+    "SELECT id, name, company, professional_title, location, email, phone, bio, role, password AS password_hash, is_suspended, suspension_reason, suspended_until, suspension_duration_days, created_at FROM users WHERE email = ? LIMIT 1",
     [email],
   );
 
@@ -113,8 +114,68 @@ export const findUserByEmail = async (email, { includePassword = false } = {}) =
 export const findUserById = async (id) => {
   const db = getDb();
   const [rows] = await db.query(
-    "SELECT id, name, company, professional_title, location, email, phone, role, is_suspended, suspension_reason, suspended_until, suspension_duration_days, created_at FROM users WHERE id = ? LIMIT 1",
+    "SELECT id, name, company, professional_title, location, email, phone, bio, role, is_suspended, suspension_reason, suspended_until, suspension_duration_days, created_at FROM users WHERE id = ? LIMIT 1",
     [id],
   );
   return mapUserRow(rows[0]);
+};
+
+export const findUserByIdWithPassword = async (id) => {
+  const db = getDb();
+  const [rows] = await db.query(
+    "SELECT id, name, company, professional_title, location, email, phone, bio, role, password AS password_hash, is_suspended, suspension_reason, suspended_until, suspension_duration_days, created_at FROM users WHERE id = ? LIMIT 1",
+    [id],
+  );
+  return mapUserRow(rows[0], { includePassword: true });
+};
+
+export const updateUserById = async (id, updates = {}) => {
+  const db = getDb();
+  const fields = [];
+  const values = [];
+
+  if (updates.name !== undefined) {
+    fields.push("name = ?");
+    values.push(updates.name);
+  }
+
+  if (updates.title !== undefined) {
+    fields.push("professional_title = ?");
+    values.push(updates.title);
+  }
+
+  if (updates.email !== undefined) {
+    fields.push("email = ?");
+    values.push(updates.email);
+  }
+
+  if (updates.phone !== undefined) {
+    fields.push("phone = ?");
+    values.push(updates.phone);
+  }
+
+  if (updates.location !== undefined) {
+    fields.push("location = ?");
+    values.push(updates.location);
+  }
+
+  if (updates.bio !== undefined) {
+    fields.push("bio = ?");
+    values.push(updates.bio);
+  }
+
+  if (updates.passwordHash !== undefined) {
+    fields.push("password = ?");
+    values.push(updates.passwordHash);
+  }
+
+  if (!fields.length) {
+    return findUserById(id);
+  }
+
+  values.push(id);
+
+  await db.query(`UPDATE users SET ${fields.join(", ")} WHERE id = ?`, values);
+
+  return findUserById(id);
 };

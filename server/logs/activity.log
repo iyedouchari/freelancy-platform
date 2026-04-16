@@ -60,3 +60,10 @@
 [2026-04-16 00:01:26] Utilisateur connecté | userId=4 | email=bachir@gmail.com | role=client | ip=::1
 [2026-04-16 00:13:47] Client a cree un projet | projet=49 | titre="test" | statut=Ouverte
 [2026-04-16 00:14:12] Utilisateur connecté | userId=1 | email=iyed.ouchari123@gmail.com | role=freelancer | ip=::1
+[2026-04-16 12:29:14] Utilisateur connecté | userId=3 | email=ons.benchaabene@etudiant-fst.utm.tn | role=freelancer | ip=::1
+[2026-04-16 12:31:32] Utilisateur connecté | userId=3 | email=ons.benchaabene@etudiant-fst.utm.tn | role=freelancer | ip=::1
+[2026-04-16 12:43:21] Utilisateur connecté | userId=6 | email=admin@gmail.com | role=admin | ip=::1
+[2026-04-16 12:44:07] Utilisateur connecté | userId=3 | email=ons.benchaabene@etudiant-fst.utm.tn | role=freelancer | ip=::1
+[2026-04-16 12:44:14] Utilisateur a supprime une livraison | userId=3 | projet=1 | livraison=8
+[2026-04-16 12:44:15] Utilisateur a supprime une livraison | userId=3 | projet=1 | livraison=4
+[2026-04-16 12:44:28] Utilisateur connecté | userId=4 | email=eya@gmail.com | role=client | ip=::1

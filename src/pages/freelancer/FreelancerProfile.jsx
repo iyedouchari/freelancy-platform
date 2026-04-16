@@ -21,32 +21,35 @@ const DEFAULT_STATS = [
   { label: "Taux de reussite", value: "97%" },
 ];
 
-const readLocalProfile = () => ({
-  bio:
-    localStorage.getItem("freelancer_bio") ||
-    "Freelancer serieux, organise et attentif a la qualite des livrables.",
-  fields: JSON.parse(localStorage.getItem("freelancer_fields") || "[]"),
-  profileImage: localStorage.getItem("freelancer_image") || null,
+// ── Helpers localStorage keyed par userId ──────────────────────────────────
+
+const localKey = (userId, field) => `freelancer_${userId}_${field}`;
+
+const readLocalProfile = (userId) => ({
+  bio: localStorage.getItem(localKey(userId, "bio")) || "",
+  fields: JSON.parse(localStorage.getItem(localKey(userId, "fields")) || "[]"),
+  profileImage: localStorage.getItem(localKey(userId, "image")) || null,
 });
 
-const persistLocalProfile = (profile) => {
-  localStorage.setItem("freelancer_bio", profile.bio || "");
-  localStorage.setItem("freelancer_fields", JSON.stringify(profile.fields || []));
-
+const persistLocalProfile = (userId, profile) => {
+  localStorage.setItem(localKey(userId, "bio"), profile.bio || "");
+  localStorage.setItem(localKey(userId, "fields"), JSON.stringify(profile.fields || []));
   if (profile.profileImage) {
-    localStorage.setItem("freelancer_image", profile.profileImage);
+    localStorage.setItem(localKey(userId, "image"), profile.profileImage);
   } else {
-    localStorage.removeItem("freelancer_image");
+    localStorage.removeItem(localKey(userId, "image"));
   }
 };
 
-const persistSessionProfile = (profile) => {
-  localStorage.setItem("freelancer_name", profile.name || "");
-  localStorage.setItem("freelancer_title", profile.title || "");
-  localStorage.setItem("freelancer_location", profile.location || "");
-  localStorage.setItem("freelancer_email", profile.email || "");
-  localStorage.setItem("freelancer_phone", profile.phone || "");
+const persistSessionProfile = (userId, profile) => {
+  localStorage.setItem(localKey(userId, "name"), profile.name || "");
+  localStorage.setItem(localKey(userId, "title"), profile.title || "");
+  localStorage.setItem(localKey(userId, "location"), profile.location || "");
+  localStorage.setItem(localKey(userId, "email"), profile.email || "");
+  localStorage.setItem(localKey(userId, "phone"), profile.phone || "");
 };
+
+// ── EditProfile ─────────────────────────────────────────────────────────────
 
 function EditProfile({ profile, onSave, onCancel, isSaving }) {
   const [draft, setDraft] = useState(profile);
@@ -68,7 +71,6 @@ function EditProfile({ profile, onSave, onCancel, isSaving }) {
   const handleImageChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onloadend = () => {
       setDraft((current) => ({ ...current, profileImage: reader.result }));
@@ -96,7 +98,7 @@ function EditProfile({ profile, onSave, onCancel, isSaving }) {
             <input
               type="text"
               value={draft.name}
-              onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+              onChange={(e) => setDraft((c) => ({ ...c, name: e.target.value }))}
             />
           </label>
           <label>
@@ -104,7 +106,7 @@ function EditProfile({ profile, onSave, onCancel, isSaving }) {
             <input
               type="text"
               value={draft.title}
-              onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
+              onChange={(e) => setDraft((c) => ({ ...c, title: e.target.value }))}
             />
           </label>
           <label>
@@ -112,7 +114,7 @@ function EditProfile({ profile, onSave, onCancel, isSaving }) {
             <input
               type="email"
               value={draft.email}
-              onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))}
+              onChange={(e) => setDraft((c) => ({ ...c, email: e.target.value }))}
             />
           </label>
           <label>
@@ -120,7 +122,7 @@ function EditProfile({ profile, onSave, onCancel, isSaving }) {
             <input
               type="text"
               value={draft.phone}
-              onChange={(event) => setDraft((current) => ({ ...current, phone: event.target.value }))}
+              onChange={(e) => setDraft((c) => ({ ...c, phone: e.target.value }))}
             />
           </label>
           <label>
@@ -128,7 +130,7 @@ function EditProfile({ profile, onSave, onCancel, isSaving }) {
             <input
               type="text"
               value={draft.location}
-              onChange={(event) => setDraft((current) => ({ ...current, location: event.target.value }))}
+              onChange={(e) => setDraft((c) => ({ ...c, location: e.target.value }))}
             />
           </label>
           <label>
@@ -136,9 +138,7 @@ function EditProfile({ profile, onSave, onCancel, isSaving }) {
             <input
               type="password"
               value={draft.currentPassword || ""}
-              onChange={(event) =>
-                setDraft((current) => ({ ...current, currentPassword: event.target.value }))
-              }
+              onChange={(e) => setDraft((c) => ({ ...c, currentPassword: e.target.value }))}
               placeholder="Laisser vide si inchangé"
             />
           </label>
@@ -147,9 +147,7 @@ function EditProfile({ profile, onSave, onCancel, isSaving }) {
             <input
               type="password"
               value={draft.newPassword || ""}
-              onChange={(event) =>
-                setDraft((current) => ({ ...current, newPassword: event.target.value }))
-              }
+              onChange={(e) => setDraft((c) => ({ ...c, newPassword: e.target.value }))}
               placeholder="Optionnel"
             />
           </label>
@@ -158,9 +156,7 @@ function EditProfile({ profile, onSave, onCancel, isSaving }) {
             <input
               type="password"
               value={draft.confirmPassword || ""}
-              onChange={(event) =>
-                setDraft((current) => ({ ...current, confirmPassword: event.target.value }))
-              }
+              onChange={(e) => setDraft((c) => ({ ...c, confirmPassword: e.target.value }))}
               placeholder="Confirmer seulement si tu changes le mot de passe"
             />
           </label>
@@ -169,8 +165,8 @@ function EditProfile({ profile, onSave, onCancel, isSaving }) {
 
       <section className="profile-panel">
         <div className="profile-panel-head">
-          <h2>Presentation</h2>
-          <p>Un texte court, simple et clair.</p>
+          <h2>Présentation</h2>
+          <p>Un texte court, simple et clair qui décrit ton profil.</p>
         </div>
 
         <label className="profile-textarea-field">
@@ -178,7 +174,8 @@ function EditProfile({ profile, onSave, onCancel, isSaving }) {
           <textarea
             rows={5}
             value={draft.bio}
-            onChange={(event) => setDraft((current) => ({ ...current, bio: event.target.value }))}
+            onChange={(e) => setDraft((c) => ({ ...c, bio: e.target.value }))}
+            placeholder="Décris ton expérience, tes compétences et ce qui te distingue…"
           />
         </label>
       </section>
@@ -224,23 +221,17 @@ function EditProfile({ profile, onSave, onCancel, isSaving }) {
               <button type="button" className="profile-image-trigger" onClick={() => imageInputRef.current?.click()}>
                 Choisir une image
               </button>
-              {draft.profileImage ? (
+              {draft.profileImage && (
                 <button
                   type="button"
                   className="profile-image-remove"
-                  onClick={() => setDraft((current) => ({ ...current, profileImage: null }))}
+                  onClick={() => setDraft((c) => ({ ...c, profileImage: null }))}
                 >
                   Supprimer
                 </button>
-              ) : null}
+              )}
             </div>
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={handleImageChange}
-            />
+            <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleImageChange} />
           </div>
         </div>
       </section>
@@ -257,17 +248,19 @@ function EditProfile({ profile, onSave, onCancel, isSaving }) {
   );
 }
 
+// ── FreelancerProfile ───────────────────────────────────────────────────────
+
 export default function FreelancerProfile({ onBack }) {
-  const localProfile = useMemo(() => readLocalProfile(), []);
+  const [userId, setUserId] = useState(null);
   const [profile, setProfile] = useState({
-    name: localStorage.getItem("freelancer_name") || "Freelancer",
-    title: localStorage.getItem("freelancer_title") || "Freelance",
-    email: localStorage.getItem("freelancer_email") || "",
-    phone: localStorage.getItem("freelancer_phone") || "",
-    location: localStorage.getItem("freelancer_location") || "",
-    bio: localProfile.bio,
-    fields: localProfile.fields,
-    profileImage: localProfile.profileImage,
+    name: "Freelancer",
+    title: "Freelance",
+    email: "",
+    phone: "",
+    location: "",
+    bio: "",
+    fields: [],
+    profileImage: null,
   });
   const [showEdit, setShowEdit] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -286,35 +279,38 @@ export default function FreelancerProfile({ onBack }) {
 
         if (!isMounted || !user) return;
 
+        // Utilise l'id de l'utilisateur comme clé localStorage
+        const uid = user.id || user._id || user.email || "default";
+        if (!isMounted) return;
+        setUserId(uid);
+
+        const local = readLocalProfile(uid);
+
         const mergedProfile = {
-          name: user.name || localStorage.getItem("freelancer_name") || "Freelancer",
-          title: user.title || localStorage.getItem("freelancer_title") || "Freelance",
-          email: user.email || localStorage.getItem("freelancer_email") || "",
-          phone: user.telephone || user.phone || localStorage.getItem("freelancer_phone") || "",
-          location: user.location || localStorage.getItem("freelancer_location") || "",
-          bio: user.bio || localProfile.bio,
-          fields: Array.isArray(domains) && domains.length ? domains : localProfile.fields,
-          profileImage: localProfile.profileImage,
+          name: user.name || localStorage.getItem(localKey(uid, "name")) || "Freelancer",
+          title: user.title || localStorage.getItem(localKey(uid, "title")) || "Freelance",
+          email: user.email || localStorage.getItem(localKey(uid, "email")) || "",
+          phone: user.telephone || user.phone || localStorage.getItem(localKey(uid, "phone")) || "",
+          location: user.location || localStorage.getItem(localKey(uid, "location")) || "",
+          // La bio vient d'abord de l'API, puis du localStorage propre à cet utilisateur
+          bio: user.bio || local.bio || "",
+          fields: Array.isArray(domains) && domains.length ? domains : local.fields,
+          profileImage: local.profileImage,
         };
 
         setProfile(mergedProfile);
-        persistSessionProfile(mergedProfile);
-        persistLocalProfile(mergedProfile);
+        persistSessionProfile(uid, mergedProfile);
+        persistLocalProfile(uid, mergedProfile);
       } catch (_error) {
-        // Keep local fallback if API is unavailable.
+        // Fallback silencieux — on garde l'état initial vide
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (isMounted) setIsLoading(false);
       }
     };
 
     loadProfile();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [localProfile.bio, localProfile.fields, localProfile.profileImage]);
+    return () => { isMounted = false; };
+  }, []);
 
   const handleSave = async (draft) => {
     setFeedback("");
@@ -329,12 +325,10 @@ export default function FreelancerProfile({ onBack }) {
       setFeedback("Le nouveau mot de passe est vide. Laisse les 3 champs vides si tu ne veux rien changer.");
       return;
     }
-
     if (wantsPasswordChange && !String(draft.currentPassword || "").trim()) {
       setFeedback("Saisis le mot de passe actuel pour confirmer le changement.");
       return;
     }
-
     if (wantsPasswordChange && draft.newPassword !== draft.confirmPassword) {
       setFeedback("La confirmation du nouveau mot de passe ne correspond pas.");
       return;
@@ -350,7 +344,7 @@ export default function FreelancerProfile({ onBack }) {
         phone: draft.phone,
         telephone: draft.phone,
         location: draft.location,
-        bio: draft.bio,
+        bio: draft.bio,          // ← bio envoyée à l'API
       });
 
       if (wantsPasswordChange) {
@@ -366,24 +360,26 @@ export default function FreelancerProfile({ onBack }) {
         email: updatedUser.email || draft.email,
         phone: updatedUser.telephone || updatedUser.phone || draft.phone,
         location: updatedUser.location || draft.location,
-        bio: draft.bio,
+        bio: updatedUser.bio ?? draft.bio,   // ← priorité à la réponse API
         fields: draft.fields,
         profileImage: draft.profileImage,
       };
 
       setProfile(nextProfile);
-      persistSessionProfile(nextProfile);
-      persistLocalProfile(nextProfile);
+      if (userId) {
+        persistSessionProfile(userId, nextProfile);
+        persistLocalProfile(userId, nextProfile);
+      }
       await requestService.syncFreelancerDomains(draft.fields).catch(() => []);
       setShowEdit(false);
-      setFeedback("Profil mis a jour.");
+      setFeedback("Profil mis à jour.");
       showAppFeedback({
         tone: "success",
-        title: "Profil mis a jour",
-        message: "Les informations principales ont ete enregistrees.",
+        title: "Profil mis à jour",
+        message: "Les informations ont été enregistrées.",
       });
     } catch (error) {
-      setFeedback(error.message || "Impossible de mettre a jour le profil.");
+      setFeedback(error.message || "Impossible de mettre à jour le profil.");
     } finally {
       setIsSaving(false);
     }
@@ -403,7 +399,7 @@ export default function FreelancerProfile({ onBack }) {
           <button onClick={() => setShowEdit(false)} className="profile-back-btn">
             Retour au profil
           </button>
-          {feedback ? <div className="profile-feedback">{feedback}</div> : null}
+          {feedback && <div className="profile-feedback">{feedback}</div>}
           <EditProfile profile={profile} onSave={handleSave} onCancel={() => setShowEdit(false)} isSaving={isSaving} />
         </div>
       </div>
@@ -417,23 +413,30 @@ export default function FreelancerProfile({ onBack }) {
           Retour au tableau de bord
         </button>
 
-        {feedback ? <div className="profile-feedback">{feedback}</div> : null}
+        {feedback && <div className="profile-feedback">{feedback}</div>}
 
         <section className="profile-simple-hero">
           <div className="profile-simple-main">
             <div className="profile-simple-avatar">
-              {profile.profileImage ? <img src={profile.profileImage} alt={profile.name} className="profile-avatar-img" /> : initials}
+              {profile.profileImage
+                ? <img src={profile.profileImage} alt={profile.name} className="profile-avatar-img" />
+                : initials}
             </div>
             <div>
               <h1>{profile.name}</h1>
               <p>{profile.title || "Freelancer"}</p>
               <div className="profile-simple-pills">
-                <span>{profile.location || "Localisation non definie"}</span>
-                <span>{profile.email || "Email non defini"}</span>
+                <span>{profile.location || "Localisation non définie"}</span>
+                <span>{profile.email || "Email non défini"}</span>
               </div>
             </div>
           </div>
-          <button type="button" className="profile-primary-btn" onClick={() => setShowEdit(true)} disabled={isLoading}>
+          <button
+            type="button"
+            className="profile-primary-btn"
+            onClick={() => setShowEdit(true)}
+            disabled={isLoading}
+          >
             Modifier le profil
           </button>
         </section>
@@ -450,52 +453,43 @@ export default function FreelancerProfile({ onBack }) {
         <div className="profile-simple-grid">
           <section className="profile-panel">
             <div className="profile-panel-head">
-              <h2>A propos</h2>
+              <h2>À propos</h2>
             </div>
-            <p className="profile-bio-text">{isLoading ? "Chargement..." : profile.bio || "-"}</p>
+            <p className="profile-bio-text">
+              {isLoading
+                ? "Chargement..."
+                : profile.bio || <em className="profile-empty-text">Aucune bio renseignée.</em>}
+            </p>
           </section>
 
           <section className="profile-panel">
             <div className="profile-panel-head">
-              <h2>Coordonnees</h2>
+              <h2>Coordonnées</h2>
             </div>
             <div className="profile-contact-list">
-              <div>
-                <span>Email</span>
-                <strong>{profile.email || "-"}</strong>
-              </div>
-              <div>
-                <span>Telephone</span>
-                <strong>{profile.phone || "-"}</strong>
-              </div>
-              <div>
-                <span>Localisation</span>
-                <strong>{profile.location || "-"}</strong>
-              </div>
+              <div><span>Email</span><strong>{profile.email || "-"}</strong></div>
+              <div><span>Téléphone</span><strong>{profile.phone || "-"}</strong></div>
+              <div><span>Localisation</span><strong>{profile.location || "-"}</strong></div>
             </div>
           </section>
         </div>
 
-        <section className="profile-panel">
+        <section className="profile-panel" style={{ marginBottom: 24 }}>
           <div className="profile-panel-head">
             <h2>Domaines</h2>
           </div>
           <div className="profile-fields-wrap">
-            {(profile.fields || []).length ? (
-              profile.fields.map((field) => (
-                <span key={field} className="profile-field-tag">
-                  {field}
-                </span>
-              ))
-            ) : (
-              <span className="profile-empty-text">Aucun domaine selectionne.</span>
-            )}
+            {(profile.fields || []).length
+              ? profile.fields.map((field) => (
+                  <span key={field} className="profile-field-tag">{field}</span>
+                ))
+              : <span className="profile-empty-text">Aucun domaine sélectionné.</span>}
           </div>
         </section>
 
         <section className="profile-panel">
           <div className="profile-panel-head">
-            <h2>Avis recents</h2>
+            <h2>Avis récents</h2>
           </div>
           <FeedbackCard feedback={sampleFeedback} />
         </section>
