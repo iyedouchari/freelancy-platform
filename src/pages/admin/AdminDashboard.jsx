@@ -374,7 +374,7 @@ export default function AdminDashboard() {
             durationDays: reportBanDurationDays,
           });
 
-          const refreshedReport = await adminService.getReportById(selectedReport.id);
+          const refreshedReport = await adminService.updateReportStatus(selectedReport.id, "ferme");
           setSelectedReport(refreshedReport);
           setReportBanReason(String(updatedUser?.suspensionReason || trimmedReportBanReason));
           setReportBanDurationDays(String(updatedUser?.suspensionDurationDays || reportBanDurationDays || 7));
