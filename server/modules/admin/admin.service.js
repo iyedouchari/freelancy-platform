@@ -140,10 +140,14 @@ export const adminService = {
     const report = await this.getReportById(reportId);
 
     if (report.status === "ferme") {
+      if (report.reportedUserIsSuspended && !report.reportedUserEmailSentAt) {
+        return adminRepository.syncReportedUserEmailSentFromBanHistory(report.id, report.reportedUserId);
+      }
+
       return report;
     }
 
-    return adminRepository.updateReportStatus(report.id, "ferme");
+    return this.updateReportStatus(report.id, "ferme");
   },
 
   async updateReportStatus(reportId, nextStatus) {
@@ -155,10 +159,31 @@ export const adminService = {
     }
 
     if (report.status === normalizedStatus) {
+      if (
+        normalizedStatus === "ferme" &&
+        report.reportedUserIsSuspended &&
+        !report.reportedUserEmailSentAt
+      ) {
+        return adminRepository.syncReportedUserEmailSentFromBanHistory(report.id, report.reportedUserId);
+      }
+
       return report;
     }
 
-    return adminRepository.updateReportStatus(report.id, normalizedStatus);
+    const updatedReport = await adminRepository.updateReportStatus(report.id, normalizedStatus);
+
+    if (
+      normalizedStatus === "ferme" &&
+      updatedReport.reportedUserIsSuspended &&
+      !updatedReport.reportedUserEmailSentAt
+    ) {
+      return adminRepository.syncReportedUserEmailSentFromBanHistory(
+        updatedReport.id,
+        updatedReport.reportedUserId,
+      );
+    }
+
+    return updatedReport;
   },
 
   async banUser(adminUserId, userId, payload = {}) {
