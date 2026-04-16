@@ -637,6 +637,40 @@ export const adminRepository = {
     return this.findReportById(reportId);
   },
 
+  async syncReportedUserEmailSentFromBanHistory(reportId, userId) {
+    const [rows] = await db.query(
+      `
+        SELECT email_sent_at
+        FROM ban_history
+        WHERE user_id = ?
+          AND email_sent_at IS NOT NULL
+        ORDER BY email_sent_at DESC, id DESC
+        LIMIT 1
+      `,
+      [userId],
+    );
+
+    const latestEmailSentAt = rows[0]?.email_sent_at || null;
+
+    if (!latestEmailSentAt) {
+      return this.findReportById(reportId);
+    }
+
+    await db.query(
+      `
+        UPDATE reports
+        SET
+          reported_user_email_sent_at = COALESCE(reported_user_email_sent_at, ?),
+          reported_user_mail_sent = TRUE
+        WHERE id = ?
+        LIMIT 1
+      `,
+      [latestEmailSentAt, reportId],
+    );
+
+    return this.findReportById(reportId);
+  },
+
   async setUserSuspendedState(userId, { isSuspended, reason = "", durationDays = null }) {
     const normalizedDurationDays =
       durationDays === null || durationDays === undefined || durationDays === ""
