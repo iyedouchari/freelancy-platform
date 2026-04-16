@@ -126,3 +126,9 @@
 {"email":"admin@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"admin","service":"freelancy-api","timestamp":"2026-04-16T11:43:21.724Z","userId":6}
 {"email":"ons.benchaabene@etudiant-fst.utm.tn","ip":"::1","level":"info","message":"Utilisateur connecté","role":"freelancer","service":"freelancy-api","timestamp":"2026-04-16T11:44:07.409Z","userId":3}
 {"email":"eya@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"client","service":"freelancy-api","timestamp":"2026-04-16T11:44:28.198Z","userId":4}
+{"email":"ons.benchaabene@etudiant-fst.utm.tn","ip":"::1","level":"info","message":"Utilisateur connecté","role":"freelancer","service":"freelancy-api","timestamp":"2026-04-16T11:55:33.552Z","userId":3}
+{"email":"eya@gmail.com","level":"info","message":"Tentative de connexion avec mot de passe incorrect","service":"freelancy-api","timestamp":"2026-04-16T11:56:24.509Z","userId":4}
+{"email":"eya@gmail.com","level":"error","message":"Echec de connexion : mot de passe incorrect","service":"freelancy-api","timestamp":"2026-04-16T11:56:24.513Z","userId":4}
+{"email":"eya@gmail.com","level":"info","message":"Tentative de connexion avec mot de passe incorrect","service":"freelancy-api","timestamp":"2026-04-16T11:56:26.296Z","userId":4}
+{"email":"eya@gmail.com","level":"error","message":"Echec de connexion : mot de passe incorrect","service":"freelancy-api","timestamp":"2026-04-16T11:56:26.299Z","userId":4}
+{"email":"eya@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"client","service":"freelancy-api","timestamp":"2026-04-16T11:56:33.827Z","userId":4}

@@ -67,3 +67,7 @@
 [2026-04-16 12:44:14] Utilisateur a supprime une livraison | userId=3 | projet=1 | livraison=8
 [2026-04-16 12:44:15] Utilisateur a supprime une livraison | userId=3 | projet=1 | livraison=4
 [2026-04-16 12:44:28] Utilisateur connecté | userId=4 | email=eya@gmail.com | role=client | ip=::1
+[2026-04-16 12:55:33] Utilisateur connecté | userId=3 | email=ons.benchaabene@etudiant-fst.utm.tn | role=freelancer | ip=::1
+[2026-04-16 12:56:24] Tentative de connexion avec mot de passe incorrect | userId=4 | email=eya@gmail.com
+[2026-04-16 12:56:26] Tentative de connexion avec mot de passe incorrect | userId=4 | email=eya@gmail.com
+[2026-04-16 12:56:33] Utilisateur connecté | userId=4 | email=eya@gmail.com | role=client | ip=::1
