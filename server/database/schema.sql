@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS proposals (
     proposed_price DECIMAL(15,2) NOT NULL,
     proposed_deadline_at DATETIME NOT NULL,
     cover_letter TEXT DEFAULT NULL,
-    status ENUM('En attente','Acceptee','Refusee') NOT NULL DEFAULT 'En attente',
+    status ENUM('En attente','Acceptee','Refusee','Annulee') NOT NULL DEFAULT 'En attente',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_prop_request FOREIGN KEY (request_id)
         REFERENCES requests(id) ON DELETE CASCADE,

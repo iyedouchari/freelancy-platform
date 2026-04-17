@@ -29,6 +29,10 @@ function getProposalStatusMeta(status) {
     return { label: "Refusee", tone: "is-refused" };
   }
 
+  if (status === "Annulee" || status === "cancelled" || status === "canceled") {
+    return { label: "Annulee", tone: "is-cancelled" };
+  }
+
   if (status === "Acceptee" || status === "accepted") {
     return { label: "Acceptee", tone: "is-accepted" };
   }
@@ -81,6 +85,8 @@ export default function ClientRequests({
   const [isEditing, setIsEditing] = useState(false);
   const [showFreelancers, setShowFreelancers] = useState(false);
   const [notice, setNotice] = useState("");
+  const [requestToDelete, setRequestToDelete] = useState(null);
+  const [isDeletingRequest, setIsDeletingRequest] = useState(false);
   const createPanelRef = useRef(null);
 
   const filteredRequests = useMemo(() => {
@@ -190,40 +196,80 @@ export default function ClientRequests({
     }
   };
 
-  const handleDeleteRequest = async () => {
+  const closeDeleteRequestDialog = () => {
+    if (isDeletingRequest) {
+      return;
+    }
+
+    setRequestToDelete(null);
+  };
+
+  const handleDeleteRequest = () => {
     if (!selectedRequest) {
       return;
     }
 
-    const confirmed = window.confirm(
-      "Voulez-vous vraiment supprimer cette demande ? Cette action est definitive.",
-    );
-
-    if (!confirmed) {
+    if (isDeletingRequest) {
       return;
     }
 
+    setRequestToDelete({
+      id: selectedRequest.id,
+      title: selectedRequest.title,
+    });
+  };
+
+  const handleConfirmDeleteRequest = async () => {
+    if (!requestToDelete?.id || isDeletingRequest) {
+      return;
+    }
+
+    const requestId = requestToDelete.id;
+    setIsDeletingRequest(true);
+    setNotice("");
+
     try {
-      const deleted = await onDeleteRequest?.(selectedRequest.id);
+      const deleted = await onDeleteRequest?.(requestId);
       if (!deleted) {
         return;
       }
 
       setIsEditing(false);
       setShowFreelancers(false);
+      setRequestToDelete(null);
       setSelectedRequestId((current) => {
-        if (current !== selectedRequest.id) {
+        if (current !== requestId) {
           return current;
         }
 
-        const nextRequest = requests.find((request) => request.id !== selectedRequest.id);
+        const nextRequest = requests.find((request) => request.id !== requestId);
         return nextRequest?.id ?? null;
       });
       setNotice("La demande a ete supprimee avec succes.");
     } catch (error) {
       setNotice(error.message || "Impossible de supprimer la demande.");
+    } finally {
+      setIsDeletingRequest(false);
     }
   };
+
+  useEffect(() => {
+    if (!requestToDelete) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && !isDeletingRequest) {
+        setRequestToDelete(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [requestToDelete, isDeletingRequest]);
 
   const handleRejectProposal = async (proposal) => {
     if (!selectedRequest) {
@@ -471,6 +517,7 @@ export default function ClientRequests({
                       type="button"
                       className="ghost danger"
                       onClick={handleDeleteRequest}
+                      disabled={isDeletingRequest}
                     >
                       Supprimer cette demande
                     </button>
@@ -617,6 +664,43 @@ export default function ClientRequests({
             )}
           </aside>
         </div>
+
+        {requestToDelete ? (
+          <div className="client-request-confirm-backdrop" onClick={closeDeleteRequestDialog}>
+            <div
+              className="client-request-confirm-card"
+              onClick={(event) => event.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="client-request-confirm-title"
+            >
+              <h3 id="client-request-confirm-title">Supprimer cette demande ?</h3>
+              <p>
+                Voulez-vous vraiment supprimer <strong>{requestToDelete.title}</strong> ? Cette
+                action est definitive.
+              </p>
+              <div className="client-request-confirm-warning">Cette action est irreversible.</div>
+              <div className="client-request-confirm-actions">
+                <button
+                  type="button"
+                  className="client-request-confirm-cancel"
+                  onClick={closeDeleteRequestDialog}
+                  disabled={isDeletingRequest}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  className="client-request-confirm-delete"
+                  onClick={handleConfirmDeleteRequest}
+                  disabled={isDeletingRequest}
+                >
+                  {isDeletingRequest ? "Suppression..." : "Supprimer definitivement"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
