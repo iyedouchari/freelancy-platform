@@ -61,9 +61,25 @@ export default function UserProfileView({ userId, onBack }) {
   const [comment, setComment] = useState("");
   const [score, setScore] = useState(5);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingReviewId, setEditingReviewId] = useState(null);
+  const [editScore, setEditScore] = useState(5);
+  const [editComment, setEditComment] = useState("");
 
   const currentUserId = String(localStorage.getItem("user_id") || "");
   const isOwnProfile = String(userId || "") === currentUserId;
+
+  const handleSafeBack = () => {
+    try {
+      if (typeof onBack === "function") {
+        onBack();
+      } else {
+        window.history.back();
+      }
+    } catch (error) {
+      console.error("Error going back:", error);
+      window.location.href = "/dashboard";
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -71,25 +87,43 @@ export default function UserProfileView({ userId, onBack }) {
     const loadData = async () => {
       setIsLoading(true);
       setFeedback("");
+      setProfile(null);
+      setReviews([]);
 
       try {
-        const [user, reviewRows] = await Promise.all([
-          userService.getById(userId),
-          reviewService.listForUser(userId),
-        ]);
+        if (!userId) {
+          return;
+        }
 
+        const user = await userService.getById(userId);
         if (!isMounted) {
           return;
         }
 
+        if (!user) {
+          setFeedback("Profil introuvable.");
+          return;
+        }
+
         setProfile(user);
-        setReviews(Array.isArray(reviewRows) ? reviewRows : []);
+
+        const reviewRows = await reviewService.listForUser(userId);
+        if (!isMounted) {
+          return;
+        }
+
+        const reviewsArray = Array.isArray(reviewRows) ? reviewRows : [];
+        console.log("Reviews loaded from API:", reviewsArray, "currentUserId:", currentUserId);
+        setReviews(reviewsArray);
       } catch (error) {
         if (!isMounted) {
           return;
         }
 
+        console.error("Profile load error:", error);
         setFeedback(error.message || "Impossible de charger ce profil.");
+        setProfile(null);
+        setReviews([]);
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -97,13 +131,7 @@ export default function UserProfileView({ userId, onBack }) {
       }
     };
 
-    if (userId) {
-      loadData();
-    } else {
-      setProfile(null);
-      setReviews([]);
-      setIsLoading(false);
-    }
+    loadData();
 
     return () => {
       isMounted = false;
@@ -129,10 +157,16 @@ export default function UserProfileView({ userId, onBack }) {
       return;
     }
 
+    if (comment.trim().length < 5) {
+      setFeedback("Le commentaire doit contenir au moins 5 caractères.");
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       setFeedback("");
       await reviewService.create({
+        dealId: 0,
         toUserId: userId,
         score,
         comment: comment.trim(),
@@ -144,7 +178,76 @@ export default function UserProfileView({ userId, onBack }) {
       setScore(5);
       setFeedback("Avis ajouté avec succès.");
     } catch (error) {
+      console.error("Create review error:", error);
       setFeedback(error.message || "Impossible d'ajouter l'avis.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleStartEdit = (review) => {
+    setEditingReviewId(review.id);
+    setEditScore(review.score);
+    setEditComment(review.comment);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingReviewId(null);
+    setEditScore(5);
+    setEditComment("");
+  };
+
+  const handleUpdateReview = async (event) => {
+    event.preventDefault();
+
+    if (!editComment.trim()) {
+      setFeedback("Ajoute un commentaire avant d'envoyer l'avis.");
+      return;
+    }
+
+    if (editComment.trim().length < 5) {
+      setFeedback("Le commentaire doit contenir au moins 5 caractères.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setFeedback("");
+      await reviewService.update(editingReviewId, {
+        score: editScore,
+        comment: editComment.trim(),
+      });
+      const latestReviews = await reviewService.listForUser(userId);
+
+      setReviews(Array.isArray(latestReviews) ? latestReviews : []);
+      setEditingReviewId(null);
+      setEditScore(5);
+      setEditComment("");
+      setFeedback("Avis modifié avec succès.");
+    } catch (error) {
+      console.error("Update review error:", error);
+      setFeedback(error.message || "Impossible de modifier l'avis.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet avis ?")) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setFeedback("");
+      await reviewService.delete(reviewId);
+      
+      const latestReviews = await reviewService.listForUser(userId);
+      setReviews(Array.isArray(latestReviews) ? latestReviews : []);
+      setFeedback("Avis supprimé avec succès.");
+    } catch (error) {
+      console.error("Delete review error:", error);
+      setFeedback(error.message || "Impossible de supprimer l'avis.");
     } finally {
       setIsSubmitting(false);
     }
@@ -153,8 +256,8 @@ export default function UserProfileView({ userId, onBack }) {
   return (
     <div className="user-profile-view">
       <div className="user-profile-shell">
-        <button type="button" className="user-profile-back-btn" onClick={onBack}>
-          Retour
+        <button type="button" className="user-profile-back-btn" onClick={handleSafeBack}>
+          Retour au tableau de bord
         </button>
 
         {feedback ? <div className="user-profile-feedback">{feedback}</div> : null}
@@ -280,31 +383,100 @@ export default function UserProfileView({ userId, onBack }) {
                 {reviews.length === 0 ? (
                   <div className="user-profile-review-empty">Aucun avis pour le moment.</div>
                 ) : (
-                  reviews.map((review) => (
-                    <article key={review.id} className="user-profile-review-card">
-                      <div className="user-profile-review-top">
+                  reviews.map((review) => {
+                    const isOwnReview = review && String(review.fromUserId || "") === currentUserId;
+                    const isEditing = editingReviewId === review.id;
+
+                    return isEditing ? (
+                      <form key={review.id} className="user-profile-review-form" onSubmit={handleUpdateReview}>
                         <div className="user-profile-review-author">
-                          <div className="user-profile-review-avatar">
-                            {toAbsoluteMediaUrl(review.fromUserAvatarUrl) ? (
-                              <img
-                                src={toAbsoluteMediaUrl(review.fromUserAvatarUrl)}
-                                alt={review.fromUserName || "Utilisateur"}
-                                className="user-profile-avatar-image"
-                              />
-                            ) : (
-                              getInitials(review.fromUserName || "Utilisateur")
-                            )}
+                          <div className="user-profile-review-avatar user-profile-review-avatar-author">
+                            {getInitials(localStorage.getItem("user_name") || "Moi")}
                           </div>
-                          <div className="user-profile-review-meta">
-                            <strong>{review.fromUserName || "Utilisateur"}</strong>
-                            <span>{formatReviewDate(review.createdAt)}</span>
+                          <div>
+                            <strong>Modifier votre avis</strong>
+                            <span>Les modifications seront visibles immédiatement.</span>
                           </div>
                         </div>
-                        <p className="user-profile-review-stars">{renderStars(review.score)}</p>
-                      </div>
-                      <p className="user-profile-review-body">{review.comment || "Aucun commentaire."}</p>
-                    </article>
-                  ))
+
+                        <label className="user-profile-review-score-field">
+                          <span>Votre note</span>
+                          <select value={editScore} onChange={(event) => setEditScore(Number(event.target.value))}>
+                            {[5, 4, 3, 2, 1].map((value) => (
+                              <option key={value} value={value}>
+                                {value} étoile{value > 1 ? "s" : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label className="user-profile-review-comment-field">
+                          <span>Votre feedback</span>
+                          <textarea
+                            rows={4}
+                            value={editComment}
+                            onChange={(event) => setEditComment(event.target.value)}
+                            placeholder="Partagez votre retour sur la collaboration."
+                          />
+                        </label>
+
+                        <div className="user-profile-review-actions">
+                          <button type="button" onClick={handleCancelEdit} disabled={isSubmitting}>
+                            Annuler
+                          </button>
+                          <button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? "Modification..." : "Modifier l'avis"}
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <article key={review.id} className="user-profile-review-card">
+                        <div className="user-profile-review-top">
+                          <div className="user-profile-review-author">
+                            <div className="user-profile-review-avatar">
+                              {toAbsoluteMediaUrl(review.fromUserAvatarUrl) ? (
+                                <img
+                                  src={toAbsoluteMediaUrl(review.fromUserAvatarUrl)}
+                                  alt={review.fromUserName || "Utilisateur"}
+                                  className="user-profile-avatar-image"
+                                />
+                              ) : (
+                                getInitials(review.fromUserName || "Utilisateur")
+                              )}
+                            </div>
+                            <div className="user-profile-review-meta">
+                              <strong>{review.fromUserName || "Utilisateur"}</strong>
+                              <span>{formatReviewDate(review.createdAt)}</span>
+                            </div>
+                          </div>
+                          <div className="user-profile-review-stars-and-actions">
+                            <p className="user-profile-review-stars">{renderStars(review.score)}</p>
+                            {isOwnReview && (
+                              <div className="user-profile-review-actions-inline">
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEdit(review)}
+                                  disabled={isSubmitting}
+                                  className="user-profile-review-btn-edit"
+                                >
+                                  Modifier
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteReview(review.id)}
+                                  disabled={isSubmitting}
+                                  className="user-profile-review-btn-delete"
+                                >
+                                  Supprimer
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <p className="user-profile-review-body">{review.comment || "Aucun commentaire."}</p>
+                      </article>
+                    );
+                  })
                 )}
               </div>
             </section>

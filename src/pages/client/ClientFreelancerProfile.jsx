@@ -14,6 +14,19 @@ export default function ClientFreelancerProfile({
   const [comment, setComment] = useState("");
   const [stars, setStars] = useState(5);
 
+  const handleSafeBack = () => {
+    try {
+      if (typeof onBack === "function") {
+        onBack();
+      } else {
+        window.history.back();
+      }
+    } catch (error) {
+      console.error("Error going back:", error);
+      window.location.href = "/dashboard";
+    }
+  };
+
   if (!profile) {
     return null;
   }
@@ -32,7 +45,7 @@ export default function ClientFreelancerProfile({
   return (
     <div className="client-freelancer-profile-page">
       <div className="client-freelancer-profile-shell">
-        <button type="button" className="client-freelancer-back-btn" onClick={onBack}>
+        <button type="button" className="client-freelancer-back-btn" onClick={handleSafeBack}>
           Retour aux demandes
         </button>
 

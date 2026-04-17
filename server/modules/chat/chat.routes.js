@@ -1,8 +1,13 @@
 import crypto from "crypto";
 import express from "express";
-import { pipeline } from "stream/promises";
-import { deleteFromB2, downloadFromB2, uploadToB2 } from "../../config/b2.js";
+import { mkdir, readFile, writeFile, unlink } from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
 import { getMessageHistory, markMessagesAsRead } from "./chat.service.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const chatUploadsDir = path.resolve(__dirname, "../../uploads/chat");
 
 const router = express.Router();
 
@@ -17,13 +22,9 @@ function buildStorageKey(folder, fileName) {
   return `${folder}/${Date.now()}-${crypto.randomUUID()}-${safeBaseName}${ext}`;
 }
 
-function buildChatDownloadUrl(key, fileName) {
-  const params = new URLSearchParams({
-    key,
-    fileName,
-  });
-
-  return `/api/chat/file?${params.toString()}`;
+function buildChatDownloadUrl(fileName) {
+  const params = new URLSearchParams({ fileName });
+  return `/uploads/chat/${fileName}?${params.toString()}`;
 }
 
 router.get("/history/:dealId", async (req, res) => {
@@ -50,34 +51,27 @@ router.patch("/read/:dealId/:userId", async (req, res) => {
   }
 });
 
-router.get("/file", async (req, res) => {
-  const { key, fileName } = req.query;
+router.get("/:fileName", async (req, res) => {
+  const { fileName } = req.params;
 
-  if (!key) {
-    return res.status(400).json({ error: "Cle fichier manquante." });
+  if (!fileName) {
+    return res.status(400).json({ error: "Nom du fichier manquant." });
   }
 
   try {
-    const safeFileName = sanitizeFileName(String(fileName || "download"));
-    const object = await downloadFromB2(String(key));
+    const filePath = path.join(chatUploadsDir, fileName);
+    const fileBuffer = await readFile(filePath);
 
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="${safeFileName}"`
+      `attachment; filename="${sanitizeFileName(fileName)}"`
     );
-    res.setHeader(
-      "Content-Type",
-      object.ContentType || "application/octet-stream"
-    );
-
-    if (object.ContentLength != null) {
-      res.setHeader("Content-Length", String(object.ContentLength));
-    }
-
-    await pipeline(object.Body, res);
+    res.setHeader("Content-Type", "application/octet-stream");
+    res.setHeader("Content-Length", String(fileBuffer.length));
+    res.send(fileBuffer);
   } catch (err) {
-    console.error("Erreur /file :", err.message);
-    return res.status(500).json({ error: "Impossible de telecharger le fichier." });
+    console.error("Erreur lecture chat :", err.message);
+    return res.status(404).json({ error: "Fichier non trouve." });
   }
 });
 
@@ -95,26 +89,24 @@ router.post(
       return res.status(400).json({ error: "Fichier vide." });
     }
 
-    const safeOriginalName = sanitizeFileName(String(fileName));
-    const mimeType = String(req.headers["content-type"] || "application/octet-stream");
-    const key = buildStorageKey("chat", safeOriginalName);
-
     try {
-      await uploadToB2({
-        key,
-        body: req.body,
-        contentType: mimeType,
-      });
+      await mkdir(chatUploadsDir, { recursive: true });
+
+      const safeOriginalName = sanitizeFileName(String(fileName));
+      const mimeType = String(req.headers["content-type"] || "application/octet-stream");
+      const storedFileName = `${Date.now()}-${crypto.randomUUID()}-${safeOriginalName}`;
+      const filePath = path.join(chatUploadsDir, storedFileName);
+
+      await writeFile(filePath, req.body);
 
       return res.json({
         fileName: safeOriginalName,
-        key,
+        storedFileName,
         mimeType,
         size: req.body.length,
-        fileUrl: buildChatDownloadUrl(key, safeOriginalName),
+        fileUrl: buildChatDownloadUrl(storedFileName),
       });
     } catch (err) {
-      await deleteFromB2(key).catch(() => null);
       console.error("Erreur /upload :", err.message);
       return res.status(500).json({ error: "Impossible d'uploader le fichier." });
     }

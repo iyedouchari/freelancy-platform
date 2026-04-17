@@ -210,6 +210,19 @@ export default function ClientProfile({
   const [profile, setProfile] = useState(readClientProfile);
   const [isEditing, setIsEditing] = useState(false);
 
+  const handleSafeBack = () => {
+    try {
+      if (typeof onBack === "function") {
+        onBack();
+      } else {
+        window.history.back();
+      }
+    } catch (error) {
+      console.error("Error going back:", error);
+      window.location.href = "/dashboard";
+    }
+  };
+
   const handleSave = (nextProfile) => {
     setProfile(nextProfile);
     localStorage.setItem("client_name", nextProfile.name);
@@ -245,7 +258,7 @@ export default function ClientProfile({
   return (
     <div className="client-profile-shell">
       <div className="client-profile-content">
-        <button type="button" className="client-profile-back-btn" onClick={onBack}>
+        <button type="button" className="client-profile-back-btn" onClick={handleSafeBack}>
           Retour au tableau de bord
         </button>
 

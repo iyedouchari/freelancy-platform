@@ -78,6 +78,9 @@ export async function findSystemWallet(connection = db) {
 // ─── wallet_accounts ──────────────────────────────────────────────────────────
 
 export async function findWalletByOwnerId(ownerId, connection = db) {
+  if (!Number.isInteger(Number(ownerId)) || ownerId <= 0) {
+    throw new Error("Invalid wallet owner ID");
+  }
   await ensureWalletByOwnerId(ownerId, connection);
   const [rows] = await connection.query(
     "SELECT * FROM wallet_accounts WHERE owner_id = ?",
@@ -87,20 +90,28 @@ export async function findWalletByOwnerId(ownerId, connection = db) {
 }
 
 export async function creditWallet(ownerId, amount, connection = db) {
+  const validAmount = Number(amount);
+  if (!Number.isFinite(validAmount) || validAmount < 0) {
+    throw new Error("Invalid credit amount");
+  }
   await ensureWalletByOwnerId(ownerId, connection);
   await connection.query(
     "UPDATE wallet_accounts SET balance = balance + ? WHERE owner_id = ?",
-    [amount, ownerId],
+    [validAmount, ownerId],
   );
 }
 
 export async function debitWallet(ownerId, amount, connection = db) {
+  const validAmount = Number(amount);
+  if (!Number.isFinite(validAmount) || validAmount <= 0) {
+    throw new Error("Invalid debit amount");
+  }
   await ensureWalletByOwnerId(ownerId, connection);
   const [result] = await connection.query(
     `UPDATE wallet_accounts
      SET balance = balance - ?
      WHERE owner_id = ? AND balance >= ?`,
-    [amount, ownerId, amount],
+    [validAmount, ownerId, validAmount],
   );
   if (result.affectedRows === 0) {
     throw new Error("Solde insuffisant.");

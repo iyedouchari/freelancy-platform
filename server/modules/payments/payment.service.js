@@ -44,6 +44,10 @@ export async function stripeDummy({ amount, metadata = {} }) {
 }
 
 async function resolveFreelancerId(dealId, freelancerIdFromRequest, connection = db) {
+  if (!Number.isInteger(Number(dealId)) || dealId <= 0) {
+    throw new Error("Invalid deal ID");
+  }
+  
   if (freelancerIdFromRequest) {
     const wallet = await findWalletByOwnerId(freelancerIdFromRequest, connection);
     if (wallet) return freelancerIdFromRequest;
@@ -55,6 +59,10 @@ async function resolveFreelancerId(dealId, freelancerIdFromRequest, connection =
   );
   if (!rows[0]) throw new Error("Deal introuvable.");
   const realFreelancerId = rows[0].freelancer_id;
+
+  if (!Number.isInteger(Number(realFreelancerId)) || realFreelancerId <= 0) {
+    throw new Error("Invalid freelancer ID in deal");
+  }
 
   const wallet = await findWalletByOwnerId(realFreelancerId, connection);
   if (!wallet) throw new Error(`Wallet freelancer introuvable pour le deal #${dealId}.`);
@@ -447,7 +455,12 @@ export async function payAdvance({ dealId, clientId, freelancerId, amount }) {
 
 export async function payFinal({ dealId, clientId, freelancerId, amount }) {
   return runPaymentTransaction(async (connection) => {
-    await guardDuplicatePayment(connection, dealId, "Paiement final", "Le paiement final a deja ete effectue pour ce deal.");
+    const existingFinalPayment = await paymentRepo.findPaymentByDealAndType(dealId, "Paiement final", connection);
+    const isPayTotalScenario = existingFinalPayment?.status === "Paye";
+    
+    if (!isPayTotalScenario) {
+      await guardDuplicatePayment(connection, dealId, "Paiement final", "Le paiement final a deja ete effectue pour ce deal.");
+    }
 
     await ensureSystemWalletOwner(connection);
     const systemWallet = await findSystemWallet(connection);
@@ -500,7 +513,7 @@ export async function payFinal({ dealId, clientId, freelancerId, amount }) {
     }
 
     let payment = null;
-    if (adjustedFinalAmount > 0) {
+    if (adjustedFinalAmount > 0 && !isPayTotalScenario) {
       payment = await paymentRepo.createPayment({
         dealId,
         clientId,
@@ -513,20 +526,37 @@ export async function payFinal({ dealId, clientId, freelancerId, amount }) {
         amount: adjustedFinalAmount,
         metadata: { dealId, type: "Paiement final", clientId, penaltyCycles: penalty.cycles },
       });
+    } else if (isPayTotalScenario) {
+      payment = existingFinalPayment;
     }
 
     let clientBalanceAfter = clientBalanceBefore;
-    if (adjustedFinalAmount > 0) {
-      await debitWallet(clientId, adjustedFinalAmount, connection);
-      clientBalanceAfter = roundMoney(clientBalanceAfter - adjustedFinalAmount);
-      await createTransaction({
-        walletId: clientWallet.id,
-        dealId,
-        type: "final_debit",
-        amount: adjustedFinalAmount,
-        balanceBefore: clientBalanceBefore,
-        balanceAfter: clientBalanceAfter,
-      }, connection);
+    let systemWalletBalanceAfter = Number(systemWallet.balance);
+    
+    if (!isPayTotalScenario) {
+      if (adjustedFinalAmount > 0) {
+        await debitWallet(clientId, adjustedFinalAmount, connection);
+        clientBalanceAfter = roundMoney(clientBalanceAfter - adjustedFinalAmount);
+        await createTransaction({
+          walletId: clientWallet.id,
+          dealId,
+          type: "final_debit",
+          amount: adjustedFinalAmount,
+          balanceBefore: clientBalanceBefore,
+          balanceAfter: clientBalanceAfter,
+        }, connection);
+        
+        await creditWallet(systemWallet.owner_id, adjustedFinalAmount, connection);
+        systemWalletBalanceAfter = roundMoney(systemWalletBalanceAfter + adjustedFinalAmount);
+        await createTransaction({
+          walletId: systemWallet.id,
+          dealId,
+          type: "final_credit",
+          amount: adjustedFinalAmount,
+          balanceBefore: Number(systemWallet.balance),
+          balanceAfter: systemWalletBalanceAfter,
+        }, connection);
+      }
     }
 
     if (penaltyFromEscrow > 0) {
@@ -546,7 +576,11 @@ export async function payFinal({ dealId, clientId, freelancerId, amount }) {
     const freelancerWallet = await findWalletByOwnerId(realFreelancerId, connection);
     const freelancerBalanceBefore = Number(freelancerWallet.balance);
 
-    await debitWallet(systemWallet.owner_id, escrowAmount, connection);
+    const totalSystemDebit = isPayTotalScenario 
+      ? roundMoney(escrowAmount + adjustedFinalAmount)
+      : escrowAmount;
+      
+    await debitWallet(systemWallet.owner_id, totalSystemDebit, connection);
     if (escrowReleaseAmount > 0) {
       await creditWallet(realFreelancerId, escrowReleaseAmount, connection);
     }
@@ -664,28 +698,29 @@ export async function payTotal({ dealId, clientId, freelancerId, totalAmount, ad
       balanceAfter: clientBalanceAfter,
     }, connection);
 
-    const freelancerWallet = await findWalletByOwnerId(realFreelancerId, connection);
-    const freelancerBalanceBefore = Number(freelancerWallet.balance);
-    await creditWallet(realFreelancerId, Number(advanceAmount), connection);
-    await creditWallet(realFreelancerId, remainingAmount, connection);
-    const freelancerBalanceAfter = freelancerBalanceBefore + Number(totalAmount);
+    await ensureSystemWalletOwner(connection);
+    const systemWallet = await findSystemWallet(connection);
+    const systemBalanceBefore = Number(systemWallet.balance);
+
+    await creditWallet(systemWallet.owner_id, Number(advanceAmount), connection);
+    await creditWallet(systemWallet.owner_id, remainingAmount, connection);
 
     await createTransaction({
-      walletId: freelancerWallet.id,
+      walletId: systemWallet.id,
       dealId,
       type: "advance_credit",
       amount: Number(advanceAmount),
-      balanceBefore: freelancerBalanceBefore,
-      balanceAfter: freelancerBalanceBefore + Number(advanceAmount),
+      balanceBefore: systemBalanceBefore,
+      balanceAfter: systemBalanceBefore + Number(advanceAmount),
     }, connection);
 
     await createTransaction({
-      walletId: freelancerWallet.id,
+      walletId: systemWallet.id,
       dealId,
       type: "final_credit",
       amount: remainingAmount,
-      balanceBefore: freelancerBalanceBefore + Number(advanceAmount),
-      balanceAfter: freelancerBalanceAfter,
+      balanceBefore: systemBalanceBefore + Number(advanceAmount),
+      balanceAfter: systemBalanceBefore + Number(totalAmount),
     }, connection);
 
     await paymentRepo.updatePaymentStatus(advancePayment.id, "Paye", connection);
@@ -693,8 +728,8 @@ export async function payTotal({ dealId, clientId, freelancerId, totalAmount, ad
 
     await updateDealAfterPayment(connection, {
       dealId,
-      note: `Montant total paye avant le ${formatDealDate(deadline)}.`,
-      status: "Totalité payé",
+      note: `Montant total paye avant le ${formatDealDate(deadline)}. En attente de livraison.`,
+      status: "En cours",
       penaltyCycles: 0,
     });
 

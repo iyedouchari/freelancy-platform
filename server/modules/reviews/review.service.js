@@ -63,4 +63,46 @@ export const reviewService = {
       comment: payload.comment,
     });
   },
+
+  async updateReview(user, reviewId, payload) {
+    const normalizedReviewId = ensurePositiveId(reviewId, "Review id");
+    const review = await reviewRepository.findById(normalizedReviewId);
+
+    if (!review) {
+      throw new AppError("Avis introuvable.", 404, "REVIEW_NOT_FOUND");
+    }
+
+    if (Number(review.from_user_id) !== Number(user.id)) {
+      throw new AppError(
+        "Vous ne pouvez modifier que vos propres avis.",
+        403,
+        "FORBIDDEN",
+      );
+    }
+
+    return reviewRepository.update(normalizedReviewId, {
+      score: payload.score,
+      comment: payload.comment,
+    });
+  },
+
+  async deleteReview(user, reviewId) {
+    const normalizedReviewId = ensurePositiveId(reviewId, "Review id");
+    const review = await reviewRepository.findById(normalizedReviewId);
+
+    if (!review) {
+      throw new AppError("Avis introuvable.", 404, "REVIEW_NOT_FOUND");
+    }
+
+    if (Number(review.from_user_id) !== Number(user.id)) {
+      throw new AppError(
+        "Vous ne pouvez supprimer que vos propres avis.",
+        403,
+        "FORBIDDEN",
+      );
+    }
+
+    await reviewRepository.delete(normalizedReviewId);
+    return { message: "Avis supprime avec succes." };
+  },
 };

@@ -143,3 +143,5 @@
 {"email":"iyed.ouchari123@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"freelancer","service":"freelancy-api","timestamp":"2026-04-16T22:49:17.742Z","userId":1}
 {"email":"iyed.ouchari123@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"freelancer","service":"freelancy-api","timestamp":"2026-04-16T22:52:09.192Z","userId":1}
 {"email":"bachir@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"client","service":"freelancy-api","timestamp":"2026-04-16T22:54:40.088Z","userId":4}
+{"email":"iyed.ouchari123@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"freelancer","service":"freelancy-api","timestamp":"2026-04-17T17:08:52.456Z","userId":1}
+{"email":"bachir@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"client","service":"freelancy-api","timestamp":"2026-04-17T17:32:33.849Z","userId":4}

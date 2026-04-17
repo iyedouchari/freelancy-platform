@@ -292,25 +292,28 @@ export default function ClientShell() {
           return;
         }
 
-        setRequests(requestRows);
-        setDeals(dealRows);
+        setRequests(Array.isArray(requestRows) ? requestRows : []);
+        setDeals(Array.isArray(dealRows) ? dealRows : []);
         setSelectedDeal((current) => {
           if (current?.id) {
             return current;
           }
 
           const persistedDealId = localStorage.getItem(CLIENT_DEAL_KEY);
+          const dealsToSearch = Array.isArray(dealRows) ? dealRows : [];
+          
           if (persistedDealId) {
-            return dealRows.find((deal) => String(deal.id) === persistedDealId) ?? dealRows[0] ?? null;
+            return dealsToSearch.find((deal) => String(deal.id) === persistedDealId) ?? dealsToSearch[0] ?? null;
           }
 
-          return dealRows[0] ?? null;
+          return dealsToSearch[0] ?? null;
         });
       } catch (error) {
         if (!isMounted) {
           return;
         }
 
+        console.error("Error loading client data:", error);
         setRequestsError(error.message || "Impossible de charger les donnees client.");
       } finally {
         if (isMounted) {
@@ -496,10 +499,38 @@ export default function ClientShell() {
   return (
     <div className="app-shell">
       <Navbar
-        onDashboard={() => setPage("dashboard")}
-        onRequests={() => setPage("requests")}
-        onWallet={() => setPage("wallet")}
-        onProfile={() => setPage("profile")}
+        onDashboard={() => {
+          try {
+            setPage("dashboard");
+            localStorage.setItem(CLIENT_PAGE_KEY, "dashboard");
+          } catch (error) {
+            console.error("Error navigating to dashboard:", error);
+            window.location.href = "/dashboard";
+          }
+        }}
+        onRequests={() => {
+          try {
+            setPage("requests");
+            localStorage.setItem(CLIENT_PAGE_KEY, "requests");
+          } catch (error) {
+            console.error("Error navigating to requests:", error);
+          }
+        }}
+        onWallet={() => {
+          try {
+            setPage("wallet");
+            localStorage.setItem(CLIENT_PAGE_KEY, "wallet");
+          } catch (error) {
+            console.error("Error navigating to wallet:", error);
+          }
+        }}
+        onProfile={() => {
+          try {
+            setPage("profile");
+          } catch (error) {
+            console.error("Error navigating to profile:", error);
+          }
+        }}
         activePage={activeNavPage}
         navItems={clientNavItems}
         brandTitle="Espace Client"

@@ -34,7 +34,7 @@ const buttonStyle = {
 export default class AppErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, errorMessage: "" };
+    this.state = { hasError: false, errorMessage: "", retryCount: 0 };
   }
 
   static getDerivedStateFromError(error) {
@@ -48,7 +48,26 @@ export default class AppErrorBoundary extends React.Component {
     console.error("Application crash caught by error boundary:", error, errorInfo);
   }
 
+  handleResetError = () => {
+    this.setState({ hasError: false, errorMessage: "", retryCount: 0 });
+  };
+
+  handleGoToDashboard = () => {
+    this.handleResetError();
+    const role = localStorage.getItem("app_role");
+    if (role === "FREELANCER") {
+      localStorage.setItem("freelancer_active_page", "dashboard");
+      window.location.assign("/dashboard");
+    } else if (role === "CLIENT") {
+      localStorage.setItem("client_active_page", "dashboard");
+      window.location.assign("/dashboard");
+    } else {
+      window.location.assign("/");
+    }
+  };
+
   handleReload = () => {
+    this.handleResetError();
     window.location.assign("/");
   };
 
@@ -60,14 +79,27 @@ export default class AppErrorBoundary extends React.Component {
             <h1 style={{ marginTop: 0 }}>L'application a rencontré une erreur</h1>
             <p>
               Un écran vide apparaît souvent quand un composant plante pendant le rendu.
-              L'application est maintenant protégée et vous pouvez revenir à l'accueil.
+              L'application est maintenant protégée et vous pouvez revenir au tableau de bord.
             </p>
             <p style={{ color: "#b42318", fontWeight: 600 }}>
               {this.state.errorMessage}
             </p>
-            <button type="button" style={buttonStyle} onClick={this.handleReload}>
-              Retourner à l'accueil
-            </button>
+            <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
+              <button
+                type="button"
+                style={buttonStyle}
+                onClick={this.handleGoToDashboard}
+              >
+                Tableau de bord
+              </button>
+              <button
+                type="button"
+                style={{ ...buttonStyle, background: "#6b7280" }}
+                onClick={this.handleReload}
+              >
+                Accueil
+              </button>
+            </div>
           </div>
         </div>
       );

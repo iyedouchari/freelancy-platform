@@ -122,14 +122,18 @@ const FreelancerShell = () => {
     let isMounted = true;
 
     const loadDeals = async () => {
-      setIsLoadingDeals(true);
-
       try {
+        setIsLoadingDeals(true);
         const rows = await dealService.listMine();
         if (!isMounted) return;
-        setDeals(rows);
-      } catch {
+        if (Array.isArray(rows)) {
+          setDeals(rows);
+        } else {
+          setDeals([]);
+        }
+      } catch (error) {
         if (!isMounted) return;
+        console.error("Error loading deals:", error);
         setDeals([]);
       } finally {
         if (isMounted) {
@@ -157,7 +161,15 @@ const FreelancerShell = () => {
     setPage("publicProfile");
   }, [location.search]);
 
-  const goToDashboard = () => setPage("dashboard");
+  const goToDashboard = () => {
+    try {
+      setPage("dashboard");
+      localStorage.setItem(FREELANCER_PAGE_KEY, "dashboard");
+    } catch (error) {
+      console.error("Error navigating to dashboard:", error);
+      window.location.href = "/dashboard";
+    }
+  };
   const goToProposals = () => setPage("proposals");
   const goToDeals    = () => setPage("deals");
   const goToWallet   = () => setPage("wallet");

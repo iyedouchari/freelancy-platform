@@ -1,17 +1,23 @@
 import * as paymentService from "./payment.service.js";
+import { sendSuccess, sendError } from "../../utils/apiResponse.js";
 
 export async function getPaymentsByDeal(req, res) {
   try {
     const payments = await paymentService.getPaymentsByDeal(req.params.dealId);
-    return res.json({ payments });
+    return sendSuccess(res, payments, "Paiements récupérés");
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    console.error("Get payments error:", err);
+    return sendError(res, err.message || "Erreur lors de la récupération des paiements", 400);
   }
 }
 
 export async function payAdvance(req, res) {
   try {
     const { dealId, freelancerId, amount } = req.body;
+
+    if (!dealId || !amount) {
+      return sendError(res, "dealId et amount requis", 400, "MISSING_PARAMS");
+    }
 
     const result = await paymentService.payAdvance({
       dealId: Number(dealId),
@@ -20,15 +26,21 @@ export async function payAdvance(req, res) {
       amount: Number(amount),
     });
 
-    return res.status(201).json(result);
+    return sendSuccess(res, result, "Avance payée avec succès", 201);
   } catch (err) {
-    return res.status(400).json({ message: err.message });
+    console.error("Pay advance error:", err);
+    const statusCode = err.message?.includes("insuffisant") ? 402 : 400;
+    return sendError(res, err.message || "Erreur lors du paiement", statusCode);
   }
 }
 
 export async function payFinal(req, res) {
   try {
     const { dealId, freelancerId, amount } = req.body;
+
+    if (!dealId || !amount) {
+      return sendError(res, "dealId et amount requis", 400, "MISSING_PARAMS");
+    }
 
     const result = await paymentService.payFinal({
       dealId: Number(dealId),
@@ -37,15 +49,21 @@ export async function payFinal(req, res) {
       amount: Number(amount),
     });
 
-    return res.status(201).json(result);
+    return sendSuccess(res, result, "Paiement final effectué", 201);
   } catch (err) {
-    return res.status(400).json({ message: err.message });
+    console.error("Pay final error:", err);
+    const statusCode = err.message?.includes("insuffisant") ? 402 : 400;
+    return sendError(res, err.message || "Erreur lors du paiement final", statusCode);
   }
 }
 
 export async function payTotal(req, res) {
   try {
     const { dealId, freelancerId, totalAmount, advanceAmount, deadline } = req.body;
+
+    if (!dealId || !totalAmount || !advanceAmount) {
+      return sendError(res, "dealId, totalAmount et advanceAmount requis", 400, "MISSING_PARAMS");
+    }
 
     const result = await paymentService.payTotal({
       dealId: Number(dealId),
@@ -56,9 +74,11 @@ export async function payTotal(req, res) {
       deadline,
     });
 
-    return res.status(201).json(result);
+    return sendSuccess(res, result, "Paiement total effectué", 201);
   } catch (err) {
-    return res.status(400).json({ message: err.message });
+    console.error("Pay total error:", err);
+    const statusCode = err.message?.includes("insuffisant") ? 402 : 400;
+    return sendError(res, err.message || "Erreur lors du paiement total", statusCode);
   }
 }
 
@@ -69,8 +89,9 @@ export async function refundPayment(req, res) {
       clientId: req.user.id,
     });
 
-    return res.json(result);
+    return sendSuccess(res, result, "Remboursement effectué");
   } catch (err) {
-    return res.status(400).json({ message: err.message });
+    console.error("Refund error:", err);
+    return sendError(res, err.message || "Erreur lors du remboursement", 400);
   }
 }

@@ -14,7 +14,8 @@ const parseJson = async (response) => {
   const payload = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(payload?.message || "Erreur API.");
+    const errorMsg = payload?.message || `Erreur HTTP ${response.status}`;
+    throw new Error(errorMsg);
   }
 
   return payload?.data ?? payload ?? null;
@@ -35,7 +36,12 @@ const request = async (path, options = {}) => {
 export const reviewService = {
   listForUser: async (userId) => {
     const result = await request(`/reviews/user/${userId}`);
-    return Array.isArray(result) ? result : [];
+    const reviews = Array.isArray(result) ? result : [];
+    return reviews.map(review => ({
+      ...review,
+      fromUserId: review.fromUserId || review.from_user_id,
+      toUserId: review.toUserId || review.to_user_id,
+    }));
   },
 
   save: async ({ dealId, toUserId, score, comment }) =>
@@ -48,5 +54,16 @@ export const reviewService = {
     request("/reviews", {
       method: "POST",
       body: JSON.stringify({ dealId, toUserId, score, comment }),
+    }),
+
+  update: async (reviewId, { score, comment }) =>
+    request(`/reviews/${reviewId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ score, comment }),
+    }),
+
+  delete: async (reviewId) =>
+    request(`/reviews/${reviewId}`, {
+      method: "DELETE",
     }),
 };

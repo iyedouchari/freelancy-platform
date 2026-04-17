@@ -102,7 +102,14 @@ export const reviewRepository = {
     const [rows] = await db.query(
       `
         SELECT
-          r.*,
+          r.id,
+          r.deal_id,
+          r.from_user_id,
+          r.to_user_id,
+          r.score,
+          r.comment,
+          r.created_at,
+          r.updated_at,
           u.name AS from_user_name,
           u.avatar_url AS from_user_avatar_url
         FROM reviews r
@@ -203,5 +210,29 @@ export const reviewRepository = {
     );
 
     return mapReviewRow(rows[0]);
+  },
+
+  async findById(reviewId) {
+    const [rows] = await db.query(
+      `
+        SELECT *
+        FROM reviews
+        WHERE id = ?
+        LIMIT 1
+      `,
+      [reviewId],
+    );
+
+    return rows[0] || null;
+  },
+
+  async delete(reviewId) {
+    await db.query(
+      `
+        DELETE FROM reviews
+        WHERE id = ?
+      `,
+      [reviewId],
+    );
   },
 };
