@@ -12,6 +12,7 @@ import { deleteFromB2, downloadFromB2, uploadToB2 } from "../../config/b2.js";
 import { env } from "../../config/env.js";
 import { fileURLToPath } from "url";
 import { logUserActivity } from "../../utils/logger.js";
+import { releaseFreelancerPaymentOnSubmission } from "../payments/payment.service.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -296,6 +297,22 @@ router.post(
         title: safeOriginalName,
         status: "livree",
       });
+
+      // Release freelancer payment on work submission
+      try {
+        const paymentRelease = await releaseFreelancerPaymentOnSubmission({ dealId: Number(id) });
+        if (paymentRelease.released) {
+          logUserActivity("Paiement freelance libere a la soumission", {
+            userId: Number(senderId),
+            dealId: Number(id),
+            releasedAmount: paymentRelease.releasedAmount,
+            penaltyDeducted: paymentRelease.penaltyDeducted,
+          });
+        }
+      } catch (paymentError) {
+        console.error("Erreur liberation paiement freelance sur soumission:", paymentError.message);
+        // Don't fail the delivery upload if payment release fails
+      }
 
       res.status(201).json({
         ...rows[0],

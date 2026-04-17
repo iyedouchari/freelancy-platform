@@ -47,11 +47,15 @@ export async function ensureWalletTables() {
         'final_debit',
         'final_credit',
         'penalty',
+        'penalty_debit',
+        'penalty_credit',
+        'submission_release',
         'refund'
       ) NOT NULL,
       amount DECIMAL(15,2) NOT NULL,
       balance_before DECIMAL(15,2) NOT NULL,
       balance_after DECIMAL(15,2) NOT NULL,
+      note VARCHAR(500) DEFAULT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_wt_wallet FOREIGN KEY (wallet_id)
         REFERENCES wallet_accounts(id) ON DELETE CASCADE,
@@ -140,12 +144,13 @@ export async function createTransaction({
   amount,
   balanceBefore,
   balanceAfter,
+  note = null,
 }, connection = db) {
   const [result] = await connection.query(
     `INSERT INTO wallet_transactions
-       (wallet_id, deal_id, type, amount, balance_before, balance_after)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [walletId, dealId, type, amount, balanceBefore, balanceAfter],
+       (wallet_id, deal_id, type, amount, balance_before, balance_after, note)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [walletId, dealId, type, amount, balanceBefore, balanceAfter, note],
   );
   return {
     id: result.insertId,
@@ -155,5 +160,6 @@ export async function createTransaction({
     amount,
     balance_before: balanceBefore,
     balance_after:  balanceAfter,
+    note,
   };
 }
