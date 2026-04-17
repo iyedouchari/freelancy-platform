@@ -112,7 +112,9 @@ export const toUiDeal = (deal) => {
     status: statusMeta.status,
     statusType: statusMeta.statusType,
     location: deal.clientName || deal.client_name ? `Client : ${deal.clientName ?? deal.client_name}` : "",
-    progressLabel: `Accord lie a la demande n°${deal.requestId ?? deal.request_id}`,
+    progressLabel:
+      String(deal.description ?? deal.request_description ?? "").trim() ||
+      `Demande n°${deal.requestId ?? deal.request_id}`,
     paymentNote: deal.paymentNote ?? deal.payment_note ?? "",
     advancePaid: Boolean(deal.advancePaid ?? deal.advance_paid_count),
     finalPaid: Boolean(deal.finalPaid ?? deal.final_paid_count),

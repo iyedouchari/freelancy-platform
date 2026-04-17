@@ -26,3 +26,4 @@
 {"budget":1000,"clientId":1000,"domain":"Développement Web","level":"info","message":"Client a cree un projet","requestId":48,"service":"freelancy-api","status":"Ouverte","timestamp":"2026-04-15T22:17:20.985Z","title":"Fix Wallet Issue"}
 {"budget":450,"clientId":4,"domain":"Modélisation 3D","level":"info","message":"Client a cree un projet","requestId":49,"service":"freelancy-api","status":"Ouverte","timestamp":"2026-04-15T23:13:47.875Z","title":"test"}
 {"budget":200,"clientId":4,"domain":"Motion design","level":"info","message":"Client a cree un projet","requestId":50,"service":"freelancy-api","status":"Ouverte","timestamp":"2026-04-16T22:55:08.261Z","title":"final"}
+{"budget":4500,"clientId":4,"domain":"UI/UX Design","level":"info","message":"Client a cree un projet","requestId":51,"service":"freelancy-api","status":"Ouverte","timestamp":"2026-04-17T20:02:39.274Z","title":"new"}

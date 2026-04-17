@@ -162,9 +162,20 @@ const mapRequestRow = (row) => {
     return null;
   }
 
+  const rawClientName =
+    row.client_name && row.client_name.trim()
+      ? row.client_name
+      : row.client_company && row.client_company.trim()
+        ? row.client_company
+        : "";
+  const clientName = rawClientName || "Client privé";
+  const clientAvatarUrl = row.client_avatar_url && row.client_avatar_url.trim() ? row.client_avatar_url : null;
+
   return {
     id: row.id,
     clientId: row.client_id,
+    clientName: clientName,
+    clientAvatarUrl: clientAvatarUrl,
     title: row.title,
     description: row.description,
     domain: row.domain,
@@ -301,7 +312,20 @@ export const requestRepository = {
   },
 
   async findById(id, connection = db) {
-    const [rows] = await connection.query("SELECT * FROM requests WHERE id = ? LIMIT 1", [id]);
+    const [rows] = await connection.query(
+      `
+        SELECT 
+          r.*,
+          u.name AS client_name,
+          u.company AS client_company,
+          u.avatar_url AS client_avatar_url
+        FROM requests r
+        LEFT JOIN users u ON u.id = r.client_id
+        WHERE r.id = ? 
+        LIMIT 1
+      `, 
+      [id]
+    );
     const mapped = mapRequestRow(rows[0]);
 
     if (!mapped) {
@@ -364,10 +388,15 @@ export const requestRepository = {
     );
     const [rows] = await connection.query(
       `
-        SELECT *
-        FROM requests
+        SELECT 
+          r.*,
+          u.name AS client_name,
+          u.company AS client_company,
+          u.avatar_url AS client_avatar_url
+        FROM requests r
+        LEFT JOIN users u ON u.id = r.client_id
         ${whereSql}
-        ORDER BY ${safeSortBy} ${safeSortOrder}
+        ORDER BY r.${safeSortBy} ${safeSortOrder}
         LIMIT ? OFFSET ?
       `,
       [...params, Number(limit), Number(offset)],
@@ -389,10 +418,15 @@ export const requestRepository = {
     );
     const [rows] = await connection.query(
       `
-        SELECT *
-        FROM requests
-        WHERE client_id = ?
-        ORDER BY created_at DESC
+        SELECT 
+          r.*,
+          u.name AS client_name,
+          u.company AS client_company,
+          u.avatar_url AS client_avatar_url
+        FROM requests r
+        LEFT JOIN users u ON u.id = r.client_id
+        WHERE r.client_id = ?
+        ORDER BY r.created_at DESC
         LIMIT ? OFFSET ?
       `,
       [clientId, Number(limit), Number(offset)],
@@ -540,9 +574,14 @@ export const requestRepository = {
     );
     const [rows] = await connection.query(
       `
-        SELECT r.*
+        SELECT 
+          r.*,
+          u.name AS client_name,
+          u.company AS client_company,
+          u.avatar_url AS client_avatar_url
         FROM requests r
         JOIN freelancer_domains fd ON fd.id_freelancer = ?
+        LEFT JOIN users u ON u.id = r.client_id
         WHERE r.status = 'Ouverte'
           AND (
             fd.domain = r.domain

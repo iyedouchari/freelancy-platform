@@ -1,5 +1,32 @@
 import { format } from "../utils/format";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
+
+const toAbsoluteMediaUrl = (value) => {
+  const input = String(value || "").trim();
+  if (!input) {
+    return "";
+  }
+
+  if (input.startsWith("data:") || input.startsWith("http://") || input.startsWith("https://")) {
+    return input;
+  }
+
+  const apiOrigin = API_BASE_URL.replace(/\/api\/?$/, "");
+  if (input.startsWith("/")) {
+    return `${apiOrigin}${input}`;
+  }
+
+  return `${apiOrigin}/${input}`;
+};
+
+const getInitials = (name) =>
+  String(name || "Client")
+    .split(" ")
+    .map((item) => item.charAt(0).toUpperCase())
+    .join("")
+    .slice(0, 2);
+
 const ProjectDetails = ({ project }) => {
   if (!project) return null;
 
@@ -19,6 +46,9 @@ const ProjectDetails = ({ project }) => {
     "Capable de communiquer clairement en français",
   ];
   const currency = project.currency ?? "DT";
+  const clientName = String(project.client || "").trim() || "Client privé";
+  const clientAvatar = toAbsoluteMediaUrl(project.clientAvatarUrl);
+  const clientInitials = getInitials(clientName);
 
   return (
     <div className="glass-card p-8 space-y-7 h-fit">
@@ -107,7 +137,27 @@ const ProjectDetails = ({ project }) => {
         </div>
         <div className="glass-card p-4">
           <p className="card-section-title">Client</p>
-          <p className="text-lg font-semibold text-slate-900">{project.client ?? "Client privé"}</p>
+          <div className="flex items-center gap-3">
+            {clientAvatar ? (
+              <img
+                src={clientAvatar}
+                alt={clientName}
+                className="w-10 h-10 rounded-lg object-cover border border-slate-200 shadow-sm bg-white"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                  const fallback = e.currentTarget.nextElementSibling;
+                  if (fallback) {
+                    fallback.classList.remove("hidden");
+                    fallback.classList.add("flex");
+                  }
+                }}
+              />
+            ) : null}
+            <div className={`${clientAvatar ? "hidden" : "flex"} w-10 h-10 rounded-lg bg-slate-900 items-center justify-center text-white font-semibold text-sm shadow-sm`}>
+              {clientInitials}
+            </div>
+            <p className="text-lg font-semibold text-slate-900">{clientName}</p>
+          </div>
         </div>
       </div>
     </div>

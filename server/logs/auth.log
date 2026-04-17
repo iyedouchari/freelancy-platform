@@ -145,3 +145,15 @@
 {"email":"bachir@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"client","service":"freelancy-api","timestamp":"2026-04-16T22:54:40.088Z","userId":4}
 {"email":"iyed.ouchari123@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"freelancer","service":"freelancy-api","timestamp":"2026-04-17T17:08:52.456Z","userId":1}
 {"email":"bachir@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"client","service":"freelancy-api","timestamp":"2026-04-17T17:32:33.849Z","userId":4}
+{"email":"iyed.ouchari123@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"freelancer","service":"freelancy-api","timestamp":"2026-04-17T19:46:20.933Z","userId":1}
+{"email":"iyed.ouchariii@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"freelancer","service":"freelancy-api","timestamp":"2026-04-17T19:46:44.771Z","userId":20}
+{"email":"iyed.ouchari123@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"freelancer","service":"freelancy-api","timestamp":"2026-04-17T19:56:34.978Z","userId":1}
+{"email":"iyed.ouchariii@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"freelancer","service":"freelancy-api","timestamp":"2026-04-17T19:56:59.745Z","userId":20}
+{"email":"iyed.ouchariii@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"freelancer","service":"freelancy-api","timestamp":"2026-04-17T20:01:00.871Z","userId":20}
+{"email":"bachir@gmail.com","level":"info","message":"Tentative de connexion avec mot de passe incorrect","service":"freelancy-api","timestamp":"2026-04-17T20:02:09.064Z","userId":4}
+{"email":"bachir@gmail.com","level":"error","message":"Echec de connexion : mot de passe incorrect","service":"freelancy-api","timestamp":"2026-04-17T20:02:09.065Z","userId":4}
+{"email":"bachir@gmail.com","level":"info","message":"Tentative de connexion avec mot de passe incorrect","service":"freelancy-api","timestamp":"2026-04-17T20:02:10.945Z","userId":4}
+{"email":"bachir@gmail.com","level":"error","message":"Echec de connexion : mot de passe incorrect","service":"freelancy-api","timestamp":"2026-04-17T20:02:10.946Z","userId":4}
+{"email":"bachir@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"client","service":"freelancy-api","timestamp":"2026-04-17T20:02:17.833Z","userId":4}
+{"email":"iyed.ouchariii@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"freelancer","service":"freelancy-api","timestamp":"2026-04-17T20:15:41.036Z","userId":20}
+{"email":"bachir@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"client","service":"freelancy-api","timestamp":"2026-04-17T20:16:22.389Z","userId":4}

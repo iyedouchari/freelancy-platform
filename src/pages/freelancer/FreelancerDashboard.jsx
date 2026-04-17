@@ -5,6 +5,7 @@ import ProjectCard from "../../components/ProjectCard";
 import ProjectDetails from "../../components/ProjectDetails";
 import { DOMAIN_OPTIONS } from "../../data/domains";
 import { requestService } from "../../services/requestService";
+import { userService } from "../../services/userService";
 import { splitRequestMetadata } from "../../utils/requestDomains";
 import { format } from "../../utils/format";
 import { showAppFeedback } from "../../utils/appFeedback";
@@ -75,8 +76,66 @@ const toUiProject = (request) => ({
   currency: "DT",
   deadline: request.deadline,
   posted: request.postedAt ?? request.createdAt ?? new Date().toISOString().slice(0, 10),
-  client: request.clientName ?? "Client privé",
+  client: request.clientName ?? request.client_name ?? request.client?.name ?? "Client privé",
+  clientAvatarUrl:
+    request.clientAvatarUrl ?? request.client_avatar_url ?? request.client?.avatarUrl ?? null,
 });
+
+const enrichRequestsWithClientProfiles = async (requests) => {
+  const rows = Array.isArray(requests) ? requests : [];
+  const missingClientIds = [
+    ...new Set(
+      rows
+        .filter((request) => {
+          const hasClientName = String(
+            request?.clientName ?? request?.client_name ?? request?.client?.name ?? "",
+          ).trim();
+          const hasClientAvatar = String(
+            request?.clientAvatarUrl ?? request?.client_avatar_url ?? request?.client?.avatarUrl ?? "",
+          ).trim();
+
+          return request?.clientId && (!hasClientName || !hasClientAvatar);
+        })
+        .map((request) => String(request.clientId)),
+    ),
+  ];
+
+  if (!missingClientIds.length) {
+    return rows;
+  }
+
+  const profiles = await Promise.all(
+    missingClientIds.map(async (clientId) => {
+      try {
+        const profile = await userService.getById(clientId);
+        return [clientId, profile];
+      } catch {
+        return [clientId, null];
+      }
+    }),
+  );
+
+  const profileById = new Map(profiles);
+
+  return rows.map((request) => {
+    const profile = profileById.get(String(request.clientId));
+    if (!profile) {
+      return request;
+    }
+
+    return {
+      ...request,
+      clientName:
+        String(request.clientName ?? request.client_name ?? "").trim() ||
+        String(profile.name ?? profile.company ?? "").trim() ||
+        request.clientName,
+      clientAvatarUrl:
+        String(request.clientAvatarUrl ?? request.client_avatar_url ?? "").trim() ||
+        String(profile.avatarUrl ?? profile.profileImage ?? "").trim() ||
+        request.clientAvatarUrl,
+    };
+  });
+};
 
 const hasProposalFromCurrentFreelancer = (request, freelancerId) => {
   if (!freelancerId || !Array.isArray(request?.proposals)) {
@@ -247,8 +306,9 @@ const FreelancerDashboard = forwardRef((_, ref) => {
 
     try {
       const rows = await requestService.listOpen();
+      const enrichedRows = await enrichRequestsWithClientProfiles(rows);
       const normalizedRows = Array.isArray(rows)
-        ? rows
+        ? enrichedRows
             .filter((request) => !hasProposalFromCurrentFreelancer(request, currentFreelancerId))
             .map(toUiProject)
         : [];
@@ -366,6 +426,7 @@ const FreelancerDashboard = forwardRef((_, ref) => {
   const openDetails = (id) => {
     setSelectedProjectId(id);
     setViewMode("details");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const backToList = () => {

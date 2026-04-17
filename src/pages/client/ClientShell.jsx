@@ -68,6 +68,14 @@ function wait(ms) {
   });
 }
 
+function navigateClientPage(nextPage, { persist = true } = {}) {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  if (persist) {
+    localStorage.setItem(CLIENT_PAGE_KEY, nextPage);
+  }
+  return nextPage;
+}
+
 function formatMoney(value) {
   return new Intl.NumberFormat("fr-FR", {
     minimumFractionDigits: 2,
@@ -340,18 +348,18 @@ export default function ClientShell() {
     }
 
     setSelectedDeal(resolvedDeal);
-    setPage("workspace");
+    setPage(navigateClientPage("workspace"));
   };
 
   const openFreelancerProfile = (freelancerId) => {
     setSelectedFreelancerId(freelancerId);
-    setPage("freelancerProfile");
+    setPage(navigateClientPage("freelancerProfile", { persist: false }));
   };
 
   const openProfileFromWorkspace = ({ userId }) => {
     if (!userId) return;
     setSelectedFreelancerId(userId);
-    setPage("freelancerProfile");
+    setPage(navigateClientPage("freelancerProfile", { persist: false }));
   };
 
   const handleCreateRequest = async (payload) => {
@@ -397,9 +405,9 @@ export default function ClientShell() {
 
     if (createdDeal) {
       setSelectedDeal(createdDeal);
-      setPage("workspace");
+      setPage(navigateClientPage("workspace"));
     } else {
-      setPage("dashboard");
+      setPage(navigateClientPage("dashboard"));
     }
     
     setProposalToAccept(null);
@@ -420,7 +428,7 @@ export default function ClientShell() {
 
     setSelectedDeal(resolvedDeal ?? null);
     setPendingAdvanceDeal(null);
-    setPage(resolvedDeal ? "workspace" : "dashboard");
+    setPage(navigateClientPage(resolvedDeal ? "workspace" : "dashboard"));
   };
 
   const handleRejectProposal = async (requestId, proposalId) => {
@@ -501,8 +509,7 @@ export default function ClientShell() {
       <Navbar
         onDashboard={() => {
           try {
-            setPage("dashboard");
-            localStorage.setItem(CLIENT_PAGE_KEY, "dashboard");
+            setPage(navigateClientPage("dashboard"));
           } catch (error) {
             console.error("Error navigating to dashboard:", error);
             window.location.href = "/dashboard";
@@ -510,23 +517,21 @@ export default function ClientShell() {
         }}
         onRequests={() => {
           try {
-            setPage("requests");
-            localStorage.setItem(CLIENT_PAGE_KEY, "requests");
+            setPage(navigateClientPage("requests"));
           } catch (error) {
             console.error("Error navigating to requests:", error);
           }
         }}
         onWallet={() => {
           try {
-            setPage("wallet");
-            localStorage.setItem(CLIENT_PAGE_KEY, "wallet");
+            setPage(navigateClientPage("wallet"));
           } catch (error) {
             console.error("Error navigating to wallet:", error);
           }
         }}
         onProfile={() => {
           try {
-            setPage("profile");
+            setPage(navigateClientPage("profile", { persist: false }));
           } catch (error) {
             console.error("Error navigating to profile:", error);
           }
@@ -545,7 +550,7 @@ export default function ClientShell() {
             pendingRequestsCount={openRequests.length}
             onOpenWorkspace={openWorkspace}
             onDealUpdate={handleDealUpdate}
-            onGoToWallet={() => setPage("wallet")}
+            onGoToWallet={() => setPage(navigateClientPage("wallet"))}
           />
         )}
 
@@ -566,7 +571,7 @@ export default function ClientShell() {
         {page === "profile" && (
           <FreelancerProfile
             variant="client"
-            onBack={() => setPage("dashboard")}
+            onBack={() => setPage(navigateClientPage("dashboard"))}
             stats={[
               {
                 label: "Demandes",
@@ -597,14 +602,14 @@ export default function ClientShell() {
             mode="public"
             publicUserId={selectedFreelancerId}
             dealId={selectedDeal?.id}
-            onBack={() => setPage(selectedDeal ? "workspace" : "requests")}
+            onBack={() => setPage(navigateClientPage(selectedDeal ? "workspace" : "requests", { persist: !selectedDeal }))}
           />
         )}
 
         {page === "workspace" && selectedDeal && (
           <Workspace
             deal={selectedDeal}
-            onBack={() => setPage("dashboard")}
+            onBack={() => setPage(navigateClientPage("dashboard"))}
             onOpenProfile={openProfileFromWorkspace}
             viewerRole="client"
             participantName={clientName}
@@ -621,7 +626,7 @@ export default function ClientShell() {
           onClose={() => setPendingAdvanceDeal(null)}
           onGoToWallet={() => {
             setPendingAdvanceDeal(null);
-            setPage("wallet");
+            setPage(navigateClientPage("wallet"));
           }}
           onSuccess={handleAdvancePaymentSuccess}
         />
@@ -633,7 +638,7 @@ export default function ClientShell() {
           onClose={() => setProposalToAccept(null)}
           onGoToWallet={() => {
             setProposalToAccept(null);
-            setPage("wallet");
+            setPage(navigateClientPage("wallet"));
           }}
           onSuccess={handleAcceptAndPaySuccess}
         />
