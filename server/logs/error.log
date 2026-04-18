@@ -27,3 +27,4 @@
 [2026-04-18 22:05:13] Echec de connexion : utilisateur introuvable | email=hamza@gmail.com
 [2026-04-18 22:42:46] Echec de connexion : mot de passe incorrect | email=iyed.ouchari123@gmail.com | userId=4
 [2026-04-18 23:15:39] Echec de connexion : utilisateur introuvable | email=iyed.ouchariii@mail.com
+{"email":"iyed.ouchari123@gmail.com","level":"error","message":"Echec de connexion : mot de passe incorrect","scope":"auth","service":"freelancy-api","timestamp":"2026-04-18T23:48:35.778Z","userId":4}
