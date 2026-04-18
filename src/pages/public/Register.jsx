@@ -2,17 +2,50 @@ import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { DOMAIN_OPTIONS } from "../../data/domains";
 import { authService } from "../../services/authService";
-import { userService } from "../../services/userService";
 import { showAppFeedback } from "../../utils/appFeedback";
 import "../../styles/landing.css";
 
 const CATEGORIES = DOMAIN_OPTIONS;
 
-const Onboarding = ({ onComplete }) => {
+const ONBOARDING_CONTENT = {
+  freelancer: {
+    progressReady: "Prêt !",
+    progressPending: "Complétez votre profil",
+    title: "Personnalisez votre profil",
+    subtitle:
+      "Choisissez vos domaines d'expertise et ajoutez une bio pour que les clients puissent vous trouver facilement.",
+    domainsLabel: "Vos domaines d'expertise",
+    bioLabel: "Votre bio professionnelle",
+    bioPlaceholder:
+      "Décrivez votre expérience, vos compétences et ce que vous pouvez apporter aux clients...",
+    submitLabel: "Commencer à explorer",
+    successTitle: "Inscription freelance réussie",
+    successMessage:
+      "Votre profil freelance est prêt. Connectez-vous pour commencer à explorer les projets.",
+  },
+  client: {
+    progressReady: "Prêt !",
+    progressPending: "Complétez votre profil",
+    title: "Personnalisez votre profil client",
+    subtitle:
+      "Choisissez vos domaines d'activité et ajoutez une bio pour aider les freelances à mieux comprendre votre univers.",
+    domainsLabel: "Vos domaines d'activité",
+    bioLabel: "Votre présentation",
+    bioPlaceholder:
+      "Présentez votre activité, vos besoins habituels et la manière dont vous collaborez avec les freelances...",
+    submitLabel: "Finaliser mon inscription",
+    successTitle: "Inscription client reussie",
+    successMessage:
+      "Votre compte client a été cree avec succes. Connectez-vous quand vous etes pret a publier vos demandes.",
+  },
+};
+
+const Onboarding = ({ role, onComplete }) => {
   const [selectedFields, setSelectedFields] = useState([]);
   const [bio, setBio] = useState("");
   const [profileImage, setProfileImage] = useState(null);
   const imageInputRef = useRef(null);
+  const content = ONBOARDING_CONTENT[role] || ONBOARDING_CONTENT.freelancer;
 
   const toggleField = (field) => {
     setSelectedFields((prev) =>
@@ -87,7 +120,7 @@ const Onboarding = ({ onComplete }) => {
               />
             </div>
             <span className="onboarding-progress-text">
-              {selectedFields.length > 0 && bio.trim() ? "Prêt !" : "Complétez votre profil"}
+              {selectedFields.length > 0 && bio.trim() ? content.progressReady : content.progressPending}
             </span>
           </div>
         </div>
@@ -95,10 +128,10 @@ const Onboarding = ({ onComplete }) => {
         <div className="onboarding-content">
           <h1 className="onboarding-title">
             Bienvenue ! 🎉 <br />
-            <span>Personnalisez votre profil</span>
+            <span>{content.title}</span>
           </h1>
           <p className="onboarding-subtitle">
-            Choisissez vos domaines d'expertise et ajoutez une bio pour que les clients puissent vous trouver facilement.
+            {content.subtitle}
           </p>
 
           <form onSubmit={handleSubmit} className="onboarding-form">
@@ -173,7 +206,7 @@ const Onboarding = ({ onComplete }) => {
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                 </svg>
-                Vos domaines d'expertise
+                {content.domainsLabel}
                 <span className="onboarding-counter">{selectedFields.length} sélectionné{selectedFields.length !== 1 ? "s" : ""}</span>
               </h2>
               <div className="onboarding-fields-grid">
@@ -196,12 +229,12 @@ const Onboarding = ({ onComplete }) => {
                   <path d="M12 20h9" />
                   <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
                 </svg>
-                Votre bio professionnelle
+                {content.bioLabel}
               </h2>
               <textarea
                 className="onboarding-bio"
                 rows={5}
-                placeholder="Décrivez votre expérience, vos compétences et ce que vous pouvez apporter aux clients..."
+                placeholder={content.bioPlaceholder}
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
               />
@@ -215,7 +248,7 @@ const Onboarding = ({ onComplete }) => {
               className="onboarding-submit"
               disabled={selectedFields.length === 0 || !bio.trim()}
             >
-              <span>Commencer à explorer</span>
+              <span>{content.submitLabel}</span>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="5" y1="12" x2="19" y2="12" />
                 <polyline points="12 5 19 12 12 19" />
@@ -285,7 +318,6 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [pendingFreelancerAuth, setPendingFreelancerAuth] = useState(null);
   const [registrationSuccess, setRegistrationSuccess] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -337,39 +369,9 @@ const Register = () => {
     const normalizedPhone = phone.trim();
 
     try {
-      const registerResult = await authService.register({
-        name: normalizedName,
-        company: normalizedCompany,
-        title: normalizedTitle,
-        location: normalizedLocation,
-        email: normalizedEmail,
-        phone: normalizedPhone,
-        password,
-        role,
-      });
-
-      localStorage.removeItem("app_role");
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("client_entry_page");
-
-      if (role === "freelancer") {
-        setPendingFreelancerAuth({
-          token: registerResult?.token || "",
-          userId: registerResult?.user?.id || "",
-        });
+      if (role === "freelancer" || role === "client") {
         setShowOnboarding(true);
-      } else {
-        localStorage.setItem("client_name", normalizedName);
-        localStorage.setItem("client_company", normalizedCompany);
-        localStorage.setItem("client_role_title", normalizedTitle);
-        localStorage.setItem("client_location", normalizedLocation);
-        localStorage.setItem("client_email", normalizedEmail);
-        localStorage.setItem("client_phone", normalizedPhone);
-        setRegistrationSuccess({
-          title: "Inscription client reussie",
-          message:
-            "Votre compte client a été cree avec succes. Connectez-vous quand vous etes pret a publier vos demandes.",
-        });
+        return;
       }
     } catch (error) {
       setErrorMessage(error.message || "Echec de l'inscription.");
@@ -380,57 +382,71 @@ const Register = () => {
 
   const handleOnboardingComplete = async (data) => {
     const normalizedName = name.trim();
+    const normalizedCompany = company.trim();
+    const normalizedTitle = title.trim();
+    const normalizedLocation = location.trim();
     const normalizedEmail = email.trim().toLowerCase();
-    const previousToken = localStorage.getItem("auth_token");
-    const previousUserId = localStorage.getItem("user_id");
 
     try {
-      if (pendingFreelancerAuth?.token) {
-        localStorage.setItem("auth_token", pendingFreelancerAuth.token);
-      }
-      if (pendingFreelancerAuth?.userId) {
-        localStorage.setItem("user_id", String(pendingFreelancerAuth.userId));
-      }
-
-      await userService.updateMe({
+      const registerResult = await authService.register({
+        name: normalizedName,
+        company: normalizedCompany,
+        title: normalizedTitle,
+        location: normalizedLocation,
+        email: normalizedEmail,
+        phone: phone.trim(),
+        password,
+        role,
         bio: data.bio,
         profileImage: data.profileImage || "",
       });
 
       localStorage.removeItem("app_role");
-      localStorage.setItem("freelancer_fields", JSON.stringify(data.fields));
-      localStorage.setItem("freelancer_bio", data.bio);
-      localStorage.setItem("freelancer_name", normalizedName);
-      localStorage.setItem("freelancer_title", title.trim());
-      localStorage.setItem("freelancer_location", location.trim());
-      localStorage.setItem("freelancer_email", normalizedEmail);
-      localStorage.setItem("freelancer_phone", phone.trim());
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("user_id");
       localStorage.removeItem("client_entry_page");
-      if (data.profileImage) {
-        localStorage.setItem("freelancer_image", data.profileImage);
+
+      if (role === "freelancer") {
+        localStorage.setItem("freelancer_fields", JSON.stringify(data.fields));
+        localStorage.setItem("freelancer_bio", data.bio);
+        localStorage.setItem("freelancer_name", normalizedName);
+        localStorage.setItem("freelancer_title", normalizedTitle);
+        localStorage.setItem("freelancer_location", normalizedLocation);
+        localStorage.setItem("freelancer_email", normalizedEmail);
+        localStorage.setItem("freelancer_phone", phone.trim());
+      } else {
+        localStorage.setItem("client_sectors", JSON.stringify(data.fields));
+        localStorage.setItem("client_bio", data.bio);
+        localStorage.setItem("client_name", normalizedName);
+        localStorage.setItem("client_company", normalizedCompany);
+        localStorage.setItem("client_role_title", normalizedTitle);
+        localStorage.setItem("client_location", normalizedLocation);
+        localStorage.setItem("client_email", normalizedEmail);
+        localStorage.setItem("client_phone", phone.trim());
+      }
+
+      const savedAvatar = registerResult?.user?.avatarUrl || data.profileImage || "";
+      if (savedAvatar) {
+        if (role === "freelancer") {
+          localStorage.setItem("freelancer_image", savedAvatar);
+        } else {
+          localStorage.setItem("client_image", savedAvatar);
+        }
+      } else {
+        if (role === "freelancer") {
+          localStorage.removeItem("freelancer_image");
+        } else {
+          localStorage.removeItem("client_image");
+        }
       }
 
       setShowOnboarding(false);
-      setPendingFreelancerAuth(null);
       setRegistrationSuccess({
-        title: "Inscription freelance réussie",
-        message:
-          "Votre profil freelance est prêt. Connectez-vous pour commencer à explorer les projets.",
+        title: ONBOARDING_CONTENT[role]?.successTitle || ONBOARDING_CONTENT.freelancer.successTitle,
+        message: ONBOARDING_CONTENT[role]?.successMessage || ONBOARDING_CONTENT.freelancer.successMessage,
       });
     } catch (error) {
-      setErrorMessage(error.message || "Impossible d'enregistrer la photo de profil.");
-    } finally {
-      if (previousToken) {
-        localStorage.setItem("auth_token", previousToken);
-      } else {
-        localStorage.removeItem("auth_token");
-      }
-
-      if (previousUserId) {
-        localStorage.setItem("user_id", previousUserId);
-      } else {
-        localStorage.removeItem("user_id");
-      }
+      setErrorMessage(error.message || "Impossible de finaliser l'inscription.");
     }
   };
 
@@ -445,7 +461,7 @@ const Register = () => {
   }
 
   if (showOnboarding) {
-    return <Onboarding onComplete={handleOnboardingComplete} />;
+    return <Onboarding role={role} onComplete={handleOnboardingComplete} />;
   }
 
   return (

@@ -227,6 +227,9 @@ export default function ClientShell() {
   const [selectedFreelancerId, setSelectedFreelancerId] = useState(
     () => localStorage.getItem(CLIENT_PROFILE_USER_KEY) || null,
   );
+  const [selectedFreelancerDealId, setSelectedFreelancerDealId] = useState(undefined);
+  const [selectedFreelancerProposalId, setSelectedFreelancerProposalId] = useState(undefined);
+  const [profileReturnPage, setProfileReturnPage] = useState("requests");
   const [pendingAdvanceDeal, setPendingAdvanceDeal] = useState(null);
   const [proposalToAccept, setProposalToAccept] = useState(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -351,14 +354,29 @@ export default function ClientShell() {
     setPage(navigateClientPage("workspace"));
   };
 
-  const openFreelancerProfile = (freelancerId) => {
-    setSelectedFreelancerId(freelancerId);
+  const openFreelancerProfile = (profileTarget) => {
+    const payload =
+      typeof profileTarget === "object" && profileTarget !== null
+        ? profileTarget
+        : { freelancerId: profileTarget };
+
+    if (!payload.freelancerId) {
+      return;
+    }
+
+    setSelectedFreelancerId(payload.freelancerId);
+    setSelectedFreelancerDealId(payload.dealId ?? undefined);
+    setSelectedFreelancerProposalId(payload.proposalId ?? undefined);
+    setProfileReturnPage("requests");
     setPage(navigateClientPage("freelancerProfile", { persist: false }));
   };
 
   const openProfileFromWorkspace = ({ userId }) => {
     if (!userId) return;
     setSelectedFreelancerId(userId);
+    setSelectedFreelancerDealId(selectedDeal?.id ?? undefined);
+    setSelectedFreelancerProposalId(undefined);
+    setProfileReturnPage("workspace");
     setPage(navigateClientPage("freelancerProfile", { persist: false }));
   };
 
@@ -601,8 +619,15 @@ export default function ClientShell() {
           <FreelancerProfile
             mode="public"
             publicUserId={selectedFreelancerId}
-            dealId={selectedDeal?.id}
-            onBack={() => setPage(navigateClientPage(selectedDeal ? "workspace" : "requests", { persist: !selectedDeal }))}
+            dealId={selectedFreelancerDealId}
+            proposalId={selectedFreelancerProposalId}
+            onBack={() =>
+              setPage(
+                navigateClientPage(profileReturnPage, {
+                  persist: profileReturnPage !== "workspace",
+                }),
+              )
+            }
           />
         )}
 

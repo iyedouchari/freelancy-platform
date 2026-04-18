@@ -209,7 +209,14 @@ function EditProfile({ profile, onSave, onCancel, isSaving }) {
   );
 }
 
-export default function FreelancerProfile({ onBack, mode = "self", publicUserId = null, dealId = null, stats: externalStats = null }) {
+export default function FreelancerProfile({
+  onBack,
+  mode = "self",
+  publicUserId = null,
+  dealId = null,
+  proposalId = null,
+  stats: externalStats = null,
+}) {
   const isPublicMode = mode === "public" && Boolean(publicUserId);
   const currentUserId = Number(localStorage.getItem("user_id") || 0);
   const [userId, setUserId] = useState(null);
@@ -247,22 +254,7 @@ export default function FreelancerProfile({ onBack, mode = "self", publicUserId 
 
         const uid = user.id || user._id || user.email || "default";
         const local = readLocalProfile(uid);
-        const legacyOwnImage = !isPublicMode ? localStorage.getItem("freelancer_image") : "";
-        let resolvedProfileImage = toAbsoluteMediaUrl(
-          user.avatarUrl || user.profileImage || local.profileImage || legacyOwnImage,
-        );
-
-        if (!isPublicMode && !user.avatarUrl && !user.profileImage) {
-          const imageToSync = local.profileImage || legacyOwnImage;
-          if (imageToSync) {
-            try {
-              const syncedUser = await userService.updateMe({ profileImage: imageToSync });
-              resolvedProfileImage = toAbsoluteMediaUrl(syncedUser?.avatarUrl || imageToSync);
-            } catch {
-              // Keep local image display even if sync fails.
-            }
-          }
-        }
+        const resolvedProfileImage = toAbsoluteMediaUrl(user.avatarUrl || user.profileImage || "");
 
         const mergedProfile = {
           name: user.name || localStorage.getItem(localKey(uid, "name")) || "Freelancer",
@@ -404,8 +396,8 @@ export default function FreelancerProfile({ onBack, mode = "self", publicUserId 
 
   const handleReviewSubmit = async (event) => {
     event.preventDefault();
-    if (!dealId || !publicUserId) {
-      setFeedback("Aucun accord disponible pour enregistrer cet avis.");
+    if ((!dealId && !proposalId) || !publicUserId) {
+      setFeedback("Aucun contexte disponible pour enregistrer cet avis.");
       return;
     }
     if (!String(reviewDraft.comment || "").trim()) {
@@ -416,12 +408,20 @@ export default function FreelancerProfile({ onBack, mode = "self", publicUserId 
     try {
       setIsSavingReview(true);
       setFeedback("");
-      await reviewService.save({
-        dealId,
+      const reviewPayload = {
         toUserId: publicUserId,
         score: reviewDraft.score,
         comment: reviewDraft.comment.trim(),
-      });
+      };
+
+      if (dealId) {
+        reviewPayload.dealId = dealId;
+      }
+      if (proposalId) {
+        reviewPayload.proposalId = proposalId;
+      }
+
+      await reviewService.save(reviewPayload);
       const nextReviews = await reviewService.listForUser(publicUserId);
       setReviews(nextReviews);
       setIsReviewEditorOpen(false);
@@ -442,7 +442,11 @@ export default function FreelancerProfile({ onBack, mode = "self", publicUserId 
       - new Date(a.updatedAt || a.createdAt || 0).getTime(),
   );
   const ownReview = sortedReviews.find((item) => Number(item.fromUserId) === currentUserId);
-  const canReview = isPublicMode && Boolean(publicUserId) && Number(publicUserId) !== currentUserId && Boolean(dealId);
+  const canReview =
+    isPublicMode &&
+    Boolean(publicUserId) &&
+    Number(publicUserId) !== currentUserId &&
+    Boolean(dealId || proposalId);
   const shareTargetUserId = isPublicMode ? publicUserId : userId;
 
   const handlePublishProfile = async () => {

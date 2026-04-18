@@ -1,6 +1,7 @@
 import AppError from "../../utils/AppError.js";
 import { reviewRepository } from "./review.repository.js";
 import { dealRepository } from "../deals/deal.repository.js";
+import { proposalRepository } from "../proposals/proposal.repository.js";
 
 const ensurePositiveId = (value, label) => {
   const id = Number.parseInt(value, 10);
@@ -19,7 +20,20 @@ export const reviewService = {
   },
 
   async createReview(user, payload) {
-    const dealId = ensurePositiveId(payload.dealId, "Deal id");
+    const hasDealId = payload.dealId !== undefined && payload.dealId !== null && payload.dealId !== "";
+    const hasProposalId =
+      payload.proposalId !== undefined && payload.proposalId !== null && payload.proposalId !== "";
+
+    if (!hasDealId && !hasProposalId) {
+      throw new AppError(
+        "Un accord ou une proposition est requis pour enregistrer un avis.",
+        400,
+        "REVIEW_CONTEXT_REQUIRED",
+      );
+    }
+
+    const dealId = hasDealId ? ensurePositiveId(payload.dealId, "Deal id") : null;
+    const proposalId = hasProposalId ? ensurePositiveId(payload.proposalId, "Proposal id") : null;
     const toUserId = ensurePositiveId(payload.toUserId, "Target user id");
 
     if (user.id === toUserId) {
@@ -30,24 +44,43 @@ export const reviewService = {
       );
     }
 
-    const deal = await dealRepository.findById(dealId);
-    if (!deal) {
-      throw new AppError("Accord introuvable.", 404, "DEAL_NOT_FOUND");
-    }
+    let expectedTargetUserId = null;
 
-    const isParticipant = [Number(deal.clientId), Number(deal.freelancerId)].includes(Number(user.id));
-    if (!isParticipant) {
-      throw new AppError("Action non autorisee pour cet accord.", 403, "FORBIDDEN");
-    }
+    if (dealId) {
+      const deal = await dealRepository.findById(dealId);
+      if (!deal) {
+        throw new AppError("Accord introuvable.", 404, "DEAL_NOT_FOUND");
+      }
 
-    const expectedTargetUserId =
-      Number(deal.clientId) === Number(user.id) ? Number(deal.freelancerId) : Number(deal.clientId);
+      const isParticipant = [Number(deal.clientId), Number(deal.freelancerId)].includes(Number(user.id));
+      if (!isParticipant) {
+        throw new AppError("Action non autorisee pour cet accord.", 403, "FORBIDDEN");
+      }
+
+      expectedTargetUserId =
+        Number(deal.clientId) === Number(user.id) ? Number(deal.freelancerId) : Number(deal.clientId);
+    } else {
+      const proposal = await proposalRepository.findById(proposalId);
+      if (!proposal) {
+        throw new AppError("Proposition introuvable.", 404, "PROPOSAL_NOT_FOUND");
+      }
+
+      const clientId = Number(proposal.requestClientId);
+      const freelancerId = Number(proposal.freelancerId);
+      const isParticipant = [clientId, freelancerId].includes(Number(user.id));
+
+      if (!isParticipant) {
+        throw new AppError("Action non autorisee pour cette proposition.", 403, "FORBIDDEN");
+      }
+
+      expectedTargetUserId = Number(user.id) === clientId ? freelancerId : clientId;
+    }
 
     if (Number(toUserId) !== expectedTargetUserId) {
       throw new AppError("La cible de l'avis ne correspond pas a cet accord.", 400, "INVALID_REVIEW_TARGET");
     }
 
-    const existingReview = await reviewRepository.findByDealAndAuthor(dealId, user.id);
+    const existingReview = await reviewRepository.findExisting(user.id, toUserId);
     if (existingReview) {
       return reviewRepository.update(existingReview.id, {
         score: payload.score,

@@ -37,6 +37,10 @@ function getProposalStatusMeta(status) {
     return { label: "Refusee", tone: "is-refused" };
   }
 
+  if (status === "Annulee" || status === "cancelled" || status === "canceled") {
+    return { label: "Annulee", tone: "is-cancelled" };
+  }
+
   if (status === "Acceptee" || status === "accepted") {
     return { label: "Acceptee", tone: "is-accepted" };
   }
@@ -138,6 +142,17 @@ export default function ClientRequests({
 
   const selectedRequest =
     requests.find((request) => request.id === selectedRequestId) ?? filteredRequests[0] ?? null;
+
+  const visibleProposals = useMemo(() => {
+    if (!selectedRequest?.proposals?.length) {
+      return [];
+    }
+
+    return selectedRequest.proposals.filter((proposal) => {
+      const status = String(proposal?.status || "").toLowerCase();
+      return !(status.includes("annul") || status.includes("cancel") || status.includes("withdraw"));
+    });
+  }, [selectedRequest]);
 
   const handleCreateRequest = async (payload) => {
     try {
@@ -407,7 +422,7 @@ export default function ClientRequests({
                     </div>
                     <div>
                       <span>Propositions</span>
-                      <strong>{selectedRequest.proposals.length}</strong>
+                      <strong>{visibleProposals.length}</strong>
                     </div>
                   </div>
 
@@ -485,8 +500,8 @@ export default function ClientRequests({
                       <h3>Comprendre chaque proposition avant de choisir</h3>
                     </div>
                     <span className="client-request-proposals-count">
-                      {selectedRequest.proposals.length} profil
-                      {selectedRequest.proposals.length > 1 ? "s" : ""}
+                      {visibleProposals.length} profil
+                      {visibleProposals.length > 1 ? "s" : ""}
                     </span>
                   </div>
 
@@ -497,13 +512,13 @@ export default function ClientRequests({
                         freelance et ajouter un avis si besoin.
                       </p>
                     </div>
-                  ) : selectedRequest.proposals.length === 0 ? (
+                  ) : visibleProposals.length === 0 ? (
                     <div className="client-request-proposals-empty">
                       Aucun freelance ne s'est encore positionné sur cette demande.
                     </div>
                   ) : (
                     <div className="client-request-proposals-list">
-                      {selectedRequest.proposals.map((proposal) => {
+                      {visibleProposals.map((proposal) => {
                         const proposalStatus = getProposalStatusMeta(proposal.status);
                         const comparison = getProposalComparison(selectedRequest, proposal);
                         const isPending =
@@ -558,7 +573,13 @@ export default function ClientRequests({
                               <button
                                 type="button"
                                 className="ghost"
-                                onClick={() => onViewFreelancerProfile?.(proposal.freelancerId)}
+                                onClick={() =>
+                                  onViewFreelancerProfile?.({
+                                    freelancerId: proposal.freelancerId,
+                                    proposalId: proposal.id,
+                                    requestId: selectedRequest.id,
+                                  })
+                                }
                               >
                                 Voir le profil et ajouter un avis
                               </button>

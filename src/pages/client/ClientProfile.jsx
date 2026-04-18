@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { clientRequestCategories } from "../../data/clientData";
+import { userService } from "../../services/userService";
 import "./ClientProfile.css";
 
 function readClientProfile() {
@@ -17,7 +18,7 @@ function readClientProfile() {
       localStorage.getItem("client_sectors") ||
         '["Développement Web","UI/UX Design","Marketing digital"]'
     ),
-    profileImage: localStorage.getItem("client_image") || null,
+    profileImage: null,
   };
 }
 
@@ -209,6 +210,54 @@ export default function ClientProfile({
 }) {
   const [profile, setProfile] = useState(readClientProfile);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProfile = async () => {
+      try {
+        const user = await userService.getMe();
+        if (!isMounted || !user) {
+          return;
+        }
+
+        const nextProfile = {
+          ...readClientProfile(),
+          name: user.name || readClientProfile().name,
+          company: user.company || readClientProfile().company,
+          title: user.title || readClientProfile().title,
+          location: user.location || readClientProfile().location,
+          email: user.email || readClientProfile().email,
+          phone: user.phone || readClientProfile().phone,
+          bio: user.bio || readClientProfile().bio,
+          profileImage: user.avatarUrl || null,
+        };
+
+        setProfile(nextProfile);
+        localStorage.setItem("client_name", nextProfile.name);
+        localStorage.setItem("client_company", nextProfile.company);
+        localStorage.setItem("client_role_title", nextProfile.title);
+        localStorage.setItem("client_location", nextProfile.location);
+        localStorage.setItem("client_email", nextProfile.email);
+        localStorage.setItem("client_phone", nextProfile.phone);
+        localStorage.setItem("client_bio", nextProfile.bio);
+        if (nextProfile.profileImage) {
+          localStorage.setItem("client_image", nextProfile.profileImage);
+        } else {
+          localStorage.removeItem("client_image");
+        }
+      } catch (_error) {
+        // Keep local fallback when the API is unavailable.
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleSafeBack = () => {
     try {
@@ -223,22 +272,53 @@ export default function ClientProfile({
     }
   };
 
-  const handleSave = (nextProfile) => {
-    setProfile(nextProfile);
-    localStorage.setItem("client_name", nextProfile.name);
-    localStorage.setItem("client_company", nextProfile.company);
-    localStorage.setItem("client_role_title", nextProfile.title);
-    localStorage.setItem("client_location", nextProfile.location);
-    localStorage.setItem("client_email", nextProfile.email);
-    localStorage.setItem("client_phone", nextProfile.phone);
-    localStorage.setItem("client_bio", nextProfile.bio);
-    localStorage.setItem("client_sectors", JSON.stringify(nextProfile.sectors));
-    if (nextProfile.profileImage) {
-      localStorage.setItem("client_image", nextProfile.profileImage);
-    } else {
-      localStorage.removeItem("client_image");
+  const handleSave = async (nextProfile) => {
+    setIsSaving(true);
+
+    try {
+      const updatedUser = await userService.updateMe({
+        name: nextProfile.name,
+        title: nextProfile.title,
+        email: nextProfile.email,
+        phone: nextProfile.phone,
+        location: nextProfile.location,
+        bio: nextProfile.bio,
+        profileImage: nextProfile.profileImage || "",
+      });
+
+      const savedProfile = {
+        ...nextProfile,
+        name: updatedUser?.name || nextProfile.name,
+        company: updatedUser?.company || nextProfile.company,
+        title: updatedUser?.title || nextProfile.title,
+        location: updatedUser?.location || nextProfile.location,
+        email: updatedUser?.email || nextProfile.email,
+        phone: updatedUser?.phone || nextProfile.phone,
+        bio: updatedUser?.bio ?? nextProfile.bio,
+        profileImage: updatedUser?.avatarUrl || nextProfile.profileImage || null,
+      };
+
+      setProfile(savedProfile);
+      localStorage.setItem("client_name", savedProfile.name);
+      localStorage.setItem("client_company", savedProfile.company);
+      localStorage.setItem("client_role_title", savedProfile.title);
+      localStorage.setItem("client_location", savedProfile.location);
+      localStorage.setItem("client_email", savedProfile.email);
+      localStorage.setItem("client_phone", savedProfile.phone);
+      localStorage.setItem("client_bio", savedProfile.bio);
+      localStorage.setItem("client_sectors", JSON.stringify(savedProfile.sectors));
+      if (savedProfile.profileImage) {
+        localStorage.setItem("client_image", savedProfile.profileImage);
+      } else {
+        localStorage.removeItem("client_image");
+      }
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Error saving client profile:", error);
+      window.alert(error?.message || "Impossible d'enregistrer l'avatar sur la base de données.");
+    } finally {
+      setIsSaving(false);
     }
-    setIsEditing(false);
   };
 
   if (isEditing) {
@@ -288,7 +368,7 @@ export default function ClientProfile({
           </div>
 
           <div className="client-profile-hero-actions">
-            <button type="button" onClick={() => setIsEditing(true)}>
+            <button type="button" onClick={() => setIsEditing(true)} disabled={isSaving}>
               Modifier le profil
             </button>
           </div>

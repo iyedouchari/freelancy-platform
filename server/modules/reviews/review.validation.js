@@ -1,8 +1,16 @@
 import Joi from "joi";
 
 export const createReviewSchema = Joi.object({
-  dealId: Joi.number().integer().positive().required(),
+  dealId: Joi.number().integer().positive(),
+  proposalId: Joi.number().integer().positive(),
   toUserId: Joi.number().integer().positive().required(),
+  score: Joi.number().integer().min(1).max(5).required(),
+  comment: Joi.string().trim().min(5).max(2000).required(),
+})
+  .or("dealId", "proposalId")
+  .unknown(false);
+
+export const updateReviewSchema = Joi.object({
   score: Joi.number().integer().min(1).max(5).required(),
   comment: Joi.string().trim().min(5).max(2000).required(),
 }).unknown(false);

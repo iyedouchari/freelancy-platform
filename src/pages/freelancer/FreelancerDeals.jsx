@@ -82,8 +82,15 @@ function DealCard({ deal, onOpenWorkspace }) {
 
 export default function FreelancerDeals({ deals = [], onBack, onOpenWorkspace, isLoading = false }) {
   const [tab, setTab] = useState("active");
-  const activeDeals = useMemo(() => deals.filter((deal) => deal.daysLeft !== null), [deals]);
-  const completedDeals = useMemo(() => deals.filter((deal) => deal.daysLeft === null), [deals]);
+  const canceledDeals = useMemo(
+    () => deals.filter((deal) => deal.statusType === "canceled" || deal.status === "Annule"),
+    [deals],
+  );
+  const completedDeals = useMemo(() => deals.filter((deal) => deal.statusType === "done"), [deals]);
+  const activeDeals = useMemo(
+    () => deals.filter((deal) => deal.statusType !== "done" && deal.statusType !== "canceled"),
+    [deals],
+  );
   const tabConfig = {
     active: {
       label: `Accords en cours (${activeDeals.length})`,
@@ -97,6 +104,12 @@ export default function FreelancerDeals({ deals = [], onBack, onOpenWorkspace, i
       title: "Accords terminés",
       subtitle: "Retrouvez l'historique de vos accords finalisés.",
       items: completedDeals,
+    },
+    canceled: {
+      label: `Annulés (${canceledDeals.length})`,
+      title: "Accords annulés",
+      subtitle: "Retrouvez les accords interrompus ou annulés.",
+      items: canceledDeals,
     },
   };
   const currentTab = tabConfig[tab];

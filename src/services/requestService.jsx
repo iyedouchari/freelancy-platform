@@ -174,6 +174,13 @@ export const requestService = {
     });
   },
 
+  cancelProposal: async (proposalId) => {
+    return request(`/proposals/${proposalId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "Annulee" }),
+    });
+  },
+
   createProposal: async ({ requestId, proposedPrice, proposedDeadline, coverLetter }) => {
     return request("/proposals", {
       method: "POST",

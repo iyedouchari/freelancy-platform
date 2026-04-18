@@ -432,29 +432,28 @@ export async function payAdvance({ dealId, clientId, freelancerId, amount }) {
 export async function payFinal({ dealId, clientId, freelancerId, amount }) {
   return runPaymentTransaction(async (connection) => {
     await guardDuplicatePayment(connection, dealId, "Paiement final", "Le paiement final a deja ete effectue pour ce deal.");
+    const advancePaid = await isPaymentTypePaid(connection, dealId, "Avance");
+    if (!advancePaid) {
+      throw new Error("L'avance doit etre payee avant le paiement final.");
+    }
 
     await ensureSystemWalletOwner(connection);
+    const systemWallet = await findSystemWallet(connection);
     const realFreelancerId = await resolveFreelancerId(dealId, freelancerId, connection);
     const clientWallet = await findWalletByOwnerId(clientId, connection);
     const clientBalanceBefore = Number(clientWallet.balance);
     const deal = await dealRepository.findById(dealId, connection);
-    const escrowAmount = Number(deal?.advanceAmount ?? 0);
     const requestedFinalAmount = roundMoney(Number(amount));
-    const submissionReleased = await hasSubmissionRelease(connection, dealId);
 
     if (deal?.status === "Annule") {
       throw new Error("Le deal est annule.");
     }
 
-    if (!deal?.submittedAt) {
-      throw new Error("Le paiement final n'est autorise qu'apres la soumission du travail.");
-    }
-
-    if (isFinalPaymentGraceExpired(deal?.submittedAt)) {
+    if (deal?.submittedAt && isFinalPaymentGraceExpired(deal?.submittedAt)) {
       const cancellation = await applyAutoCancellationForNonPayment(connection, deal);
       if (cancellation.applied) {
         throw new Error(
-          `Le delai de paiement final (${NON_PAYMENT_GRACE_HOURS}h) est depasse. Le contrat a ete annule et l'acompte reverse au freelance.`,
+          `Le delai de paiement final (${NON_PAYMENT_GRACE_HOURS}h) est depasse. Le contrat a ete annule automatiquement.`,
         );
       }
 
@@ -471,97 +470,74 @@ export async function payFinal({ dealId, clientId, freelancerId, amount }) {
       throw new Error("Montant final invalide.");
     }
 
-    const penalty = computeDelayPenalty(deal);
-    const penaltyAmount = roundMoney(Math.max(Number(penalty.penaltyAmount || 0), 0));
-    const penaltyAppliedOnAdvance = submissionReleased
-      ? Math.min(penaltyAmount, escrowAmount)
-      : 0;
-    const remainingPenaltyForFinal = roundMoney(Math.max(penaltyAmount - penaltyAppliedOnAdvance, 0));
-    const adjustedFinalAmount = roundMoney(Math.max(requestedFinalAmount - remainingPenaltyForFinal, 0));
+    const finalAmountToEscrow = roundMoney(Math.max(requestedFinalAmount, 0));
 
-    if (clientBalanceBefore < adjustedFinalAmount) {
+    if (clientBalanceBefore < finalAmountToEscrow) {
       throw new Error("Solde insuffisant dans le wallet pour payer le montant final.");
     }
-    const payment = await paymentRepo.createPayment({
-      dealId,
-      clientId,
-      freelancerId: realFreelancerId,
-      amount: adjustedFinalAmount,
-      paymentType: "Paiement final",
-    }, connection);
 
-    let clientBalanceAfter = clientBalanceBefore;
-    if (adjustedFinalAmount > 0) {
-      await debitWallet(clientId, adjustedFinalAmount, connection);
-      clientBalanceAfter = roundMoney(clientBalanceAfter - adjustedFinalAmount);
+    let payment = null;
+    if (finalAmountToEscrow > 0) {
+      payment = await paymentRepo.createPayment(
+        {
+          dealId,
+          clientId,
+          freelancerId: realFreelancerId,
+          amount: finalAmountToEscrow,
+          paymentType: "Paiement final",
+        },
+        connection,
+      );
+    }
+
+    if (finalAmountToEscrow > 0) {
+      await debitWallet(clientId, finalAmountToEscrow, connection);
+      const clientBalanceAfter = roundMoney(clientBalanceBefore - finalAmountToEscrow);
       await createTransaction({
         walletId: clientWallet.id,
         dealId,
         type: "final_debit",
-        amount: adjustedFinalAmount,
+        amount: finalAmountToEscrow,
         balanceBefore: clientBalanceBefore,
         balanceAfter: clientBalanceAfter,
       }, connection);
-    }
 
-    if (remainingPenaltyForFinal > 0) {
-      await creditWallet(clientId, remainingPenaltyForFinal, connection);
-      const clientBalanceBeforePenaltyCredit = clientBalanceAfter;
-      clientBalanceAfter = roundMoney(clientBalanceAfter + remainingPenaltyForFinal);
       await createTransaction({
-        walletId: clientWallet.id,
-        dealId,
-        type: "penalty_credit",
-        amount: remainingPenaltyForFinal,
-        balanceBefore: clientBalanceBeforePenaltyCredit,
-        balanceAfter: clientBalanceAfter,
-        note: `Penalite de retard appliquee sur le solde final: ${remainingPenaltyForFinal.toFixed(2)} DT.`,
-      }, connection);
-    }
-
-    const freelancerWallet = await findWalletByOwnerId(realFreelancerId, connection);
-    const freelancerBalanceBefore = Number(freelancerWallet.balance);
-    if (adjustedFinalAmount > 0) {
-      await creditWallet(realFreelancerId, adjustedFinalAmount, connection);
-    }
-
-    let freelancerBalanceCursor = freelancerBalanceBefore;
-    if (adjustedFinalAmount > 0) {
-      const nextBalance = roundMoney(freelancerBalanceCursor + adjustedFinalAmount);
-      await createTransaction({
-        walletId: freelancerWallet.id,
+        walletId: systemWallet.id,
         dealId,
         type: "final_credit",
-        amount: adjustedFinalAmount,
-        balanceBefore: freelancerBalanceCursor,
-        balanceAfter: nextBalance,
+        amount: finalAmountToEscrow,
+        balanceBefore: Number(systemWallet.balance),
+        balanceAfter: roundMoney(Number(systemWallet.balance) + finalAmountToEscrow),
+        note: "Paiement final place en sequestre (wallet 999) jusqu'a la soumission finale.",
       }, connection);
-      freelancerBalanceCursor = nextBalance;
+
+      await creditWallet(systemWallet.owner_id, finalAmountToEscrow, connection);
     }
 
     if (payment) {
       await paymentRepo.updatePaymentStatus(payment.id, "Paye", connection);
     }
 
-    const note = penalty.hasPenalty
-      ? `Paiement final traite avec penalite de retard: ${penaltyAmount.toFixed(2)} DT (${penalty.cycles} cycle(s), ${penalty.daysLate} jour(s) de retard). Solde final verse: ${adjustedFinalAmount.toFixed(2)} DT.`
-      : "Montant total paye.";
+    const note = finalAmountToEscrow > 0
+      ? "Paiement final confirme. Montant place en sequestre (wallet 999) et libere a la soumission finale."
+      : "Paiement final confirme sans montant supplementaire.";
 
     await updateDealAfterPayment(connection, {
       dealId,
       note,
       status: "Totalité payé",
-      penaltyCycles: penalty.cycles,
+      penaltyCycles: Number(deal?.penaltyCycles ?? 0),
     });
 
     return {
       payment: payment ? { ...payment, status: "Paye" } : null,
       penalty: {
-        daysLate: penalty.daysLate,
-        cycles: penalty.cycles,
-        amount: penaltyAmount,
-        amountFromFinal: remainingPenaltyForFinal,
-        amountFromEscrow: penaltyAppliedOnAdvance,
+        daysLate: 0,
+        cycles: 0,
+        amount: 0,
+        amountFromFinal: 0,
+        amountFromEscrow: 0,
       },
       deal: await dealRepository.findById(dealId, connection),
     };
@@ -623,85 +599,80 @@ export async function releaseFreelancerPaymentOnSubmission({ dealId }) {
     }
 
     const freelancerId = Number(deal.freelancerId || deal.freelancer_id);
+    const clientId = Number(deal.clientId || deal.client_id);
     const advanceAmount = roundMoney(Number(deal.advanceAmount || deal.advance_amount || 0));
-    const finalPrice = roundMoney(Number(deal.finalPrice || deal.final_price || 0));
 
-    // Check if advance was paid
     const advancePaid = await isPaymentTypePaid(connection, dealId, "Avance");
-    if (!advancePaid || advanceAmount === 0) {
-      return { released: false, reason: "advance_not_paid" };
+    const finalPaid = await isPaymentTypePaid(connection, dealId, "Paiement final");
+    const finalPayment = finalPaid
+      ? await paymentRepo.findPaymentByDealAndType(dealId, "Paiement final", connection)
+      : null;
+    const finalEscrowAmount = roundMoney(Number(finalPayment?.amount || 0));
+    const escrowAmount = roundMoney((advancePaid ? advanceAmount : 0) + finalEscrowAmount);
+
+    if (escrowAmount <= 0) {
+      return { released: false, reason: "escrow_not_paid" };
     }
 
     await ensureSystemWalletOwner(connection);
     const systemWallet = await findSystemWallet(connection);
     const freelancerWallet = await findWalletByOwnerId(freelancerId, connection);
 
-    if (Number(systemWallet.balance) < advanceAmount) {
+    if (Number(systemWallet.balance) < escrowAmount) {
       throw new Error(`Wallet systeme insuffisant pour la liberation du paiement freelance du deal #${dealId}.`);
     }
 
-    // Calculate penalties
     const penalty = computeDelayPenalty(deal);
-    const penaltyAmount = penalty.penaltyAmount;
+    const penaltyAmount = roundMoney(Math.max(Number(penalty.penaltyAmount || 0), 0));
+    const penaltyReturnAmount = roundMoney(Math.min(penaltyAmount, escrowAmount));
+    const releaseToFreelancer = roundMoney(Math.max(escrowAmount - penaltyReturnAmount, 0));
 
-    // Debit system wallet and credit freelancer
-    const freelancerBalanceBefore = Number(freelancerWallet.balance);
-    
-    // Release advance to freelancer
-    await debitWallet(systemWallet.owner_id, advanceAmount, connection);
-    await creditWallet(freelancerId, advanceAmount, connection);
-
+    const systemBalanceBefore = Number(systemWallet.balance);
+    const systemBalanceAfter = roundMoney(systemBalanceBefore - escrowAmount);
+    await debitWallet(systemWallet.owner_id, escrowAmount, connection);
     await createTransaction({
-      walletId: freelancerWallet.id,
+      walletId: systemWallet.id,
       dealId,
       type: "submission_release",
-      amount: advanceAmount,
-      balanceBefore: freelancerBalanceBefore,
-      balanceAfter: roundMoney(freelancerBalanceBefore + advanceAmount),
-      note: `Paiement libere a la soumission de travail. Penalite potentielle: ${penaltyAmount.toFixed(2)} DT (${penalty.daysLate} jour(s) de retard).`,
+      amount: escrowAmount,
+      balanceBefore: systemBalanceBefore,
+      balanceAfter: systemBalanceAfter,
+      note: "Liberation des fonds escrow apres soumission finale.",
     }, connection);
 
-    // Handle penalties if any
-    let penaltyReturnAmount = 0;
-    if (penaltyAmount > 0) {
-      const clientId = Number(deal.clientId || deal.client_id);
+    if (releaseToFreelancer > 0) {
+      const freelancerBalanceBefore = Number(freelancerWallet.balance);
+      await creditWallet(freelancerId, releaseToFreelancer, connection);
+      await createTransaction({
+        walletId: freelancerWallet.id,
+        dealId,
+        type: "submission_release",
+        amount: releaseToFreelancer,
+        balanceBefore: freelancerBalanceBefore,
+        balanceAfter: roundMoney(freelancerBalanceBefore + releaseToFreelancer),
+        note: `Paiement libere a la soumission de travail. Penalite appliquee: ${penaltyReturnAmount.toFixed(2)} DT (${penalty.cycles} cycle(s), ${penalty.daysLate} jour(s) de retard).`,
+      }, connection);
+    }
+
+    if (penaltyReturnAmount > 0) {
       const clientWallet = await findWalletByOwnerId(clientId, connection);
       const clientBalanceBefore = Number(clientWallet.balance);
-      
-      penaltyReturnAmount = Math.min(penaltyAmount, advanceAmount);
-      
-      if (penaltyReturnAmount > 0) {
-        // Debit penalty from freelancer's advance that was just released
-        await debitWallet(freelancerId, penaltyReturnAmount, connection);
-        await creditWallet(clientId, penaltyReturnAmount, connection);
-
-        const freelancerBalanceAfterPenalty = roundMoney(freelancerBalanceBefore + advanceAmount - penaltyReturnAmount);
-        await createTransaction({
-          walletId: freelancerWallet.id,
-          dealId,
-          type: "penalty_debit",
-          amount: penaltyReturnAmount,
-          balanceBefore: roundMoney(freelancerBalanceBefore + advanceAmount),
-          balanceAfter: freelancerBalanceAfterPenalty,
-          note: `Penalite de retard deduite: ${penaltyReturnAmount.toFixed(2)} DT (${penalty.cycles} cycle(s)).`,
-        }, connection);
-
-        const clientBalanceAfterPenalty = roundMoney(clientBalanceBefore + penaltyReturnAmount);
-        await createTransaction({
-          walletId: clientWallet.id,
-          dealId,
-          type: "penalty_credit",
-          amount: penaltyReturnAmount,
-          balanceBefore: clientBalanceBefore,
-          balanceAfter: clientBalanceAfterPenalty,
-          note: `Penalite de retard returned pour freelancer en retard: ${penaltyReturnAmount.toFixed(2)} DT.`,
-        }, connection);
-      }
+      await creditWallet(clientId, penaltyReturnAmount, connection);
+      const clientBalanceAfterPenalty = roundMoney(clientBalanceBefore + penaltyReturnAmount);
+      await createTransaction({
+        walletId: clientWallet.id,
+        dealId,
+        type: "penalty_credit",
+        amount: penaltyReturnAmount,
+        balanceBefore: clientBalanceBefore,
+        balanceAfter: clientBalanceAfterPenalty,
+        note: `Penalite de retard creditee au client: ${penaltyReturnAmount.toFixed(2)} DT.`,
+      }, connection);
     }
 
     const note = penalty.hasPenalty
-      ? `Travail soumis avec penalite potentielle de ${penaltyAmount.toFixed(2)} DT (${penalty.cycles} cycle(s), ${penalty.daysLate} jour(s) de retard). Paiement freelance libere.`
-      : `Travail soumis. Paiement freelance libere.`;
+      ? `Travail soumis. Penalite appliquee: ${penaltyReturnAmount.toFixed(2)} DT (${penalty.cycles} cycle(s), ${penalty.daysLate} jour(s) de retard). Montant verse au freelance: ${releaseToFreelancer.toFixed(2)} DT.`
+      : `Travail soumis. Paiement freelance libere: ${releaseToFreelancer.toFixed(2)} DT.`;
 
     await connection.query(
       `UPDATE deals 
@@ -714,9 +685,9 @@ export async function releaseFreelancerPaymentOnSubmission({ dealId }) {
       released: true,
       dealId,
       freelancerId,
-      releasedAmount: advanceAmount,
+      releasedAmount: releaseToFreelancer,
       penaltyDeducted: penaltyReturnAmount,
-      finalNetAmount: roundMoney(advanceAmount - penaltyReturnAmount),
+      finalNetAmount: releaseToFreelancer,
     };
   });
 }

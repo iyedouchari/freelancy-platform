@@ -14,7 +14,13 @@ function getAvailablePaymentOptions(deal) {
     return deal.status === "Terminé" ? ["final"] : [];
   }
 
-  if (deal.status === "Soumis" || deal.status === "En attente paiement final") {
+  if (
+    deal.status === "Soumis"
+    || deal.status === "En attente paiement final"
+    || deal.status === "En cours"
+    || deal.status === "Actif"
+    || deal.status === "Avance payé"
+  ) {
     return ["final"];
   }
 
@@ -22,20 +28,13 @@ function getAvailablePaymentOptions(deal) {
 }
 
 function getPaymentLabel(option) {
-  if (option === "final") return "Payer";
+  if (option === "final") return "Payer totalité";
   return "Payer solde final";
 }
 
 function getPaymentAmount(deal, option) {
   const total = parseDealTotal(deal.total);
   return Math.max(Number(deal.remainingAmount ?? 0), Math.round(total * 0.7 * 100) / 100);
-}
-
-function getPaymentInfo(deal, option) {
-  if (option === "final") {
-    return "Le client paie maintenant les 70% restants apres livraison. Le statut deviendra Totalité payé.";
-  }
-  return "Le paiement final libere le solde restant du deal.";
 }
 
 function PaymentModal({ deal, walletBalance, onClose, onGoToWallet, onSuccess }) {
@@ -107,8 +106,6 @@ function PaymentModal({ deal, walletBalance, onClose, onGoToWallet, onSuccess })
             </div>
           </div>
 
-          <p className="payment-modal-info">{getPaymentInfo(deal, selectedOption)}</p>
-
           <div className="client-dashboard-wallet-inline">
             <span>Solde wallet disponible</span>
             <strong className={hasSufficientFunds ? "is-ok" : "is-low"}>
@@ -163,6 +160,7 @@ export default function ClientDashboard({
   onDealUpdate,
   onGoToWallet,
 }) {
+  const [dealTab, setDealTab] = useState("active");
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletLoading, setWalletLoading] = useState(true);
   const [walletError, setWalletError] = useState("");
@@ -201,8 +199,38 @@ export default function ClientDashboard({
     };
   }, []);
 
-  const activeDeals = localDeals.filter((deal) => deal.daysLeft !== null);
-  const completedDeals = localDeals.filter((deal) => deal.daysLeft === null);
+  const canceledDeals = localDeals.filter((deal) => deal.statusType === "canceled" || deal.status === "Annule");
+  const completedDeals = localDeals.filter((deal) => deal.statusType === "done");
+  const activeDeals = localDeals.filter(
+    (deal) => deal.statusType !== "done" && deal.statusType !== "canceled",
+  );
+  const tabConfig = {
+    active: {
+      label: `Accords en cours (${activeDeals.length})`,
+      title: "Accords en cours",
+      eyebrow: "Collaborations en cours",
+      emptyTitle: "Aucun deal en cours",
+      emptyText: "Des qu'une proposition est acceptee, le deal apparaitra ici.",
+      items: activeDeals,
+    },
+    completed: {
+      label: `Terminés (${completedDeals.length})`,
+      title: "Accords terminés",
+      eyebrow: "Historique",
+      emptyTitle: "Aucun deal termine",
+      emptyText: "Les missions finalisees apparaitront ici pour consultation.",
+      items: completedDeals,
+    },
+    canceled: {
+      label: `Annulés (${canceledDeals.length})`,
+      title: "Accords annulés",
+      eyebrow: "Annulations",
+      emptyTitle: "Aucun deal annulé",
+      emptyText: "Les deals annulés apparaîtront ici.",
+      items: canceledDeals,
+    },
+  };
+  const currentTab = tabConfig[dealTab];
   const committedBudget = localDeals.reduce((sum, deal) => sum + parseDealTotal(deal.total), 0);
 
   const showNotification = (message) => {
@@ -239,7 +267,14 @@ export default function ClientDashboard({
     );
 
     setPaymentDeal(null);
-    showNotification(`Paiement de ${format(amount)} DT effectue avec succes.`);
+    const penaltyAmount = Number(result?.penalty?.amount || 0);
+    if (penaltyAmount > 0) {
+      showNotification(
+        `Paiement effectue avec penalite de retard (${format(penaltyAmount)} DT). Statut: Totalité payé.`,
+      );
+    } else {
+      showNotification(`Paiement de ${format(amount)} DT effectue avec succes. Statut: Totalité payé.`);
+    }
     onDealUpdate?.({
       dealId: updatedDeal.id,
       newStatus: "fully_paid",
@@ -263,21 +298,38 @@ export default function ClientDashboard({
         </section>
 
         <section className="client-dashboard-panel">
-          <div className="client-dashboard-panel-head">
-            <div>
-              <span className="client-dashboard-panel-eyebrow">Collaborations en cours</span>
-              <h2>Deals acceptes deja au travail</h2>
+          <div className="deals-tabs-wrapper">
+            <div className="deals-tabs" role="tablist" aria-label="Filtres des accords client">
+              {Object.entries(tabConfig).map(([key, config]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={dealTab === key}
+                  className={`deals-tab-btn${dealTab === key ? " active" : ""}`}
+                  onClick={() => setDealTab(key)}
+                >
+                  {config.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {activeDeals.length === 0 ? (
-            <div className="client-dashboard-empty">
-              <strong>Aucun deal en cours</strong>
-              <p>Des qu&apos;une proposition est acceptee, le deal apparaitra ici.</p>
+          <div className="deals-section-heading">
+            <div>
+              <h2>{currentTab.title}</h2>
             </div>
-          ) : (
+            <span>{currentTab.items.length} accord{currentTab.items.length !== 1 ? "s" : ""}</span>
+          </div>
+
+          {currentTab.items.length === 0 ? (
+            <div className="client-dashboard-empty">
+              <strong>{currentTab.emptyTitle}</strong>
+              <p>{currentTab.emptyText}</p>
+            </div>
+          ) : dealTab === "active" ? (
             <div className="client-dashboard-deal-list">
-              {activeDeals.map((deal) => {
+              {currentTab.items.map((deal) => {
                 const paymentOptions = getAvailablePaymentOptions(deal);
 
                 return (
@@ -321,7 +373,7 @@ export default function ClientDashboard({
                             className="cdb-btn-pay"
                             onClick={() => setPaymentDeal(deal)}
                           >
-                            Payer
+                            Payer totalité
                           </button>
                         )}
                       </div>
@@ -330,25 +382,9 @@ export default function ClientDashboard({
                 );
               })}
             </div>
-          )}
-        </section>
-
-        <section className="client-dashboard-panel">
-          <div className="client-dashboard-panel-head">
-            <div>
-              <span className="client-dashboard-panel-eyebrow">Historique</span>
-              <h2>Deals termines et deja livres</h2>
-            </div>
-          </div>
-
-          {completedDeals.length === 0 ? (
-            <div className="client-dashboard-empty">
-              <strong>Aucun deal termine</strong>
-              <p>Les missions finalisees apparaitront ici pour consultation.</p>
-            </div>
           ) : (
             <div className="client-dashboard-completed-grid">
-              {completedDeals.map((deal) => (
+              {currentTab.items.map((deal) => (
                 <article key={deal.id} className="client-dashboard-completed-card">
                   <div>
                     <span>{deal.freelancer}</span>

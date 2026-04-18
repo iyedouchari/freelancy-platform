@@ -45,6 +45,10 @@ const formatDealStatus = (status) => {
     return { status: "Terminé", daysLeft: null, statusType: "done" };
   }
 
+  if (status === "Annule") {
+    return { status: "Annule", daysLeft: null, statusType: "canceled" };
+  }
+
   if (status === "En attente acompte") {
     return { status: "En attente acompte", statusType: "waiting_advance" };
   }

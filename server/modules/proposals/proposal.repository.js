@@ -84,6 +84,7 @@ const mapProposalRow = (row) => {
     requestId: row.request_id,
     requestTitle: row.request_title ?? null,
     requestStatus: row.request_status ?? null,
+    requestClientId: row.request_client_id ?? null,
     clientName: row.request_client_name ?? null,
     freelancerId: row.freelancer_id,
     freelancerName: row.freelancer_name ?? null,
@@ -137,13 +138,19 @@ export const ensureProposalsTable = async () => {
       proposed_price DECIMAL(15,2) NOT NULL,
       proposed_deadline_at DATETIME NOT NULL,
       cover_letter TEXT DEFAULT NULL,
-      status ENUM('En attente', 'Acceptee', 'Refusee') NOT NULL DEFAULT 'En attente',
+      status ENUM('En attente', 'Acceptee', 'Refusee', 'Annulee') NOT NULL DEFAULT 'En attente',
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_prop_request FOREIGN KEY (request_id) REFERENCES requests(id) ON DELETE CASCADE,
       CONSTRAINT fk_prop_freelancer FOREIGN KEY (freelancer_id) REFERENCES users(id) ON DELETE CASCADE,
       CONSTRAINT uq_one_proposal UNIQUE (request_id, freelancer_id),
       CONSTRAINT chk_prop_price CHECK (proposed_price > 0)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+
+  // Keep enum in sync for already-existing databases.
+  await db.query(`
+    ALTER TABLE proposals
+    MODIFY COLUMN status ENUM('En attente', 'Acceptee', 'Refusee', 'Annulee') NOT NULL DEFAULT 'En attente'
   `);
 
   await addColumnIfMissing(

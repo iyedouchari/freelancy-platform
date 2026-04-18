@@ -44,17 +44,35 @@ export const reviewService = {
     }));
   },
 
-  save: async ({ dealId, toUserId, score, comment }) =>
-    request("/reviews", {
-      method: "POST",
-      body: JSON.stringify({ dealId, toUserId, score, comment }),
-    }),
+  save: async ({ dealId, proposalId, toUserId, score, comment }) => {
+    const payload = { toUserId, score, comment };
+    if (dealId !== undefined && dealId !== null && dealId !== "") {
+      payload.dealId = Number(dealId);
+    }
+    if (proposalId !== undefined && proposalId !== null && proposalId !== "") {
+      payload.proposalId = Number(proposalId);
+    }
 
-  create: async ({ dealId, toUserId, score, comment }) =>
-    request("/reviews", {
+    return request("/reviews", {
       method: "POST",
-      body: JSON.stringify({ dealId, toUserId, score, comment }),
-    }),
+      body: JSON.stringify(payload),
+    });
+  },
+
+  create: async ({ dealId, proposalId, toUserId, score, comment }) => {
+    const payload = { toUserId, score, comment };
+    if (dealId !== undefined && dealId !== null && dealId !== "") {
+      payload.dealId = Number(dealId);
+    }
+    if (proposalId !== undefined && proposalId !== null && proposalId !== "") {
+      payload.proposalId = Number(proposalId);
+    }
+
+    return request("/reviews", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
 
   update: async (reviewId, { score, comment }) =>
     request(`/reviews/${reviewId}`, {

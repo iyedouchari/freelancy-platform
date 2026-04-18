@@ -37,7 +37,7 @@ export const ensureReviewsTable = async () => {
   await db.query(`
     CREATE TABLE IF NOT EXISTS reviews (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      deal_id INT NOT NULL,
+      deal_id INT NULL,
       from_user_id INT NOT NULL,
       to_user_id INT NOT NULL,
       score INT NOT NULL,
@@ -61,6 +61,7 @@ export const ensureReviewsTable = async () => {
   };
 
   await addColumnIfMissing("deal_id", "deal_id INT NOT NULL AFTER id");
+  await db.query("ALTER TABLE reviews MODIFY COLUMN deal_id INT NULL");
   await addColumnIfMissing(
     "updated_at",
     "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at",
@@ -165,7 +166,7 @@ export const reviewRepository = {
         INSERT INTO reviews (deal_id, from_user_id, to_user_id, score, comment)
         VALUES (?, ?, ?, ?, ?)
       `,
-      [data.dealId, data.fromUserId, data.toUserId, data.score, data.comment || null],
+      [data.dealId ?? null, data.fromUserId, data.toUserId, data.score, data.comment || null],
     );
 
     const [rows] = await db.query(

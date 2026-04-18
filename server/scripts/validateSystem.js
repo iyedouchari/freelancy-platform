@@ -76,8 +76,12 @@ async function validateSystem() {
         MAX(score) as max_score
       FROM reviews
     `);
+    const avgScore =
+      reviewStats[0].avg_score === null || reviewStats[0].avg_score === undefined
+        ? null
+        : Number(reviewStats[0].avg_score);
     console.log(`  - Total reviews: ${reviewStats[0].total}`);
-    console.log(`  - Average score: ${reviewStats[0].avg_score?.toFixed(2) || "N/A"}`);
+    console.log(`  - Average score: ${avgScore !== null && Number.isFinite(avgScore) ? avgScore.toFixed(2) : "N/A"}`);
     console.log(`  - Score range: ${reviewStats[0].min_score} - ${reviewStats[0].max_score}\n`);
 
     // Environment check
@@ -91,7 +95,7 @@ async function validateSystem() {
     console.log("  - POST /api/payments/advance");
     console.log("  - POST /api/payments/final");
     console.log("  - POST /api/payments/total");
-    console.log("  - POST /api/reviews (requires dealId)");
+    console.log("  - POST /api/reviews (requires dealId or proposalId)");
     console.log("  - PATCH /api/reviews/:reviewId");
     console.log("  - DELETE /api/reviews/:reviewId\n");
 

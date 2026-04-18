@@ -209,7 +209,7 @@ CREATE TABLE IF NOT EXISTS ratings (
 
 CREATE TABLE IF NOT EXISTS reviews (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    deal_id INT NOT NULL,
+    deal_id INT NULL,
     from_user_id INT NOT NULL,
     to_user_id INT NOT NULL,
     score INT NOT NULL,

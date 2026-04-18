@@ -32,6 +32,16 @@ const assertClientOwnsRequest = async (proposal, userId, role) => {
   }
 };
 
+const assertFreelancerOwnsProposal = (proposal, userId, role) => {
+  if (isAdmin(role)) {
+    return;
+  }
+
+  if (proposal.freelancerId !== userId) {
+    throw new AppError("Action non autorisee.", 403, "FORBIDDEN");
+  }
+};
+
 export const proposalService = {
   async listByRequest(requestId) {
     const normalizedRequestId = ensurePositiveId(requestId, "Request id");
@@ -115,23 +125,42 @@ export const proposalService = {
       throw new AppError("Proposition introuvable.", 404, "PROPOSAL_NOT_FOUND");
     }
 
-    await assertClientOwnsRequest(proposal, userId, role);
-
     if (proposal.status !== "En attente") {
       throw new AppError(
-        "Cette proposition a deja été traitee.",
+        "Cette proposition n'est plus modifiable.",
         400,
-        "PROPOSAL_ALREADY_DECIDED",
+        "PROPOSAL_NOT_EDITABLE",
       );
     }
 
     if (status === "Refusee") {
+      await assertClientOwnsRequest(proposal, userId, role);
+
       const updatedProposal = await proposalRepository.updateStatus(normalizedProposalId, status);
       return {
         proposal: updatedProposal,
         deal: null,
       };
     }
+
+    if (status === "Annulee") {
+      if (role !== "freelancer" && !isAdmin(role)) {
+        throw new AppError(
+          "Seul le freelancer proprietaire peut annuler cette proposition.",
+          403,
+          "FORBIDDEN",
+        );
+      }
+
+      assertFreelancerOwnsProposal(proposal, userId, role);
+
+      const updatedProposal = await proposalRepository.updateStatus(normalizedProposalId, status);
+      return {
+        proposal: updatedProposal,
+        deal: null,
+      };
+    }
+
     throw new AppError(
       "Utilisez l'action d'acceptation avec paiement de l'avance. Le deal ne commence qu'apres le paiement.",
       400,

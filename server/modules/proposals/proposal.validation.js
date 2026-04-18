@@ -8,7 +8,7 @@ export const createProposalSchema = Joi.object({
 });
 
 export const proposalStatusSchema = Joi.object({
-  status: Joi.string().valid("Acceptee", "Refusee").required(),
+  status: Joi.string().valid("Acceptee", "Refusee", "Annulee").required(),
 });
 
 export const clientProposalResponseSchema = Joi.object({
