@@ -110,7 +110,7 @@ const Login = () => {
   };
 
   return (
-    <div className="auth-page">
+    <div className="auth-page auth-page-login">
       <div className="auth-branding">
         <div className="auth-branding-content">
           <Link to="/" className="auth-branding-logo">
@@ -125,21 +125,18 @@ const Login = () => {
           </p>
           <div className="auth-branding-features">
             <div className="auth-feature">
-              <div className="auth-feature-icon">🔒</div>
               <div>
                 <div className="auth-feature-title">Paiement sécurisé</div>
                 <div className="auth-feature-desc">Système d'escrow intégré</div>
               </div>
             </div>
             <div className="auth-feature">
-              <div className="auth-feature-icon">⚡</div>
               <div>
                 <div className="auth-feature-title">Livraison rapide</div>
                 <div className="auth-feature-desc">Suivi en temps réel</div>
               </div>
             </div>
             <div className="auth-feature">
-              <div className="auth-feature-icon">🏆</div>
               <div>
                 <div className="auth-feature-title">Talents vérifiés</div>
                 <div className="auth-feature-desc">Professionnels certifiés</div>

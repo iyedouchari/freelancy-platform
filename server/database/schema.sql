@@ -142,6 +142,7 @@ CREATE TABLE IF NOT EXISTS wallet_transactions (
     amount DECIMAL(15,2) NOT NULL,
     balance_before DECIMAL(15,2) NOT NULL,
     balance_after DECIMAL(15,2) NOT NULL,
+    note VARCHAR(500) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_wt_wallet FOREIGN KEY (wallet_id)
         REFERENCES wallet_accounts(id) ON DELETE CASCADE,

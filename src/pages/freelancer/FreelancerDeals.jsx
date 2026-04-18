@@ -104,7 +104,7 @@ export default function FreelancerDeals({ deals = [], onBack, onOpenWorkspace, i
   return (
     <div className="deals-container freelancer-deals-page">
       <div className="deals-header">
-        <div>
+        <div className="deals-hero-copy">
           {onBack && (
             <button onClick={onBack} className="fh-btn-back">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -116,12 +116,6 @@ export default function FreelancerDeals({ deals = [], onBack, onOpenWorkspace, i
           )}
           <h1>Mes accords</h1>
           <p>{currentTab.subtitle}</p>
-        </div>
-
-        <div className="deals-summary-grid">
-          <SummaryCard label="En cours" value={activeDeals.length} accent="primary" />
-          <SummaryCard label="Terminés" value={completedDeals.length} />
-          <SummaryCard label="Total" value={activeDeals.length + completedDeals.length} accent="soft" />
         </div>
       </div>
 

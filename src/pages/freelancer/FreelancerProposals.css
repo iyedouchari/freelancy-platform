@@ -20,16 +20,51 @@
 
 .proposals-header {
   padding: 44px 0 26px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 24px;
-  flex-wrap: wrap;
+  display: block;
+}
+
+.proposals-hero-copy {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  min-width: 0;
+  border-radius: 24px;
+  padding: 30px 34px;
+  background: linear-gradient(135deg, #162f6b 0%, #1f3f8a 52%, #1e40af 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 18px 48px rgba(22, 47, 107, 0.28);
+}
+
+.proposals-hero-copy::before {
+  content: "";
+  position: absolute;
+  top: -58%;
+  right: -10%;
+  width: 430px;
+  height: 430px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.proposals-hero-copy::after {
+  content: "";
+  position: absolute;
+  bottom: -38%;
+  left: -6%;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.proposals-hero-copy > * {
+  position: relative;
+  z-index: 1;
 }
 
 .proposals-header h1 {
   margin-top: 18px;
-  color: #0f172a;
+  color: #ffffff;
   font-size: 2.2rem;
   font-weight: 800;
   letter-spacing: -0.9px;
@@ -38,7 +73,7 @@
 .proposals-header p {
   margin-top: 10px;
   max-width: 650px;
-  color: #64748b;
+  color: rgba(241, 245, 249, 0.93);
   line-height: 1.7;
 }
 
@@ -46,9 +81,9 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid #dbe2f1;
-  background: #ffffff;
-  color: #475569;
+  border: 1px solid rgba(191, 219, 254, 0.55);
+  background: rgba(255, 255, 255, 0.14);
+  color: #e2e8f0;
   border-radius: 12px;
   padding: 11px 20px;
   font-size: 0.92rem;
@@ -58,8 +93,9 @@
 }
 
 .freelancer-proposals-back-btn:hover {
-  border-color: #4f6ce8;
-  color: #1f3f8a;
+  border-color: rgba(191, 219, 254, 0.85);
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
 }
 
 .proposals-summary-grid {
@@ -282,9 +318,9 @@
     padding: 0 20px 48px;
   }
 
-  .proposals-summary-grid {
-    grid-template-columns: repeat(2, minmax(120px, 1fr));
-    min-width: 100%;
+  .proposals-hero-copy {
+    width: 100%;
+    padding: 24px 20px;
   }
 
   .freelancer-proposal-meta-grid {

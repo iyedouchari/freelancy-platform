@@ -4,7 +4,7 @@ const db = getDb();
 
 async function testApiResponse() {
   try {
-    console.log("\n🔗 Testing API Response Format:\n");
+    console.log("\nTesting API Response Format:\n");
 
     // This mimics what the repository returns
     const [rows] = await db.query(`
@@ -24,7 +24,7 @@ async function testApiResponse() {
       LIMIT 3
     `);
     
-    console.log("📋 RAW DATABASE ROWS:");
+    console.log("RAW DATABASE ROWS:");
     rows.forEach(row => {
       console.log("\nRow keys:", Object.keys(row));
       console.log("  - id:", row.id);
@@ -34,9 +34,9 @@ async function testApiResponse() {
       console.log("  - client_avatar_url:", row.client_avatar_url ? "EXISTS (length: " + row.client_avatar_url.length + ")" : "NULL");
     });
 
-    console.log("\n✅ Test complete!\n");
+    console.log("\nTest complete!\n");
   } catch (error) {
-    console.error("❌ Error:", error.message);
+    console.error("Error:", error.message);
   } finally {
     await db.end();
   }

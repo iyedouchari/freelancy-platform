@@ -157,7 +157,7 @@ export default function ClientCreateRequest({
                     className={`client-create-request-domain-card ${active ? "active" : ""}`}
                     onClick={() => toggleDomain(domain)}
                   >
-                    <span className="client-create-request-domain-icon">{active ? "✓" : "+"}</span>
+                    <span className="client-create-request-domain-icon">{active ? "☑" : "+"}</span>
                     <span className="client-create-request-domain-name">{domain}</span>
                   </button>
                 );
@@ -186,7 +186,7 @@ export default function ClientCreateRequest({
                       className={`client-create-request-chip ${active ? "active" : ""}`}
                       onClick={() => toggleSkill(skill)}
                     >
-                      {active ? "✓ " : "+ "}
+                      {active ? "☑ " : "+ "}
                       {skill}
                     </button>
                   );
@@ -224,7 +224,7 @@ export default function ClientCreateRequest({
               className={`client-create-request-toggle ${form.negotiable === true ? "active-yes" : ""}`}
               onClick={() => setForm((c) => ({ ...c, negotiable: true }))}
             >
-              ✓ Négociable
+              ☑ Négociable
             </button>
             <button
               type="button"

@@ -3,19 +3,8 @@ import { dealRepository } from "../deals/deal.repository.js";
 import { getDb } from "../../config/db.js";
 import { requestRepository } from "../requests/request.repository.js";
 import { proposalRepository } from "./proposal.repository.js";
-import {
-  findWalletByOwnerId,
-  debitWallet,
-  ensureSystemWalletOwner,
-  findSystemWallet,
-  creditWallet,
-  createTransaction,
-} from "../wallet/wallet.repository.js";
-import {
-  createPayment,
-  updatePaymentStatus,
-} from "../payments/payment.repository.js";
-import { stripeDummy } from "../payments/payment.service.js";
+import { findWalletByOwnerId } from "../wallet/wallet.repository.js";
+import { payAdvance } from "../payments/payment.service.js";
 
 const db = getDb();
 
@@ -209,9 +198,7 @@ export const proposalService = {
 
       const advanceAmount = Number((proposal.proposedPrice * 0.3).toFixed(2));
 
-      // 2. Functions imported at file top
-
-      // 3. Check client balance
+      // 2. Check client balance
       const clientWallet = await findWalletByOwnerId(userId, connection);
       if (!clientWallet || Number(clientWallet.balance) < advanceAmount) {
         throw new AppError(
@@ -221,7 +208,7 @@ export const proposalService = {
         );
       }
 
-      // 4. Update proposal status
+      // 3. Update proposal status
       await proposalRepository.updateStatus(normalizedProposalId, "Acceptee", connection);
       await proposalRepository.rejectOtherProposals(
         proposal.requestId,
@@ -230,75 +217,21 @@ export const proposalService = {
       );
       await requestRepository.markStatus(proposal.requestId, "En cours", connection);
 
-      // 5. Create the deal
+      // 4. Create the deal
       let deal = await dealRepository.findByProposalId(normalizedProposalId, connection);
       if (!deal) {
         const request = await requestRepository.findById(proposal.requestId, connection);
         deal = await dealRepository.createFromAcceptedProposal(proposal, request, connection);
       }
 
-      // 6. Record payment and transactions
-      await stripeDummy({
-        amount: advanceAmount,
-        metadata: { dealId: deal.id, type: "Avance", clientId: userId },
-      });
-
-      await debitWallet(userId, advanceAmount, connection);
-
-      // System wallet credit
-      await ensureSystemWalletOwner(connection);
-      const systemWallet = await findSystemWallet(connection);
-      await creditWallet(systemWallet.owner_id, advanceAmount, connection);
-
-      // Create transactions
-      await createTransaction(
-        {
-          walletId: clientWallet.id,
-          dealId: deal.id,
-          type: "advance_debit",
-          amount: advanceAmount,
-          balanceBefore: Number(clientWallet.balance),
-          balanceAfter: Number(clientWallet.balance) - advanceAmount,
-        },
-        connection,
-      );
-
-      await createTransaction(
-        {
-          walletId: systemWallet.id,
-          dealId: deal.id,
-          type: "advance_credit",
-          amount: advanceAmount,
-          balanceBefore: Number(systemWallet.balance),
-          balanceAfter: Number(systemWallet.balance) + advanceAmount,
-        },
-        connection,
-      );
-
-      // Create payment record
-      const payment = await createPayment(
-        {
-          dealId: deal.id,
-          clientId: userId,
-          freelancerId: proposal.freelancerId,
-          amount: advanceAmount,
-          paymentType: "Avance",
-        },
-        connection,
-      );
-      await updatePaymentStatus(payment.id, "Paye", connection);
-
-      // 7. Update deal status to 'En cours' and add note
-      const remainingAmount = Math.max(Number(proposal.proposedPrice) - advanceAmount, 0);
-      const deadlineStr = new Date(proposal.proposedDeadline).toLocaleDateString("fr-FR");
-      const note = `Avance payee. Reste a payer : ${remainingAmount.toFixed(2)} DT avant le ${deadlineStr}.`;
-
-      await connection.query(
-        "UPDATE deals SET status = 'En cours', payment_note = ?, advance_amount = ? WHERE id = ?",
-        [note, advanceAmount, deal.id],
-      );
-
       await connection.commit();
+
+      await payAdvance({
+        dealId: deal.id,
+        clientId: userId,
+        freelancerId: proposal.freelancerId,
+        amount: advanceAmount,
+      });
 
       return {
         proposal: await proposalRepository.findById(normalizedProposalId),

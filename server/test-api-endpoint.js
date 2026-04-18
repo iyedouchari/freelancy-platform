@@ -3,7 +3,7 @@ import fetch from "node-fetch";
 
 async function testApiEndpoint() {
   try {
-    console.log("\n🌐 Testing API Endpoint /requests...\n");
+    console.log("\nTesting API Endpoint /requests...\n");
 
     const response = await fetch("http://localhost:4000/api/requests?status=Ouverte&limit=2", {
       headers: {
@@ -17,13 +17,13 @@ async function testApiEndpoint() {
 
     const data = await response.json();
     
-    console.log("📊 API Response:");
+    console.log("API Response:");
     console.log(JSON.stringify(data, null, 2).substring(0, 1000) + "...");
 
     if (data.data && Array.isArray(data.data)) {
       const firstRequest = data.data[0];
       if (firstRequest) {
-        console.log("\n✅ First Request Details:");
+        console.log("\nFirst Request Details:");
         console.log("  - ID:", firstRequest.id);
         console.log("  - Title:", firstRequest.title);
         console.log("  - Client Name:", firstRequest.clientName);
@@ -31,9 +31,9 @@ async function testApiEndpoint() {
       }
     }
 
-    console.log("\n✅ Test complete!\n");
+    console.log("\nTest complete!\n");
   } catch (error) {
-    console.error("❌ Error:", error.message);
+    console.error("Error:", error.message);
   }
 }
 

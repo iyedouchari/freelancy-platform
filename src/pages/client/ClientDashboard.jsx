@@ -11,10 +11,10 @@ function parseDealTotal(value) {
 
 function getAvailablePaymentOptions(deal) {
   if (deal.finalPaid || deal.status === "Totalité payé" || deal.status === "Terminé") {
-    return [];
+    return deal.status === "Terminé" ? ["final"] : [];
   }
 
-  if (deal.statusType === "progress" || deal.status === "En cours") {
+  if (deal.status === "Soumis" || deal.status === "En attente paiement final") {
     return ["final"];
   }
 
@@ -33,7 +33,7 @@ function getPaymentAmount(deal, option) {
 
 function getPaymentInfo(deal, option) {
   if (option === "final") {
-    return "Le client paie maintenant le montant final restant. Le statut deviendra Totalité payé.";
+    return "Le client paie maintenant les 70% restants apres livraison. Le statut deviendra Totalité payé.";
   }
   return "Le paiement final libere le solde restant du deal.";
 }
@@ -252,40 +252,12 @@ export default function ClientDashboard({
       <div className="client-dashboard-shell">
         {notification && <div className="client-dashboard-toast">{notification}</div>}
         {walletError && <div className="client-dashboard-toast is-error">{walletError}</div>}
-        <section className="client-dashboard-hero">
-          <div className="client-dashboard-copy">
-            <span className="client-dashboard-eyebrow">Tableau de bord client</span>
-            <h1>Suivez les collaborations acceptees et gerez les paiements du deal</h1>
-            <p>
-              Tu retrouves ici les deals acceptes, le paiement final restant et l&apos;avancement
-              de chaque collaboration.
-            </p>
-            <p className="client-dashboard-note">
-              Apres paiement de l&apos;avance, le deal passe en cours. Ensuite, le bouton Payer ouvre
-              l&apos;interface du paiement final.
-            </p>
-          </div>
-
-          <div className="client-dashboard-stat-grid">
-            <div className="client-dashboard-stat-card">
-              <span>Deals en cours</span>
-              <strong>{activeDeals.length}</strong>
-              <small>collaborations deja lancees</small>
-            </div>
-            <div className="client-dashboard-stat-card">
-              <span>Deals termines</span>
-              <strong>{completedDeals.length}</strong>
-              <small>missions finalisees</small>
-            </div>
-            <div className="client-dashboard-stat-card">
-              <span>Budget engage</span>
-              <strong>{format(committedBudget)} DT</strong>
-              <small>sur les accords acceptes</small>
-            </div>
-            <div className="client-dashboard-stat-card accent">
-              <span>Solde wallet</span>
-              <strong>{walletLoading ? "Chargement..." : `${format(walletBalance)} DT`}</strong>
-              <small>disponible pour les paiements</small>
+        
+        <section className="client-dashboard-header">
+          <div className="dashboard-header-content">
+            <div className="header-left">
+              <h1 className="header-title">Suivez les collaborations acceptées et gérez les paiements du deal</h1>
+              <p className="header-subtitle">Tu retrouves ici les propositions acceptées, le paiement final restant et l&apos;avancement de chaque collaboration.</p>
             </div>
           </div>
         </section>

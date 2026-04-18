@@ -105,7 +105,7 @@
   padding: 14px 20px;
   border: none;
   border-radius: 14px;
-  background: linear-gradient(135deg, #162f6b, #2a52be);
+  background: linear-gradient(135deg, #162f6b, #1f3f8a);
   color: #fff;
   font-size: 1rem;
   font-weight: 700;
@@ -171,7 +171,7 @@
   padding: 14px 18px;
   border: none;
   border-radius: 14px;
-  background: linear-gradient(135deg,#162f6b,#2a52be);
+  background: linear-gradient(135deg,#162f6b,#1f3f8a);
   color: #fff;
   font-weight: 700;
   cursor: pointer;
@@ -195,7 +195,7 @@
 
 .client-wallet-filter.active {
   border-color: transparent;
-  background: linear-gradient(135deg,#162f6b,#2a52be);
+  background: linear-gradient(135deg,#162f6b,#1f3f8a);
   color: #fff;
 }
 
@@ -371,8 +371,8 @@
 }
 
 .rm-progress-step.active .rm-progress-dot {
-  border-color: #2a52be;
-  background: #2a52be;
+  border-color: #1f3f8a;
+  background: #1f3f8a;
   color: #fff;
 }
 
@@ -388,7 +388,7 @@
   font-weight: 600;
 }
 
-.rm-progress-step.active span { color: #2a52be; }
+.rm-progress-step.active span { color: #1f3f8a; }
 .rm-progress-step.done span   { color: #059669; }
 
 .rm-progress-line {
@@ -427,7 +427,7 @@
 }
 
 .rm-method-card:hover {
-  border-color: var(--method-color, #2a52be);
+  border-color: var(--method-color, #1f3f8a);
   background: #f0f4ff;
   transform: translateX(4px);
 }
@@ -462,11 +462,11 @@
 .rm-quick-btn strong { color: #0f172a; font-size: 1rem; font-weight: 800; }
 .rm-quick-btn span   { color: #64748b; font-size: 0.72rem; font-weight: 600; }
 
-.rm-quick-btn:hover { border-color: #2a52be; }
+.rm-quick-btn:hover { border-color: #1f3f8a; }
 
 .rm-quick-btn.active {
-  border-color: #2a52be;
-  background: #2a52be;
+  border-color: #1f3f8a;
+  background: #1f3f8a;
 }
 .rm-quick-btn.active strong,
 .rm-quick-btn.active span { color: #fff; }
@@ -502,7 +502,7 @@
 .rm-input-group input:focus,
 .rm-input-with-unit input:focus {
   outline: none;
-  border-color: #2a52be;
+  border-color: #1f3f8a;
   box-shadow: 0 0 0 3px rgba(42,82,190,0.1);
 }
 
@@ -659,7 +659,7 @@
 .rm-d17-num {
   width: 24px; height: 24px;
   border-radius: 50%;
-  background: #2a52be;
+  background: #1f3f8a;
   color: #fff;
   font-size: 0.75rem;
   font-weight: 700;
@@ -720,7 +720,7 @@
   padding: 12px 22px;
   border-radius: 12px;
   border: none;
-  background: linear-gradient(135deg, #162f6b, #2a52be);
+  background: linear-gradient(135deg, #162f6b, #1f3f8a);
   color: #fff;
   font-weight: 700;
   font-size: 0.9rem;

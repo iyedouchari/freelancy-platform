@@ -16,6 +16,14 @@ function getRequestTypeMeta(request) {
       };
 }
 
+function getRequestStatusLabel(status) {
+  if (!status) {
+    return "En attente";
+  }
+
+  return status;
+}
+
 function normalizeDate(value) {
   if (!value) {
     return "";
@@ -39,9 +47,9 @@ function getProposalStatusMeta(status) {
 function getProposalComparison(request, proposal) {
   if (!request.negotiable) {
     return {
-      label: "Comme la demande",
-      tone: "is-fixed",
-      description: "Le freelance suit votre demande.",
+      label: "Offre conforme",
+      tone: "is-match",
+      description: "L'offre correspond exactement à votre demande.",
     };
   }
 
@@ -51,9 +59,9 @@ function getProposalComparison(request, proposal) {
 
   if (samePrice && sameDeadline) {
     return {
-      label: "Comme votre demande",
+      label: "Offre conforme",
       tone: "is-match",
-      description: "Prix et date identiques a votre demande.",
+      description: "Prix et date identiques à votre demande.",
     };
   }
 
@@ -130,15 +138,6 @@ export default function ClientRequests({
 
   const selectedRequest =
     requests.find((request) => request.id === selectedRequestId) ?? filteredRequests[0] ?? null;
-
-  const stats = useMemo(
-    () => ({
-      total: requests.length,
-      withProposals: requests.filter((request) => request.proposals.length > 0).length,
-      withoutProposals: requests.filter((request) => request.proposals.length === 0).length,
-    }),
-    [requests],
-  );
 
   const handleCreateRequest = async (payload) => {
     try {
@@ -246,31 +245,12 @@ export default function ClientRequests({
     <div className="client-requests-page">
       <div className="client-requests-shell">
         <header className="client-requests-header">
-          <div className="client-requests-copy">
-            <span className="client-requests-eyebrow">Demandes client</span>
+          <div className="client-requests-copy client-requests-copy-banner">
             <h1>Comparez vite les propositions et decidez simplement</h1>
             <p>
               L'interface montre clairement les demandes negociables et non negociables, ainsi que
-              les propositions envoyees exactement comme votre demande ou en contre-offre.
+              les propositions conformes à votre demande ou en contre-offre.
             </p>
-          </div>
-
-          <div className="client-requests-stat-grid">
-            <div className="client-requests-stat-card">
-              <span>Demandes en attente</span>
-              <strong>{stats.total}</strong>
-              <small>encore modifiables</small>
-            </div>
-            <div className="client-requests-stat-card">
-              <span>Avec propositions</span>
-              <strong>{stats.withProposals}</strong>
-              <small>freelances déjà intéressés</small>
-            </div>
-            <div className="client-requests-stat-card">
-              <span>Sans proposition</span>
-              <strong>{stats.withoutProposals}</strong>
-              <small>en attente de reponse</small>
-            </div>
           </div>
         </header>
 
@@ -342,7 +322,7 @@ export default function ClientRequests({
                     <div className="client-request-title-row">
                       <h2>{request.title}</h2>
                       <div className="client-request-badge-row client-request-badge-row-inline">
-                        <span className="client-request-status">En attente</span>
+                        <span className="client-request-status">{getRequestStatusLabel(request.status)}</span>
                         <span className={`client-request-type-badge ${typeMeta.tone}`}>
                           {typeMeta.label}
                         </span>
@@ -393,11 +373,11 @@ export default function ClientRequests({
                 <div className="client-request-detail-card">
                   <div className="client-request-detail-top">
                     <div>
-                      <span className="client-request-detail-eyebrow">Demande en attente</span>
+                      <span className="client-request-detail-eyebrow">Demande {getRequestStatusLabel(selectedRequest.status).toLowerCase()}</span>
                       <div className="client-request-title-row client-request-title-row-detail">
                         <h2>{selectedRequest.title}</h2>
                         <div className="client-request-badge-row client-request-badge-row-inline">
-                          <span className="client-request-status">En attente</span>
+                          <span className="client-request-status">{getRequestStatusLabel(selectedRequest.status)}</span>
                           <span
                             className={`client-request-type-badge ${
                               getRequestTypeMeta(selectedRequest).tone

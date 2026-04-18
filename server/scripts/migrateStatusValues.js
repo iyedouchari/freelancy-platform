@@ -26,13 +26,13 @@ const run = async () => {
           'Annule'
         ) NOT NULL DEFAULT 'En attente acompte'`
       );
-      console.log("✓ Altered status column");
+      console.log("Altered status column");
     } catch (error) {
       console.log("Column already has all needed values");
     }
 
     await connection.end();
-    console.log("✓ Migration completed successfully");
+    console.log("Migration completed successfully");
   } catch (error) {
     console.error("✗ Migration failed:", error.message);
     process.exit(1);

@@ -4,10 +4,10 @@ import { walletService } from "../../services/walletService";
 import "../client/ClientWallet.css";
 
 const WITHDRAW_METHODS = [
-  { key: "card", label: "Carte bancaire", icon: "💳", hint: "Retrait vers votre carte bancaire" },
-  { key: "transfer", label: "Virement bancaire", icon: "🏦", hint: "Retrait vers votre compte bancaire" },
-  { key: "d17", label: "D17", icon: "📱", hint: "Retrait mobile D17" },
-  { key: "flouci", label: "Flouci", icon: "💚", hint: "Retrait mobile Flouci" },
+  { key: "card", label: "Carte CIB", hint: "Retrait vers votre carte CIB" },
+  { key: "transfer", label: "Virement bancaire", hint: "Retrait vers votre compte bancaire" },
+  { key: "d17", label: "D17", hint: "Retrait mobile D17" },
+  { key: "flouci", label: "Flouci", hint: "Retrait mobile Flouci" },
 ];
 
 const QUICK_AMOUNTS = [100, 200, 500, 1000, 2000];
@@ -44,27 +44,32 @@ function exportTransactions(transactions) {
 
 function WithdrawModal({ availableBalance, onClose, onConfirm }) {
   const [step, setStep] = useState(1);
-  const [method, setMethod] = useState(null);
+  const [method, setMethod] = useState("card");
   const [amount, setAmount] = useState("");
   const [customAmt, setCustomAmt] = useState("");
-  const [accountRef, setAccountRef] = useState("");
+  const [cardNum, setCardNum] = useState("");
+  const [cardName, setCardName] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [isFlipped, setIsFlipped] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   const finalAmount = Number(amount || customAmt);
   const selectedMethod = WITHDRAW_METHODS.find((item) => item.key === method);
-  const withdrawCode = `WD-${Date.now().toString().slice(-6)}`;
   const isValidAmount = finalAmount >= 100 && finalAmount <= availableBalance;
+
+  function formatCardNum(val) { return val.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim(); }
+  function formatExpiry(val)  { const v = val.replace(/\D/g, "").slice(0, 4); return v.length > 2 ? `${v.slice(0, 2)}/${v.slice(2)}` : v; }
 
   const handleConfirm = async () => {
     setLoading(true);
-    setError(null);
     try {
-      await walletService.withdraw(finalAmount, accountRef || selectedMethod?.label || "Retrait");
+      await walletService.withdraw(finalAmount, selectedMethod?.label || "Retrait");
       setStep(4);
       onConfirm?.({ amount: finalAmount, methodLabel: selectedMethod?.label });
     } catch (err) {
-      setError(err?.message || "Retrait impossible.");
+      console.error(err);
+    } finally {
       setLoading(false);
     }
   };
@@ -87,14 +92,11 @@ function WithdrawModal({ availableBalance, onClose, onConfirm }) {
 
         {step < 4 && (
           <div className="rm-progress">
-            {progressSteps.map((label, index) => (
-              <div
-                key={label}
-                className={`rm-progress-step ${step > index ? "done" : ""} ${step === index + 1 ? "active" : ""}`}
-              >
-                <div className="rm-progress-dot">{step > index + 1 ? "✓" : index + 1}</div>
-                <span>{label}</span>
-                {index < 2 && <div className={`rm-progress-line ${step > index + 1 ? "done" : ""}`} />}
+            {progressSteps.map((s, i) => (
+              <div key={s} className={`rm-progress-step ${step > i ? "done" : ""} ${step === i + 1 ? "active" : ""}`}>
+                <div className="rm-progress-dot">{step > i + 1 ? "☑" : i + 1}</div>
+                <span>{s}</span>
+                {i < 2 && <div className={`rm-progress-line ${step > i + 1 ? "done" : ""}`} />}
               </div>
             ))}
           </div>
@@ -176,58 +178,54 @@ function WithdrawModal({ availableBalance, onClose, onConfirm }) {
 
         {step === 3 && (
           <div className="rm-body">
+            <div className={`rm-card-preview ${isFlipped ? "flipped" : ""}`} style={{ "--card-color": "#c41e3a" }}>
+              <div className="rm-card-front">
+                <div className="rm-card-top">
+                  <div className="rm-card-chip"><div /><div /><div /><div /></div>
+                </div>
+                <div className="rm-card-number">{cardNum || "•••• •••• •••• ••••"}</div>
+                <div className="rm-card-bottom">
+                  <div><div className="rm-card-label">Titulaire</div><div className="rm-card-val">{cardName || "VOTRE NOM"}</div></div>
+                  <div><div className="rm-card-label">Expiration</div><div className="rm-card-val">{cardExpiry || "MM/AA"}</div></div>
+                </div>
+              </div>
+              <div className="rm-card-back">
+                <div className="rm-card-stripe" />
+                <div className="rm-card-cvv-row">
+                  <div className="rm-card-cvv-label">CVV</div>
+                  <div className="rm-card-cvv-val">{cardCvv || "•••"}</div>
+                </div>
+              </div>
+            </div>
             <div className="rm-input-group">
-              <label>
-                {method === "transfer"
-                  ? "Compte bancaire / IBAN"
-                  : method === "card"
-                    ? "Numero de carte"
-                    : method === "flouci"
-                      ? "Numero Flouci"
-                      : "Numero D17"}
-              </label>
-              <input
-                type="text"
-                placeholder={
-                  method === "transfer"
-                    ? "Ex: TN59...."
-                    : method === "card"
-                      ? "Ex: 1234 5678 9012 3456"
-                      : method === "flouci"
-                        ? "Ex: Flouci 55 123 456"
-                        : "Ex: 55 123 456"
-                }
-                value={accountRef}
-                onChange={(event) => setAccountRef(event.target.value)}
-              />
+              <label>Numero de carte</label>
+              <input type="text" placeholder="1234 5678 9012 3456" value={cardNum} onChange={(event) => setCardNum(formatCardNum(event.target.value))} maxLength={19} autoComplete="one-time-code" inputMode="numeric" autoCorrect="off" autoCapitalize="off" spellCheck={false} name="wltfield1" data-lpignore="true" data-1p-ignore="true" />
             </div>
-
-            <div className="rm-d17">
-              <div className="rm-d17-header">
-                <span className="rm-d17-logo">{selectedMethod?.icon} {selectedMethod?.label}</span>
-                <strong>{format(finalAmount)} DT</strong>
+            <div className="rm-input-group">
+              <label>Nom du titulaire</label>
+              <input type="text" placeholder="PRENOM NOM" value={cardName} onChange={(event) => setCardName(event.target.value.toUpperCase())} autoComplete="one-time-code" autoCorrect="off" autoCapitalize="characters" spellCheck={false} name="wltfield2" data-lpignore="true" data-1p-ignore="true" />
+            </div>
+            <div className="rm-row-2">
+              <div className="rm-input-group">
+                <label>Expiration</label>
+                <input type="text" placeholder="MM/AA" value={cardExpiry} onChange={(event) => setCardExpiry(formatExpiry(event.target.value))} maxLength={5} autoComplete="one-time-code" inputMode="numeric" autoCorrect="off" autoCapitalize="off" spellCheck={false} name="wltfield3" data-lpignore="true" data-1p-ignore="true" />
               </div>
-              <div className="rm-d17-steps">
-                <div className="rm-d17-step"><div className="rm-d17-num">1</div><span>Vérifiez la reference de retrait ci-dessous</span></div>
-                <div className="rm-d17-step"><div className="rm-d17-num">2</div><span>Confirmez le compte de destination</span></div>
-                <div className="rm-d17-step"><div className="rm-d17-num">3</div><span>Validez pour enregistrer le retrait</span></div>
-              </div>
-              <div className="rm-d17-code">
-                <span className="rm-d17-code-label">Reference retrait</span>
-                <span className="rm-d17-code-val">{withdrawCode}</span>
+              <div className="rm-input-group">
+                <label>CVV</label>
+                <input type="password" placeholder="•••" value={cardCvv} onChange={(event) => setCardCvv(event.target.value.slice(0, 3))} maxLength={3} onFocus={() => setIsFlipped(true)} onBlur={() => setIsFlipped(false)} autoComplete="new-password" inputMode="numeric" autoCorrect="off" autoCapitalize="off" spellCheck={false} name="wltfield4" data-lpignore="true" data-1p-ignore="true" />
               </div>
             </div>
-
-            {error ? <div className="rm-error">⚠️ {error}</div> : null}
-
-            <div className="rm-secure-note">Retrait securise vers votre methode choisie.</div>
 
             <div className="rm-actions">
               <button className="rm-btn-ghost" onClick={() => setStep(2)} disabled={loading}>← Retour</button>
               <button
                 className={`rm-btn-primary ${loading ? "loading" : ""}`}
                 onClick={handleConfirm}
-                disabled={loading || !accountRef.trim() || !isValidAmount}
+                disabled={
+                  loading
+                  || !isValidAmount
+                  || !(cardNum.trim() && cardName.trim() && cardExpiry.trim() && cardCvv.trim())
+                }
               >
                 {loading ? "⟳ Traitement..." : `Confirmer retrait ${format(finalAmount)} DT`}
               </button>
@@ -237,10 +235,10 @@ function WithdrawModal({ availableBalance, onClose, onConfirm }) {
 
         {step === 4 && (
           <div className="rm-success">
-            <div className="rm-success-circle"><div className="rm-success-check">✓</div></div>
+            <div className="rm-success-circle"><div className="rm-success-check">☑</div></div>
             <h3>Retrait enregistre !</h3>
             <p>Votre demande de retrait de <strong>{format(finalAmount)} DT</strong> a ete prise en compte.</p>
-            <div className="rm-success-method">{selectedMethod?.icon} {selectedMethod?.label}</div>
+            <div className="rm-success-method">{selectedMethod?.label}</div>
             <button className="rm-btn-primary rm-btn-full" onClick={onClose}>Fermer</button>
           </div>
         )}
@@ -347,11 +345,6 @@ export default function FreelancerWallet() {
           <div className="client-wallet-recharge-card">
             <span>Retirer mes fonds</span>
             <p className="recharge-card-hint">Choisissez votre methode de retrait puis le montant a transferer depuis votre wallet.</p>
-            <div className="recharge-methods-preview">
-              {WITHDRAW_METHODS.map((method) => (
-                <div key={method.key} className="recharge-preview-badge" title={method.label}>{method.icon}</div>
-              ))}
-            </div>
             <button type="button" className="recharge-open-btn" onClick={() => setShowModal(true)}>
               Demander un retrait
             </button>

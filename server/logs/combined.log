@@ -6071,3 +6071,37 @@
 {"durationMs":3,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-17T20:19:03.306Z","url":"/api/users/me"}
 {"durationMs":3,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-17T20:19:03.307Z","url":"/api/requests/freelancer/domains"}
 {"durationMs":1,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":304,"timestamp":"2026-04-17T20:19:03.314Z","url":"/api/reviews/user/20"}
+{"durationMs":12,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-18T00:01:04.182Z","url":"/api/proposals/my"}
+{"durationMs":10,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-18T00:01:04.196Z","url":"/api/proposals/my"}
+{"durationMs":18,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":304,"timestamp":"2026-04-18T00:01:04.208Z","url":"/api/deals/my"}
+{"durationMs":3,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":304,"timestamp":"2026-04-18T00:01:04.213Z","url":"/api/deals/my"}
+{"category":"auth","email":"iyed.ouchari123@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"freelancer","service":"freelancy-api","timestamp":"2026-04-18T00:01:12.858Z","userId":1}
+{"durationMs":114,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"POST","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-18T00:01:12.861Z","url":"/api/auth/login"}
+{"durationMs":42,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-18T00:01:12.925Z","url":"/api/requests?status=Ouverte&limit=100"}
+{"durationMs":36,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":304,"timestamp":"2026-04-18T00:01:12.928Z","url":"/api/deals/my"}
+{"durationMs":41,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-18T00:01:12.931Z","url":"/api/requests?status=Ouverte&limit=100"}
+{"durationMs":5,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":304,"timestamp":"2026-04-18T00:01:12.939Z","url":"/api/deals/my"}
+{"durationMs":6,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-18T00:01:12.942Z","url":"/api/users/1000"}
+{"durationMs":4,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-18T00:01:12.947Z","url":"/api/users/1000"}
+{"durationMs":11,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-18T00:01:14.774Z","url":"/api/users/me"}
+{"durationMs":22,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-18T00:01:14.787Z","url":"/api/requests/freelancer/domains"}
+{"durationMs":24,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-18T00:01:14.790Z","url":"/api/users/me"}
+{"durationMs":2,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-18T00:01:14.795Z","url":"/api/requests/freelancer/domains"}
+{"durationMs":11,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":304,"timestamp":"2026-04-18T00:01:14.813Z","url":"/api/reviews/user/1"}
+{"durationMs":15,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":304,"timestamp":"2026-04-18T00:01:16.417Z","url":"/api/wallet"}
+{"durationMs":6,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":304,"timestamp":"2026-04-18T00:01:16.425Z","url":"/api/wallet"}
+{"category":"auth","email":"bachir@gmail.com","ip":"::1","level":"info","message":"Utilisateur connecté","role":"client","service":"freelancy-api","timestamp":"2026-04-18T00:01:39.509Z","userId":4}
+{"durationMs":97,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"POST","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-18T00:01:39.510Z","url":"/api/auth/login"}
+{"durationMs":14,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-18T00:01:39.559Z","url":"/api/requests/my"}
+{"durationMs":9,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-18T00:01:39.561Z","url":"/api/deals/my"}
+{"durationMs":19,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-18T00:01:39.567Z","url":"/api/wallet"}
+{"durationMs":5,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":304,"timestamp":"2026-04-18T00:01:39.569Z","url":"/api/deals/my"}
+{"durationMs":23,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-18T00:01:39.576Z","url":"/api/requests/my"}
+{"durationMs":8,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":304,"timestamp":"2026-04-18T00:01:39.580Z","url":"/api/wallet"}
+{"durationMs":4,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":304,"timestamp":"2026-04-18T00:01:42.586Z","url":"/api/wallet"}
+{"durationMs":4,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":304,"timestamp":"2026-04-18T00:01:42.592Z","url":"/api/wallet"}
+{"durationMs":16,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":304,"timestamp":"2026-04-18T00:03:09.565Z","url":"/api/wallet"}
+{"durationMs":330,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"POST","service":"freelancy-api","statusCode":201,"timestamp":"2026-04-18T00:04:04.329Z","url":"/api/wallet/topup"}
+{"durationMs":6,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-18T00:04:04.338Z","url":"/api/wallet"}
+{"durationMs":13,"ip":"::1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":304,"timestamp":"2026-04-18T00:04:37.525Z","url":"/api/wallet"}
+{"durationMs":0,"ip":"::ffff:127.0.0.1","level":"info","message":"HTTP_REQUEST","method":"GET","service":"freelancy-api","statusCode":200,"timestamp":"2026-04-18T00:19:58.871Z","url":"/api/health"}

@@ -76,7 +76,7 @@ function ProposalCard({ proposal, statusKey }) {
           <strong>{proposedDeadlineLabel}</strong>
         </div>
         <div>
-          <span>Envoyee</span>
+          <span>Envoyée</span>
           <strong>{sentLabel}</strong>
         </div>
       </div>
@@ -160,24 +160,17 @@ export default function FreelancerProposals({ onBack }) {
   return (
     <div className="proposals-page-container freelancer-proposals-page">
       <section className="proposals-header">
-        <div>
+        <div className="proposals-hero-copy">
           {onBack && (
             <button type="button" onClick={onBack} className="freelancer-proposals-back-btn">
               Retour au tableau de bord
             </button>
           )}
-          <h1>Mes propositions envoyees</h1>
+          <h1>Mes propositions envoyées</h1>
           <p>
-            Organisez rapidement vos propositions par statut pour suivre ce qui a ete
-            accepte, refuse, ou reste en attente.
+            Organisez rapidement vos propositions par statut pour suivre ce qui a été
+            accepté, refusé, ou reste en attente.
           </p>
-        </div>
-
-        <div className="proposals-summary-grid">
-          <SummaryCard label="Acceptees" value={acceptedCount} accent="accepted" />
-          <SummaryCard label="Refusees" value={refusedCount} accent="refused" />
-          <SummaryCard label="En attente" value={pendingCount} accent="pending" />
-          <SummaryCard label="Total" value={totalCount} accent="default" />
         </div>
       </section>
 

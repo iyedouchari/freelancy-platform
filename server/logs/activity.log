@@ -95,3 +95,5 @@
 [2026-04-17 21:02:39] Client a cree un projet | projet=51 | titre="new" | statut=Ouverte
 [2026-04-17 21:15:41] Utilisateur connecté | userId=20 | email=iyed.ouchariii@gmail.com | role=freelancer | ip=::1
 [2026-04-17 21:16:22] Utilisateur connecté | userId=4 | email=bachir@gmail.com | role=client | ip=::1
+[2026-04-18 01:01:12] Utilisateur connecté | userId=1 | email=iyed.ouchari123@gmail.com | role=freelancer | ip=::1
+[2026-04-18 01:01:39] Utilisateur connecté | userId=4 | email=bachir@gmail.com | role=client | ip=::1

@@ -16,16 +16,16 @@ async function migrate() {
         'Totalité payé'
       ) NOT NULL DEFAULT 'En attente acompte'
     `);
-    console.log("✅ ENUM updated with Avance payé / Totalité payé");
+    console.log("ENUM updated with Avance payé / Totalité payé");
   } catch (e) {
-    console.error("❌ ENUM error:", e.message);
+    console.error("ENUM error:", e.message);
   }
 
   try {
     await db.query(`DROP TRIGGER IF EXISTS trig_after_payment_update`);
-    console.log("✅ Old trigger dropped");
+    console.log("Old trigger dropped");
   } catch (e) {
-    console.error("❌ Drop trigger error:", e.message);
+    console.error("Drop trigger error:", e.message);
   }
 
   try {
@@ -51,9 +51,9 @@ async function migrate() {
         END IF;
       END
     `);
-    console.log("✅ New trigger created");
+    console.log("New trigger created");
   } catch (e) {
-    console.error("❌ Trigger creation error:", e.message);
+    console.error("Trigger creation error:", e.message);
   }
 
   process.exit(0);

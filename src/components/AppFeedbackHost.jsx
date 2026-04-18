@@ -3,7 +3,7 @@ import { APP_FEEDBACK_EVENT, APP_FEEDBACK_TITLES } from "../utils/appFeedback";
 import "./AppFeedbackHost.css";
 
 const FEEDBACK_ICON = {
-  success: "✓",
+  success: "✔",
   warning: "!",
   error: "✕",
   info: "i",

@@ -8,22 +8,22 @@ async function validateSystem() {
 
   try {
     // Check database connection
-    console.log("✓ Testing database connection...");
+    console.log("Testing database connection...");
     const [result] = await db.query("SELECT 1");
-    console.log("✓ Database connected\n");
+    console.log("Database connected\n");
 
     // Verify tables exist
-    console.log("✓ Verifying database tables...");
+    console.log("Verifying database tables...");
     const [tables] = await db.query(`
       SELECT TABLE_NAME 
       FROM INFORMATION_SCHEMA.TABLES 
       WHERE TABLE_SCHEMA = DATABASE()
       AND TABLE_NAME IN ('users', 'deals', 'payments', 'reviews', 'wallet_accounts', 'wallet_transactions')
     `);
-    console.log(`✓ Found ${tables.length} required tables\n`);
+    console.log(`Found ${tables.length} required tables\n`);
 
     // Verify System Wallet exists
-    console.log("✓ Verifying System Wallet (999)...");
+    console.log("Verifying System Wallet (999)...");
     const [systemUser] = await db.query(
       "SELECT id, role FROM users WHERE id = ?",
       [SYSTEM_WALLET_OWNER_ID],
@@ -31,11 +31,11 @@ async function validateSystem() {
     if (!systemUser[0]) {
       console.warn(`⚠ System Wallet user (${SYSTEM_WALLET_OWNER_ID}) not found - will be created on first transaction\n`);
     } else {
-      console.log(`✓ System Wallet user exists (role: ${systemUser[0].role})\n`);
+      console.log(`System Wallet user exists (role: ${systemUser[0].role})\n`);
     }
 
     // Check sample users
-    console.log("✓ Checking sample users...");
+    console.log("Checking sample users...");
     const [users] = await db.query(
       "SELECT id, name, email, role FROM users WHERE role IN ('CLIENT', 'FREELANCER') LIMIT 3",
     );
@@ -45,14 +45,14 @@ async function validateSystem() {
     console.log();
 
     // Verify wallet structure
-    console.log("✓ Verifying wallet structure...");
+    console.log("Verifying wallet structure...");
     const [walletUsers] = await db.query(
       "SELECT COUNT(*) as count FROM wallet_accounts",
     );
-    console.log(`✓ Found ${walletUsers[0].count} wallets\n`);
+    console.log(`Found ${walletUsers[0].count} wallets\n`);
 
     // Check payment history
-    console.log("✓ Checking payment statistics...");
+    console.log("Checking payment statistics...");
     const [paymentStats] = await db.query(`
       SELECT 
         COUNT(*) as total,
@@ -67,7 +67,7 @@ async function validateSystem() {
     console.log(`  - Finals: ${paymentStats[0].finals}\n`);
 
     // Check reviews
-    console.log("✓ Checking reviews statistics...");
+    console.log("Checking reviews statistics...");
     const [reviewStats] = await db.query(`
       SELECT 
         COUNT(*) as total,
@@ -81,12 +81,12 @@ async function validateSystem() {
     console.log(`  - Score range: ${reviewStats[0].min_score} - ${reviewStats[0].max_score}\n`);
 
     // Environment check
-    console.log("✓ Verifying environment configuration...");
+    console.log("Verifying environment configuration...");
     console.log(`  - NON_PAYMENT_RULE_ENABLED: ${env.NON_PAYMENT_RULE_ENABLED}`);
     console.log(`  - NON_PAYMENT_RULE_GRACE_HOURS: ${env.NON_PAYMENT_RULE_GRACE_HOURS}`);
     console.log(`  - System Wallet Owner ID: ${SYSTEM_WALLET_OWNER_ID}\n`);
 
-    console.log("✅ System validation complete!\n");
+    console.log("System validation complete!\n");
     console.log("ℹ Key endpoints:");
     console.log("  - POST /api/payments/advance");
     console.log("  - POST /api/payments/final");
@@ -97,7 +97,7 @@ async function validateSystem() {
 
     return true;
   } catch (error) {
-    console.error("\n❌ System validation failed:", error.message, "\n");
+    console.error("\nSystem validation failed:", error.message, "\n");
     return false;
   }
 }

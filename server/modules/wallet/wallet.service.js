@@ -56,6 +56,21 @@ const mapWalletTransaction = (transaction) => {
       detail: `Ajustement financier sur ${title}`,
       status: "Traite",
     },
+    penalty_debit: {
+      label: "Penalite retard",
+      detail: `Penalite de retard deduite pour ${title}`,
+      status: "Traite",
+    },
+    penalty_credit: {
+      label: "Compensation retard",
+      detail: `Compensation de retard creditee pour ${title}`,
+      status: "Disponible",
+    },
+    submission_release: {
+      label: "Liberation acompte",
+      detail: `Avance liberee a la soumission pour ${title}`,
+      status: "Disponible",
+    },
   };
 
   const meta = labels[String(transaction.type || "")] || {

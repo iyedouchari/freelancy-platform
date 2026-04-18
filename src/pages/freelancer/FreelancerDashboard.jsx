@@ -549,26 +549,13 @@ const FreelancerDashboard = forwardRef((_, ref) => {
   return (
     <div className="layout-shell py-10 freelancer-dashboard-page">
       <div className="content-area space-y-6">
-        <section className="freelancer-dashboard-hero">
-          <div className="freelancer-dashboard-hero-grid">
-            <div className="freelancer-dashboard-copy">
-              <span className="freelancer-dashboard-eyebrow">Tableau de bord</span>
-              <h1>Projets a cibler selon votre expertise</h1>
-              <p>
-                Parcourez les projets qui correspondent a votre expertise. Filtrez par categorie,
-                budget, type et date limite depuis votre page dashboard dediee.
-              </p>
+        <section className="freelancer-dashboard-header">
+          <div className="dashboard-header-content">
+            <div className="header-left">
+              <h1 className="header-title">Explorez les opportunités</h1>
+              <p className="header-subtitle">Trouvez vos prochains projets adaptés à vos compétences</p>
             </div>
 
-            <div className="freelancer-dashboard-metrics">
-              {dashboardMetrics.map((metric) => (
-                <div key={metric.label} className="freelancer-dashboard-metric-card">
-                  <span>{metric.label}</span>
-                  <strong>{metric.value}</strong>
-                  <small>{metric.hint}</small>
-                </div>
-              ))}
-            </div>
           </div>
         </section>
 

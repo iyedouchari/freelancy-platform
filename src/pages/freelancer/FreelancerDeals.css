@@ -20,11 +20,45 @@
 
 .deals-header {
   padding: 44px 0 28px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 24px;
-  flex-wrap: wrap;
+  display: block;
+}
+
+.deals-hero-copy {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  border-radius: 24px;
+  padding: 30px 34px;
+  background: linear-gradient(135deg, #162f6b 0%, #1f3f8a 52%, #1e40af 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 18px 48px rgba(22, 47, 107, 0.28);
+}
+
+.deals-hero-copy::before {
+  content: "";
+  position: absolute;
+  top: -58%;
+  right: -10%;
+  width: 430px;
+  height: 430px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.deals-hero-copy::after {
+  content: "";
+  position: absolute;
+  bottom: -38%;
+  left: -6%;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.deals-hero-copy > * {
+  position: relative;
+  z-index: 1;
 }
 
 .deals-header h1 {
@@ -32,12 +66,12 @@
   font-size: 2.4rem;
   font-weight: 800;
   letter-spacing: -1px;
-  color: #0f172a;
+  color: #ffffff;
 }
 
 .deals-header p {
   margin-top: 10px;
-  color: #64748b;
+  color: rgba(241, 245, 249, 0.93);
   font-size: 1rem;
   line-height: 1.7;
   max-width: 560px;
@@ -90,9 +124,9 @@
   gap: 10px;
   padding: 12px 24px;
   border-radius: 12px;
-  border: 1.5px solid #e2e8f0;
-  background: #fff;
-  color: #475569;
+  border: 1px solid rgba(191, 219, 254, 0.55);
+  background: rgba(255, 255, 255, 0.14);
+  color: #e2e8f0;
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
@@ -101,8 +135,9 @@
 }
 
 .fh-btn-back:hover {
-  border-color: #4f6ce8;
-  color: #162f6b;
+  border-color: rgba(191, 219, 254, 0.85);
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
 }
 
 .deals-tabs-wrapper {
@@ -329,7 +364,7 @@
 
 .fh-btn-solid {
   padding: 14px 28px;
-  background: linear-gradient(135deg, #162f6b, #2a52be);
+  background: linear-gradient(135deg, #162f6b, #1f3f8a);
   color: #fff;
   border: none;
   border-radius: 12px;
@@ -376,12 +411,6 @@
     padding: 0 24px 48px;
   }
 
-  .deals-summary-grid {
-    width: 100%;
-    min-width: 0;
-    grid-template-columns: repeat(3, 1fr);
-  }
-
   .fh-deal-card {
     padding: 28px 24px;
   }
@@ -390,10 +419,6 @@
 @media (max-width: 600px) {
   .deals-header h1 {
     font-size: 2rem;
-  }
-
-  .deals-summary-grid {
-    grid-template-columns: 1fr;
   }
 
   .deals-tabs {

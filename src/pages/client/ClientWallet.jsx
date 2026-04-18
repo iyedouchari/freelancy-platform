@@ -5,10 +5,10 @@ import "./ClientWallet.css";
 
 
 const PAYMENT_METHODS = [
-  { key: "card",     label: "Carte bancaire",    icon: "💳", hint: "Visa, Mastercard, CIB"     },
-  { key: "transfer", label: "Virement bancaire", icon: "🏦", hint: "Delai 1-2 jours ouvrables" },
-  { key: "d17",      label: "D17",               icon: "📱", hint: "Paiement mobile D17"        },
-  { key: "flouci",   label: "Flouci",            icon: "💚", hint: "Paiement mobile Flouci"     },
+  { key: "card",     label: "Carte CIB",         hint: "Paiement securise par carte CIB" },
+  { key: "transfer", label: "Virement bancaire", hint: "Delai 1-2 jours ouvrables" },
+  { key: "d17",      label: "D17",               hint: "Paiement mobile D17"        },
+  { key: "flouci",   label: "Flouci",            hint: "Paiement mobile Flouci"     },
 ];
 
 const QUICK_AMOUNTS = [50, 100, 200, 500, 1000];
@@ -52,7 +52,7 @@ function exportTransactions(transactions) {
 // ─── Modale Recharge ──────────────────────────────────────────────────────────
 function RechargeModal({ onClose, onConfirm }) {
   const [step,           setStep]           = useState(1);
-  const [method,         setMethod]         = useState(null);
+  const [method,         setMethod]         = useState("card");
   const [amount,         setAmount]         = useState("");
   const [customAmt,      setCustomAmt]      = useState("");
   const [cardNum,        setCardNum]        = useState("");
@@ -61,25 +61,22 @@ function RechargeModal({ onClose, onConfirm }) {
   const [cardCvv,        setCardCvv]        = useState("");
   const [isFlipped,      setIsFlipped]      = useState(false);
   const [loading,        setLoading]        = useState(false);
-  const [error,          setError]          = useState(null);
 
   const finalAmount    = Number(amount || customAmt);
   const selectedMethod = PAYMENT_METHODS.find((m) => m.key === method);
-  const isCardMethod   = method === "card";
-  const d17Code        = `FL-${Date.now().toString().slice(-6)}`;
 
   function formatCardNum(val) { return val.replace(/\D/g,"").slice(0,16).replace(/(.{4})/g,"$1 ").trim(); }
   function formatExpiry(val)  { const v=val.replace(/\D/g,"").slice(0,4); return v.length>2?v.slice(0,2)+"/"+v.slice(2):v; }
 
   const handleConfirm = async () => {
     setLoading(true);
-    setError(null);
     try {
       await walletService.topup(finalAmount);
       setStep(4);
       onConfirm({ amount: finalAmount, methodLabel: selectedMethod?.label });
     } catch (err) {
-      setError(err.message);
+      console.error(err);
+    } finally {
       setLoading(false);
     }
   };
@@ -98,14 +95,14 @@ function RechargeModal({ onClose, onConfirm }) {
               <p>{selectedMethod ? selectedMethod.label : "Choisissez une methode"}</p>
             </div>
           </div>
-          <button className="rm-close" onClick={onClose}>✕</button>
+          <button className="rm-close" onClick={onClose}>×</button>
         </div>
 
         {step < 4 && (
           <div className="rm-progress">
             {progressSteps.map((s, i) => (
               <div key={s} className={`rm-progress-step ${step > i ? "done" : ""} ${step === i + 1 ? "active" : ""}`}>
-                <div className="rm-progress-dot">{step > i + 1 ? "✓" : i + 1}</div>
+                <div className="rm-progress-dot">{step > i + 1 ? "☑" : i + 1}</div>
                 <span>{s}</span>
                 {i < 2 && <div className={`rm-progress-line ${step > i + 1 ? "done" : ""}`} />}
               </div>
@@ -120,7 +117,6 @@ function RechargeModal({ onClose, onConfirm }) {
             <div className="rm-methods-grid">
               {PAYMENT_METHODS.map((m) => (
                 <button key={m.key} className="rm-method-card" onClick={() => { setMethod(m.key); setStep(2); }} style={{ "--method-color": "#2a52be" }}>
-                  <div className="rm-method-icon">{m.icon}</div>
                   <div className="rm-method-info"><strong>{m.label}</strong><small>{m.hint}</small></div>
                   <div className="rm-method-arrow">→</div>
                 </button>
@@ -132,7 +128,8 @@ function RechargeModal({ onClose, onConfirm }) {
         {/* Step 2 — Montant */}
         {step === 2 && (
           <div className="rm-body">
-            <p className="rm-subtitle">{selectedMethod?.icon} {selectedMethod?.label} — Choisissez le montant</p>
+
+            <p className="rm-subtitle">{selectedMethod?.label} — Choisissez le montant</p>
             <div className="rm-quick-grid">
               {QUICK_AMOUNTS.map((val) => (
                 <button key={val} className={`rm-quick-btn ${amount === String(val) ? "active" : ""}`} onClick={() => { setAmount(String(val)); setCustomAmt(""); }}>
@@ -150,7 +147,7 @@ function RechargeModal({ onClose, onConfirm }) {
             </div>
             {finalAmount >= 10 && (
               <div className="rm-amount-summary">
-                <div className="rm-amount-row"><span>Methode</span><strong>{selectedMethod?.icon} {selectedMethod?.label}</strong></div>
+                <div className="rm-amount-row"><span>Methode</span><strong>{selectedMethod?.label}</strong></div>
                 <div className="rm-amount-row"><span>Montant</span><strong>{format(finalAmount)} DT</strong></div>
                 <div className="rm-amount-row rm-amount-total"><span>Total credite</span><strong>{format(finalAmount)} DT</strong></div>
               </div>
@@ -167,80 +164,35 @@ function RechargeModal({ onClose, onConfirm }) {
         {/* Step 3 — Paiement */}
         {step === 3 && (
           <div className="rm-body">
-            {isCardMethod && (
-              <>
-                <div className={`rm-card-preview ${isFlipped ? "flipped" : ""}`} style={{ "--card-color": "#1a1f71" }}>
-                  <div className="rm-card-front">
-                    <div className="rm-card-top">
-                      <div className="rm-card-chip"><div /><div /><div /><div /></div>
-                      <div className="rm-card-brand">VISA</div>
-                    </div>
-                    <div className="rm-card-number">{cardNum || "•••• •••• •••• ••••"}</div>
-                    <div className="rm-card-bottom">
-                      <div><div className="rm-card-label">Titulaire</div><div className="rm-card-val">{cardName || "VOTRE NOM"}</div></div>
-                      <div><div className="rm-card-label">Expiration</div><div className="rm-card-val">{cardExpiry || "MM/AA"}</div></div>
-                    </div>
-                  </div>
-                  <div className="rm-card-back">
-                    <div className="rm-card-stripe" />
-                    <div className="rm-card-cvv-row">
-                      <div className="rm-card-cvv-label">CVV</div>
-                      <div className="rm-card-cvv-val">{cardCvv || "•••"}</div>
-                    </div>
-                  </div>
+            <div className={`rm-card-preview ${isFlipped ? "flipped" : ""}`} style={{ "--card-color": "#c41e3a" }}>
+              <div className="rm-card-front">
+                <div className="rm-card-top">
+                  <div className="rm-card-chip"><div /><div /><div /><div /></div>
                 </div>
-                <div className="rm-input-group"><label>Numero de carte</label><input type="text" placeholder="1234 5678 9012 3456" value={cardNum} onChange={(e) => setCardNum(formatCardNum(e.target.value))} maxLength={19} /></div>
-                <div className="rm-input-group"><label>Nom du titulaire</label><input type="text" placeholder="PRENOM NOM" value={cardName} onChange={(e) => setCardName(e.target.value.toUpperCase())} /></div>
-                <div className="rm-row-2">
-                  <div className="rm-input-group"><label>Expiration</label><input type="text" placeholder="MM/AA" value={cardExpiry} onChange={(e) => setCardExpiry(formatExpiry(e.target.value))} maxLength={5} /></div>
-                  <div className="rm-input-group"><label>CVV</label><input type="password" placeholder="•••" value={cardCvv} onChange={(e) => setCardCvv(e.target.value.slice(0,3))} maxLength={3} onFocus={() => setIsFlipped(true)} onBlur={() => setIsFlipped(false)} /></div>
-                </div>
-              </>
-            )}
-
-            {(method === "d17" || method === "flouci") && (
-              <div className="rm-d17">
-                <div className="rm-d17-header">
-                  <span className="rm-d17-logo">{selectedMethod?.icon} {selectedMethod?.label}</span>
-                  <strong>{format(finalAmount)} DT</strong>
-                </div>
-                <div className="rm-d17-steps">
-                  {["Ouvrez l'application sur votre telephone", "Allez dans Paiement en ligne", "Entrez le code de paiement ci-dessous"].map((s, i) => (
-                    <div key={i} className="rm-d17-step"><div className="rm-d17-num">{i+1}</div><span>{s}</span></div>
-                  ))}
-                </div>
-                <div className="rm-d17-code">
-                  <span className="rm-d17-code-label">Code de paiement</span>
-                  <span className="rm-d17-code-val">{d17Code}</span>
+                <div className="rm-card-number">{cardNum || "•••• •••• •••• ••••"}</div>
+                <div className="rm-card-bottom">
+                  <div><div className="rm-card-label">Titulaire</div><div className="rm-card-val">{cardName || "VOTRE NOM"}</div></div>
+                  <div><div className="rm-card-label">Expiration</div><div className="rm-card-val">{cardExpiry || "MM/AA"}</div></div>
                 </div>
               </div>
-            )}
-
-            {method === "transfer" && (
-              <div className="rm-d17">
-                <div className="rm-d17-header">
-                  <span className="rm-d17-logo">🏦 Virement bancaire</span>
-                  <strong>{format(finalAmount)} DT</strong>
-                </div>
-                <div className="rm-d17-steps">
-                  {["Connectez-vous a votre banque en ligne", "Effectuez un virement vers le compte Freelancy", "Indiquez la reference ci-dessous"].map((s, i) => (
-                    <div key={i} className="rm-d17-step"><div className="rm-d17-num">{i+1}</div><span>{s}</span></div>
-                  ))}
-                </div>
-                <div className="rm-d17-code">
-                  <span className="rm-d17-code-label">Reference virement</span>
-                  <span className="rm-d17-code-val">VIR-{Date.now().toString().slice(-8)}</span>
+              <div className="rm-card-back">
+                <div className="rm-card-stripe" />
+                <div className="rm-card-cvv-row">
+                  <div className="rm-card-cvv-label">CVV</div>
+                  <div className="rm-card-cvv-val">{cardCvv || "•••"}</div>
                 </div>
               </div>
-            )}
-
-            {error && <div className="rm-error">⚠️ {error}</div>}
-
-            <div className="rm-secure-note">🔒 Paiement 100% securise — Chiffrement SSL</div>
+            </div>
+            <div className="rm-input-group"><label>Numero de carte</label><input type="text" placeholder="1234 5678 9012 3456" value={cardNum} onChange={(e) => setCardNum(formatCardNum(e.target.value))} maxLength={19} autoComplete="one-time-code" inputMode="numeric" autoCorrect="off" autoCapitalize="off" spellCheck={false} name="wltfield1" data-lpignore="true" data-1p-ignore="true" /></div>
+            <div className="rm-input-group"><label>Nom du titulaire</label><input type="text" placeholder="PRENOM NOM" value={cardName} onChange={(e) => setCardName(e.target.value.toUpperCase())} autoComplete="one-time-code" autoCorrect="off" autoCapitalize="characters" spellCheck={false} name="wltfield2" data-lpignore="true" data-1p-ignore="true" /></div>
+            <div className="rm-row-2">
+              <div className="rm-input-group"><label>Expiration</label><input type="text" placeholder="MM/AA" value={cardExpiry} onChange={(e) => setCardExpiry(formatExpiry(e.target.value))} maxLength={5} autoComplete="one-time-code" inputMode="numeric" autoCorrect="off" autoCapitalize="off" spellCheck={false} name="wltfield3" data-lpignore="true" data-1p-ignore="true" /></div>
+              <div className="rm-input-group"><label>CVV</label><input type="password" placeholder="•••" value={cardCvv} onChange={(e) => setCardCvv(e.target.value.slice(0,3))} maxLength={3} onFocus={() => setIsFlipped(true)} onBlur={() => setIsFlipped(false)} autoComplete="new-password" inputMode="numeric" autoCorrect="off" autoCapitalize="off" spellCheck={false} name="wltfield4" data-lpignore="true" data-1p-ignore="true" /></div>
+            </div>
 
             <div className="rm-actions">
               <button className="rm-btn-ghost" onClick={() => setStep(2)} disabled={loading}>← Retour</button>
-              <button className={`rm-btn-primary ${loading ? "loading" : ""}`} onClick={handleConfirm} disabled={loading}>
+              <button className={`rm-btn-primary ${loading ? "loading" : ""}`} onClick={handleConfirm} disabled={loading || !(cardNum && cardName && cardExpiry && cardCvv)}>
                 {loading ? "⟳ Traitement..." : `Confirmer ${format(finalAmount)} DT`}
               </button>
             </div>
@@ -250,10 +202,10 @@ function RechargeModal({ onClose, onConfirm }) {
         {/* Step 4 — Succès */}
         {step === 4 && (
           <div className="rm-success">
-            <div className="rm-success-circle"><div className="rm-success-check">✓</div></div>
+            <div className="rm-success-circle"><div className="rm-success-check">☑</div></div>
             <h3>Paiement reussi !</h3>
             <p>Votre portefeuille a ete rechargé de <strong>{format(finalAmount)} DT</strong></p>
-            <div className="rm-success-method">{selectedMethod?.icon} {selectedMethod?.label}</div>
+            <div className="rm-success-method">{selectedMethod?.label}</div>
             <button className="rm-btn-primary rm-btn-full" onClick={onClose}>Fermer</button>
           </div>
         )}
@@ -372,9 +324,6 @@ export default function ClientWallet() {
             <span>Ajouter des fonds</span>
             <p className="recharge-card-hint">Choisissez votre methode de paiement et le montant a crediter sur votre wallet.</p>
             <div className="recharge-methods-preview">
-              {PAYMENT_METHODS.map((m) => (
-                <div key={m.key} className="recharge-preview-badge" title={m.label}>{m.icon}</div>
-              ))}
             </div>
             <button type="button" className="recharge-open-btn" onClick={() => setShowModal(true)}>
               Recharger mon wallet

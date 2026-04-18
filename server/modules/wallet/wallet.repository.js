@@ -3,6 +3,14 @@ import { env } from "../../config/env.js";
 
 const SYSTEM_WALLET_OWNER_ID = env.SYSTEM_WALLET_OWNER_ID;
 
+async function addColumnIfMissing(connection, tableName, columnName, columnDefinition) {
+  const [rows] = await connection.query(`SHOW COLUMNS FROM ${tableName} LIKE ?`, [columnName]);
+
+  if (rows.length === 0) {
+    await connection.query(`ALTER TABLE ${tableName} ADD COLUMN ${columnDefinition}`);
+  }
+}
+
 export async function ensureSystemWalletOwner(connection = db) {
   await connection.query(
     `INSERT INTO users (id, name, email, password, role, company, professional_title, location, phone)
@@ -62,6 +70,29 @@ export async function ensureWalletTables() {
       CONSTRAINT fk_wt_deal FOREIGN KEY (deal_id)
         REFERENCES deals(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await addColumnIfMissing(
+    db,
+    "wallet_transactions",
+    "note",
+    "note VARCHAR(500) DEFAULT NULL AFTER balance_after",
+  );
+
+  await db.query(`
+    ALTER TABLE wallet_transactions
+    MODIFY COLUMN type ENUM(
+      'topup',
+      'advance_debit',
+      'advance_credit',
+      'final_debit',
+      'final_credit',
+      'penalty',
+      'penalty_debit',
+      'penalty_credit',
+      'submission_release',
+      'refund'
+    ) NOT NULL
   `);
 }
 

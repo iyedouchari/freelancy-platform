@@ -572,7 +572,7 @@ export default function FreelancerProfile({ onBack, mode = "self", publicUserId 
                 className="profile-primary-btn"
                 onClick={() => setIsReviewEditorOpen((current) => !current)}
               >
-                {ownReview ? (isReviewEditorOpen ? "Fermer" : "Modifier") : (isReviewEditorOpen ? "Fermer" : "Enregistrer")}
+                {ownReview ? (isReviewEditorOpen ? "Fermer" : "Modifier") : (isReviewEditorOpen ? "Fermer" : "Ajouter un avis")}
               </button>
             ) : null}
           </div>
@@ -603,7 +603,7 @@ export default function FreelancerProfile({ onBack, mode = "self", publicUserId 
                   Annuler
                 </button>
                 <button type="submit" className="profile-primary-btn" disabled={isSavingReview}>
-                  {isSavingReview ? "Enregistrement..." : ownReview ? "Modifier l'avis" : "Enregistrer l'avis"}
+                  {isSavingReview ? "Enregistrement..." : ownReview ? "Modifier l'avis" : "Ajouter un avis"}
                 </button>
               </div>
             </form>

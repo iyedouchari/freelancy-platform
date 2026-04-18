@@ -37,7 +37,6 @@ const Landing = () => (
     <section className="hero-section" id="hero">
       <div className="hero-inner">
         <div>
-         
           <h1 className="hero-title">
             Trouvez les<br />
             meilleurs <span>freelancers</span><br />
@@ -51,12 +50,11 @@ const Landing = () => (
           <div className="hero-actions">
             <Link to="/register" className="hero-btn-primary">Démarrer votre projet</Link>
           </div>
-          
         </div>
         <div className="hero-visual">
           <div className="hero-blob" />
           <div className="floating-card">
-            <div className="fc-icon fc-icon-green">✓</div>
+            <div className="fc-icon fc-icon-green">✔</div>
             <div>
               <div className="fc-title">Paiement sécurisé</div>
               <div className="fc-sub">Dépôt actif</div>
@@ -83,29 +81,25 @@ const Landing = () => (
         </p>
         <div className="steps-grid">
           <div className="step-card">
-            <div className="step-icon">📋</div>
-            <div className="step-num">1. Publiez un projet</div>
+            <div className="step-num">Publiez un projet</div>
             <div className="step-desc">
               Décrivez vos besoins, votre budget et votre délai facilement.
             </div>
           </div>
           <div className="step-card">
-            <div className="step-icon">👥</div>
-            <div className="step-num">2. Examinez les propositions</div>
+            <div className="step-num">Examinez les propositions</div>
             <div className="step-desc">
               Recevez des offres de freelancers de qualité et négociez.
             </div>
           </div>
           <div className="step-card">
-            <div className="step-icon">🔒</div>
-            <div className="step-num">3. Paiement sécurisé</div>
+            <div className="step-num">Paiement sécurisé</div>
             <div className="step-desc">
               Financez le projet en toute sécurité via nos dépôts.
             </div>
           </div>
           <div className="step-card">
-            <div className="step-icon">✅</div>
-            <div className="step-num">4. Obtenez votre travail</div>
+            <div className="step-num">Obtenez votre travail</div>
             <div className="step-desc">
               Approuvez la livraison finale et libérez les fonds.
             </div>
@@ -125,7 +119,6 @@ const Landing = () => (
         <div className="trust-grid">
           <div className="trust-card">
             <div className="trust-card-header">
-              <div className="trust-card-icon">💎</div>
               <div className="trust-card-title">Négociation intelligente</div>
             </div>
             <p className="trust-card-desc">
@@ -135,14 +128,14 @@ const Landing = () => (
               terrain d'entente avant de vous engager sur tout paiement.
             </p>
             <ul className="trust-points">
-              <li><span className="trust-check">✓</span> Proposez des budgets alternatifs</li>
-              <li><span className="trust-check">✓</span> Communication chiffrée</li>
-              <li><span className="trust-check">✓</span> Confirmation des conditions en un clic</li>
+              <li>Proposez des budgets alternatifs</li>
+              <li>Communication chiffrée</li>
+              <li>Confirmation des conditions en un clic</li>
             </ul>
           </div>
           <div className="trust-card">
             <div className="trust-card-header">
-              <div className="trust-card-icon">🔐</div>
+
               <div className="trust-card-title">Portefeuille d'escrow</div>
             </div>
             <p className="trust-card-desc">
@@ -152,9 +145,9 @@ const Landing = () => (
               soit examinée et approuvée.
             </p>
             <ul className="trust-points">
-              <li><span className="trust-check">✓</span> Paiements de freelance garantis</li>
-              <li><span className="trust-check">✓</span> Libérations par étape</li>
-              <li><span className="trust-check">✓</span> Résolution de différends intégrée</li>
+              <li>Paiements de freelance garantis</li>
+              <li>Libérations par étape</li>
+              <li>Résolution de différends intégrée</li>
             </ul>
           </div>
         </div>

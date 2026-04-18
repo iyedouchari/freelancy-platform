@@ -184,7 +184,6 @@ const Onboarding = ({ onComplete }) => {
                     className={`onboarding-field-btn ${selectedFields.includes(cat) ? "active" : ""}`}
                     onClick={() => toggleField(cat)}
                   >
-                    {selectedFields.includes(cat) && <span className="onboarding-field-check">✓</span>}
                     {cat}
                   </button>
                 ))}
@@ -254,7 +253,7 @@ const RegistrationSuccess = ({ title, message, onLogin }) => (
 
     <div className="auth-form-side">
       <div className="auth-form-container auth-success-card">
-        <div className="auth-success-check">✓</div>
+        <div className="auth-success-check"></div>
         <div className="auth-form-header">
           <h1 className="auth-title">{title}</h1>
           <p className="auth-subtitle">{message}</p>
@@ -518,7 +517,7 @@ const Register = () => {
                   </div>
                   <div className="role-card-title">Freelance</div>
                   <div className="role-card-desc">Je propose mes services et mon expertise</div>
-                  {role === "freelancer" && <div className="role-card-check">✓</div>}
+                  {role === "freelancer" && <div className="role-card-check"></div>}
                 </div>
                 <div
                   className={`role-card ${role === "client" ? "active" : ""}`}
@@ -532,7 +531,7 @@ const Register = () => {
                   </div>
                   <div className="role-card-title">Client</div>
                   <div className="role-card-desc">Je cherche un freelance pour mon projet</div>
-                  {role === "client" && <div className="role-card-check">✓</div>}
+                  {role === "client" && <div className="role-card-check"></div>}
                 </div>
               </div>
             </div>
