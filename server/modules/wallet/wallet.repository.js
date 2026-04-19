@@ -10,7 +10,7 @@ async function addColumnIfMissing(connection, tableName, columnName, columnDefin
     await connection.query(`ALTER TABLE ${tableName} ADD COLUMN ${columnDefinition}`);
   }
 }
-
+// Permet de s'assurer que le portefeuille système existe dans la base de données, en créant un utilisateur dédié pour le portefeuille et en créant un compte de portefeuille associé si nécessaire
 export async function ensureSystemWalletOwner(connection = db) {
   await connection.query(
     `INSERT INTO users (id, name, email, password, role, company, professional_title, location, phone)
@@ -30,7 +30,7 @@ export async function ensureSystemWalletOwner(connection = db) {
 
   await ensureWalletByOwnerId(SYSTEM_WALLET_OWNER_ID, connection);
 }
-
+// Permet de s'assurer que les tables nécessaires pour gérer les portefeuilles et les transactions existent dans la base de données, en créant les tables wallet_accounts et wallet_transactions avec les colonnes et contraintes appropriées si elles n'existent pas déjà
 export async function ensureWalletTables() {
   await db.query(`
     CREATE TABLE IF NOT EXISTS wallet_accounts (
@@ -104,14 +104,14 @@ export async function ensureWalletByOwnerId(ownerId, connection = db) {
     [ownerId],
   );
 }
-
+// Permet de s'assurer que le schéma de la table messages est à jour avec les colonnes nécessaires pour gérer les types de messages et les fichiers attachés, en ajoutant les colonnes message_type, file_name, file_key, file_mime_type, file_size et file_url si elles n'existent pas déjà
 export async function findSystemWallet(connection = db) {
   await ensureSystemWalletOwner(connection);
   return findWalletByOwnerId(SYSTEM_WALLET_OWNER_ID, connection);
 }
 
 // ─── wallet_accounts ──────────────────────────────────────────────────────────
-
+// Permet de récupérer le portefeuille d'un utilisateur spécifique en fonction de son ID, en s'assurant que le portefeuille existe dans la base de données, et en retournant les informations du portefeuille ou null si l'utilisateur n'a pas de portefeuille
 export async function findWalletByOwnerId(ownerId, connection = db) {
   if (!Number.isInteger(Number(ownerId)) || ownerId <= 0) {
     throw new Error("Invalid wallet owner ID");
@@ -123,7 +123,7 @@ export async function findWalletByOwnerId(ownerId, connection = db) {
   );
   return rows[0] ?? null;
 }
-
+// Permet de recharger le portefeuille de l'utilisateur connecté en utilisant la logique métier définie dans le service, en fournissant le montant à recharger, et en retournant les informations de la transaction de recharge avec un message de succès
 export async function creditWallet(ownerId, amount, connection = db) {
   const validAmount = Number(amount);
   if (!Number.isFinite(validAmount) || validAmount < 0) {
@@ -135,7 +135,7 @@ export async function creditWallet(ownerId, amount, connection = db) {
     [validAmount, ownerId],
   );
 }
-
+// Permet de retirer des fonds du portefeuille de l'utilisateur connecté en utilisant la logique métier définie dans le service, en fournissant le montant à retirer et les informations de compte bancaire, et en retournant les informations de la transaction de retrait avec un message de succès
 export async function debitWallet(ownerId, amount, connection = db) {
   const validAmount = Number(amount);
   if (!Number.isFinite(validAmount) || validAmount <= 0) {
@@ -154,7 +154,7 @@ export async function debitWallet(ownerId, amount, connection = db) {
 }
 
 // ─── wallet_transactions ──────────────────────────────────────────────────────
-
+// Permet de récupérer la liste des transactions du portefeuille de l'utilisateur connecté, en utilisant la logique métier définie dans le service pour interagir avec la base de données, et en retournant les transactions formatées avec un message de succès
 export async function findTransactionsByWalletId(walletId, connection = db) {
   const [rows] = await connection.query(
     `SELECT wt.*, d.status AS deal_status, r.title AS request_title
@@ -167,7 +167,7 @@ export async function findTransactionsByWalletId(walletId, connection = db) {
   );
   return rows;
 }
-
+// Permet de créer un paiement dans la base de données en effectuant une requête SQL d'insertion avec les informations du paiement fournies, et en retournant l'objet du paiement créé avec son ID généré
 export async function createTransaction({
   walletId,
   dealId = null,

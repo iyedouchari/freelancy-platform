@@ -33,27 +33,27 @@ export const validateRegisterPayload = (body) => {
   const role = sanitizeRole(body?.role);
 
   if (!name) {
-    throw new AppError("Name is required.", 400, "NAME_REQUIRED");
+    throw new AppError("Le nom est requis.", 400, "NAME_REQUIRED");
   }
 
   if (!email || !isEmail(email)) {
-    throw new AppError("A valid email is required.", 400, "EMAIL_INVALID");
+    throw new AppError("Une adresse email valide est requise.", 400, "EMAIL_INVALID");
   }
 
   if (!isStrongEnoughPassword(password)) {
-    throw new AppError("Password must be at least 10 characters long.", 400, "PASSWORD_WEAK");
+    throw new AppError("Le mot de passe doit contenir au moins 10 caractères.", 400, "PASSWORD_WEAK");
   }
 
   if (!title) {
-    throw new AppError("Professional title is required.", 400, "TITLE_REQUIRED");
+    throw new AppError("Le titre professionnel est requis.", 400, "TITLE_REQUIRED");
   }
 
   if (!location) {
-    throw new AppError("Location is required.", 400, "LOCATION_REQUIRED");
+    throw new AppError("a localisation est requise.", 400, "LOCATION_REQUIRED");
   }
 
   if (!phone) {
-    throw new AppError("Phone is required.", 400, "PHONE_REQUIRED");
+    throw new AppError("Le numéro de téléphone est requis.", 400, "PHONE_REQUIRED");
   }
 
   return { name, company, title, location, email, phone, bio, avatarUrl, password, role };
@@ -64,11 +64,11 @@ export const validateLoginPayload = (body) => {
   const password = String(body?.password || "");
 
   if (!email || !isEmail(email)) {
-    throw new AppError("A valid email is required.", 400, "EMAIL_INVALID");
+    throw new AppError("Une adresse email valide est requise.", 400, "EMAIL_INVALID");
   }
 
   if (!password) {
-    throw new AppError("Password is required.", 400, "PASSWORD_REQUIRED");
+    throw new AppError("Le mot de passe est requis.", 400, "PASSWORD_REQUIRED");
   }
 
   return { email, password };

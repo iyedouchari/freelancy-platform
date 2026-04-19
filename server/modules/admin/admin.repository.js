@@ -1,8 +1,8 @@
 import { getDb } from "../../config/db.js";
 
+
 const db = getDb();
 let ensureReportsTablePromise;
-
 const constraintExists = async (tableName, constraintName) => {
   const [rows] = await db.query(
     `
@@ -18,7 +18,7 @@ const constraintExists = async (tableName, constraintName) => {
 
   return Boolean(rows[0]);
 };
-
+// Permet de vérifier si un index existe avant de tenter de le supprimer, afin d'éviter les erreurs lors de la mise à jour de la table des signalements
 const dropIndexIfExists = async (tableName, indexName) => {
   const [rows] = await db.query(
     `
@@ -32,7 +32,7 @@ const dropIndexIfExists = async (tableName, indexName) => {
     [tableName, indexName],
   );
 
-  if (!rows[0]) {
+  if (!rows[0]) {// L'index n'existe pas, on peut simplement retourner sans faire de requête de suppression
     return;
   }
 
@@ -41,7 +41,7 @@ const dropIndexIfExists = async (tableName, indexName) => {
     DROP INDEX ${indexName}
   `);
 };
-
+// Permet de vérifier si une contrainte d'unicité sur deal_id et reporter_id existe dans la table des signalements, et de la supprimer si c'est le cas, afin d'éviter les erreurs lors de la mise à jour de la table des signalements
 const dropReportsDealReporterUniqueConstraint = async () => {
   const hasUniqueIndex = await (async () => {
     const [rows] = await db.query(
@@ -93,7 +93,7 @@ const formatTimestamp = (value) => {
 
   return new Date(value).toISOString();
 };
-
+// Permet de récupérer la liste de tous les utilisateurs
 const toDatabaseDateTime = (value) => {
   if (!value) {
     return null;
@@ -107,12 +107,12 @@ const toDatabaseDateTime = (value) => {
 
   return date;
 };
-
+// Permet de récupérer les détails d'un utilisateur par son ID
 const isStatusTruncationError = (error) =>
   error?.errno === 1265 ||
   error?.code === "WARN_DATA_TRUNCATED" ||
   String(error?.sqlMessage || error?.message || "").includes("Data truncated for column 'status'");
-
+// Permet de récupérer les détails d'un utilisateur par son email
 const normalizeReportStatus = (status) => {
   if (status === "open" || status === "ouvert") {
     return "ouvert";
@@ -156,7 +156,7 @@ const mapUserRow = (row) => {
     banHistory: [],
   };
 };
-
+// Permet de récupérer la liste de tous les signalements
 const mapBanHistoryRow = (row) => {
   if (!row) {
     return null;
@@ -175,7 +175,7 @@ const mapBanHistoryRow = (row) => {
     createdAt: formatTimestamp(row.created_at),
   };
 };
-
+// Permet de récupérer les détails d'un signalement par son ID
 const mapReportRow = (row) => {
   if (!row) {
     return null;
@@ -211,7 +211,7 @@ const mapReportRow = (row) => {
     closedAt: formatTimestamp(row.closed_at),
   };
 };
-
+// Permet de vérifier si la table des signalements existe et de la créer si ce n'est pas le cas
 export const ensureReportsTable = async () => {
   if (ensureReportsTablePromise) {
     return ensureReportsTablePromise;
@@ -293,8 +293,9 @@ export const ensureReportsTable = async () => {
     ALTER TABLE reports
     ADD COLUMN attachment_size BIGINT NULL DEFAULT NULL
   `).catch(() => {});
-
-  await db.query(`
+// Permet de mettre à jour la colonne status pour utiliser les nouvelles valeurs normalisées, et de fermer les signalements qui étaient dans un état considéré comme fermé ou refusé
+// (ex: "ferme", "fermé", "refuse", "refusé", etc.) en mettant à jour la date de fermeture 
+await db.query(`
     ALTER TABLE reports
     MODIFY COLUMN status ENUM(
       'open',
@@ -563,7 +564,7 @@ export const adminRepository = {
 
     return rows.map(mapReportRow);
   },
-
+// Permet de récupérer les détails d'un signalement par son ID
   async findReportById(reportId) {
     await ensureReportsTable();
 
@@ -578,7 +579,7 @@ export const adminRepository = {
 
     return rows.map(mapReportRow)[0] || null;
   },
-
+// Permet de fermer un signalement
   async updateReportStatus(reportId, status) {
     try {
       await db.query(
@@ -620,7 +621,7 @@ export const adminRepository = {
 
     return this.findReportById(reportId);
   },
-
+// Permet de bannir un utilisateur
   async markReportedUserEmailSent(reportId) {
     await db.query(
       `
@@ -651,7 +652,7 @@ export const adminRepository = {
     );
 
     const latestEmailSentAt = rows[0]?.email_sent_at || null;
-
+// Si aucune date d'envoi d'email n'est trouvée dans l'historique des bans, on ne met pas à jour la table des signalements pour éviter d'écraser une éventuelle date d'envoi déjà présente
     if (!latestEmailSentAt) {
       return this.findReportById(reportId);
     }
@@ -670,7 +671,7 @@ export const adminRepository = {
 
     return this.findReportById(reportId);
   },
-
+// Permet de mettre à jour le statut d'un signalement (ex: en cours, résolu, etc.)
   async setUserSuspendedState(userId, { isSuspended, reason = "", durationDays = null }) {
     const normalizedDurationDays =
       durationDays === null || durationDays === undefined || durationDays === ""
@@ -704,7 +705,7 @@ export const adminRepository = {
 
     return this.findUserById(userId);
   },
-
+// Permet de débannir un utilisateur
   async createBanHistoryEntry({
     userId,
     adminUserId,
@@ -757,7 +758,7 @@ export const adminRepository = {
       [userId],
     );
   },
-
+// Permet de notifier un utilisateur banni par email
   async markBanHistoryEmailSent(entryId, emailSentAt = new Date()) {
     await db.query(
       `
@@ -782,7 +783,7 @@ export const adminRepository = {
       [toDatabaseDateTime(emailSentAt), userId],
     );
   },
-
+// Permet de récupérer l'historique des bans d'un utilisateur
   async listBanHistoryForUser(userId) {
     const [rows] = await db.query(
       `

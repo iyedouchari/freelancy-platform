@@ -20,7 +20,7 @@ import {
 const router = Router();
 
 router.use(authMiddleware, roleMiddleware("admin"));
-
+// Routes pour la gestion des utilisateurs et des signalements
 router.get("/users", asyncHandler(listAdminUsers));
 router.get("/users/search", asyncHandler(getAdminUserByEmail));
 router.get("/users/:id", asyncHandler(getAdminUserById));

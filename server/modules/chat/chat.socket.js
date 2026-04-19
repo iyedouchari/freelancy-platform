@@ -1,7 +1,7 @@
 import * as chatService from "./chat.service.js";
 
 const userRoom = (userId) => `user:${userId}`;
-
+// Permet de gérer les connexions socket pour le module de chat, en écoutant les événements d'enregistrement d'utilisateur et d'envoi de message, et en émettant les messages reçus aux destinataires concernés
 export const chatSocketHandler = (io) => {
   io.on("connection", (socket) => {
     socket.on("register_user", (userId) => {
@@ -11,10 +11,10 @@ export const chatSocketHandler = (io) => {
       }
 
       socket.data.userId = normalizedUserId;
-      socket.join(userRoom(normalizedUserId));
+      socket.join(userRoom(normalizedUserId));// On utilise une room par utilisateur pour pouvoir émettre des messages ciblés à ce userId
       console.log(`Utilisateur ${normalizedUserId} enregistre (socket: ${socket.id})`);
     });
-
+// Lorsqu'un message est envoyé, on le traite en utilisant la logique de service, puis on émet le message formaté au destinataire via son room socket
     socket.on("send_message", async (data) => {
       const {
         dealId,
@@ -29,7 +29,7 @@ export const chatSocketHandler = (io) => {
         messageType,
       } = data;
 
-      try {
+      try {// On traite l'envoi du message en utilisant la logique métier définie dans le service, qui gère la création du message en base et le stockage du fichier si nécessaire
         const savedMsg = await chatService.handleSendMessage(
           dealId,
           senderId,
@@ -43,7 +43,7 @@ export const chatSocketHandler = (io) => {
           messageType
         );
 
-        const payload = {
+        const payload = {// On construit la charge utile du message à émettre au destinataire, en s'assurant de normaliser les champs et de fournir les informations de fichier si c'est un message de type fichier
           id: savedMsg.id,
           dealId: savedMsg.deal_id ?? dealId,
           conversationId: savedMsg.conversation_id ?? savedMsg.deal_id ?? dealId,
@@ -72,7 +72,7 @@ export const chatSocketHandler = (io) => {
       }
     });
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", () => {//
       if (socket.data.userId) {
         console.log(`Utilisateur ${socket.data.userId} deconnecte.`);
       }

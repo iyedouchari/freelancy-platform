@@ -32,3 +32,4 @@
 {"email":"iyed.ouchari123@gmail.com","level":"error","message":"Echec de connexion : mot de passe incorrect","scope":"auth","service":"freelancy-api","timestamp":"2026-04-19T01:16:44.628Z","userId":4}
 {"email":"iyed.ouchari123@gmail.com","level":"error","message":"Echec de connexion : mot de passe incorrect","scope":"auth","service":"freelancy-api","timestamp":"2026-04-19T01:30:59.697Z","userId":4}
 {"email":"bachir@gmail.com","level":"error","message":"Echec de connexion : utilisateur introuvable","scope":"auth","service":"freelancy-api","timestamp":"2026-04-19T02:07:29.406Z"}
+{"email":"ons.benchaabene@etudiant-fst.utm.tn","level":"error","message":"Echec de connexion : mot de passe incorrect","scope":"auth","service":"freelancy-api","timestamp":"2026-04-19T11:24:27.145Z","userId":2}

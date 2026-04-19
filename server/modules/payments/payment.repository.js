@@ -1,5 +1,5 @@
 import db from "../../config/db.js";
-
+// Permet de s'assurer que la table des paiements existe dans la base de données, en créant la table avec les colonnes nécessaires et les contraintes de clé étrangère si elle n'existe pas déjà
 export async function ensurePaymentsTable() {
   await db.query(`
     CREATE TABLE IF NOT EXISTS payments (
@@ -21,7 +21,7 @@ export async function ensurePaymentsTable() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 }
-
+// Permet de récupérer les paiements liés à un deal spécifique, en effectuant une requête SQL pour sélectionner les paiements correspondants au dealId fourni, et en retournant les résultats sous forme de tableau d'objets
 export async function findPaymentsByDealId(dealId, connection = db) {
   const [rows] = await connection.query(
     `SELECT * FROM payments WHERE deal_id = ? ORDER BY created_at DESC`,
@@ -29,7 +29,7 @@ export async function findPaymentsByDealId(dealId, connection = db) {
   );
   return rows;
 }
-
+// Permet de récupérer les paiements liés à un utilisateur spécifique (en tant que client ou freelancer), en effectuant une requête SQL pour sélectionner les paiements correspondants à l'userId fourni, et en retournant les résultats sous forme de tableau d'objets
 export async function findPaymentById(paymentId, connection = db) {
   const [rows] = await connection.query(
     `SELECT * FROM payments WHERE id = ?`,
@@ -37,7 +37,7 @@ export async function findPaymentById(paymentId, connection = db) {
   );
   return rows[0] ?? null;
 }
-
+// Permet de récupérer les paiements liés à un utilisateur spécifique (en tant que client ou freelancer), en effectuant une requête SQL pour sélectionner les paiements correspondants à l'userId fourni, et en retournant les résultats sous forme de tableau d'objets
 export async function findPaymentByDealAndType(dealId, paymentType, connection = db) {
   const [rows] = await connection.query(
     `SELECT * FROM payments WHERE deal_id = ? AND payment_type = ? ORDER BY id DESC`,
@@ -45,7 +45,7 @@ export async function findPaymentByDealAndType(dealId, paymentType, connection =
   );
   return rows[0] ?? null;
 }
-
+// Permet de créer un paiement dans la base de données en effectuant une requête SQL d'insertion avec les informations du paiement fournies, et en retournant l'objet du paiement créé avec son ID généré
 export async function createPayment({
   dealId,
   clientId,
@@ -69,7 +69,7 @@ export async function createPayment({
     status: "En attente",
   };
 }
-
+// Permet de mettre à jour le statut d'un paiement spécifique dans la base de données en effectuant une requête SQL de mise à jour avec le paymentId et le nouveau statut fournis
 export async function updatePaymentStatus(paymentId, status, connection = db) {
   await connection.query(
     `UPDATE payments SET status = ? WHERE id = ?`,

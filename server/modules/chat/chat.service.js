@@ -2,7 +2,7 @@ import { getDb } from "../../config/db.js";
 
 const FILE_PREFIX = "__FILE__:";
 let chatSchemaReadyPromise;
-
+// Permet d'ajouter une colonne à une table si elle n'existe pas déjà, en vérifiant d'abord dans le schéma de la base de données pour éviter les erreurs d'ALTER TABLE
 async function addColumnIfMissing(db, tableName, columnName, definition) {
   const [rows] = await db.execute(
     `SELECT 1
@@ -13,16 +13,16 @@ async function addColumnIfMissing(db, tableName, columnName, definition) {
      LIMIT 1`,
     [tableName, columnName]
   );
-
+// Si la colonne n'existe pas, on l'ajoute
   if (rows.length === 0) {
     await db.execute(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
   }
 }
-
+// Permet de lire un fichier depuis le système de fichiers en utilisant une promesse, pour pouvoir l'utiliser avec async/await
 function normalizeTextContent(content) {
   return typeof content === "string" ? content.trim() : "";
 }
-
+// Permet de parser le contenu d'un message en vérifiant s'il s'agit d'un message texte classique ou d'un message de type fichier (en legacy), et en extrayant les informations de fichier si nécessaire
 function parseStoredContent(content) {
   if (typeof content !== "string" || !content.startsWith(FILE_PREFIX)) {
     return {
@@ -60,7 +60,7 @@ function extractKeyFromUrl(fileUrl) {
     return null;
   }
 }
-
+// Permet de sécuriser un nom de fichier en remplaçant les caractères interdits par des underscores, pour éviter les problèmes lors du téléchargement ou de l'affichage du fichier
 function inferMessageType({ content, fileName, mimeType }) {
   if (!fileName) {
     return "text";
@@ -76,7 +76,7 @@ function inferMessageType({ content, fileName, mimeType }) {
   const normalizedContent = normalizeTextContent(content);
   return normalizedContent ? "attachment" : "document";
 }
-
+// Permet de normaliser une ligne de message récupérée de la base de données en extrayant les informations de fichier si nécessaire, et en inférant le type de message pour les anciens messages qui n'ont pas le champ message_type
 function normalizeMessageRow(row) {
   const legacyPayload = parseStoredContent(row.content);
   const fileName = row.file_name ?? legacyPayload.fileName;
@@ -104,7 +104,7 @@ function normalizeMessageRow(row) {
     file_size: row.file_size ?? null,
   };
 }
-
+// Permet de s'assurer que le schéma de la table des messages est à jour avec les colonnes nécessaires pour gérer les fichiers, en ajoutant les colonnes manquantes si nécessaire avant d'effectuer des opérations de lecture ou d'écriture sur les messages
 async function ensureChatMessageSchema() {
   if (!chatSchemaReadyPromise) {
     chatSchemaReadyPromise = (async () => {
@@ -215,7 +215,7 @@ export async function handleSendMessage(
 
   return normalizeMessageRow(rows[0]);
 }
-
+// Permet de récupérer l'historique des messages d'une conversation liée à un deal
 export async function getMessageHistory(dealId) {
   if (!dealId) throw new Error("dealId manquant.");
 
@@ -233,7 +233,7 @@ export async function getMessageHistory(dealId) {
 
   return rows.map(normalizeMessageRow);
 }
-
+// Permet de marquer les messages d'une conversation comme lus pour un utilisateur donné
 export async function markMessagesAsRead(dealId, receiverId) {
   if (!dealId || !receiverId) throw new Error("Parametres manquants.");
 

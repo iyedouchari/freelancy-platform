@@ -162,6 +162,16 @@ function PaymentModal({ deal, walletBalance, onClose, onGoToWallet, onSuccess })
 
           {error && <div className="payment-modal-error">{error}</div>}
 
+          <div className="payment-modal-warning-box">
+            <p className="payment-modal-warning">
+              <strong>Chaque retard de 3 jours apres la livraison penalise le freelancer de 10% sur le montant total.</strong>
+            </p>
+
+            <p className="payment-modal-warning">
+              <strong>Le client doit payer la totalite sous 24h apres la livraison, sinon le freelancer garde l&apos;avance et le contrat est annule.</strong>
+            </p>
+          </div>
+
           <div className="payment-modal-actions">
             {!hasSufficientFunds ? (
               <>

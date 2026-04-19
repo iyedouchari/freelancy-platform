@@ -2,7 +2,7 @@ import { getDb } from "../../config/db.js";
 
 const db = getDb();
 
-const formatTimestamp = (value) => {
+const formatTimestamp = (value) => {// Permet de formater une valeur de date en une chaîne de caractères au format ISO, en vérifiant d'abord si la valeur est nulle ou vide, puis en la convertissant en objet Date si nécessaire, et enfin en retournant la représentation ISO de la date
   if (!value) {
     return null;
   }
@@ -14,12 +14,12 @@ const formatTimestamp = (value) => {
   return new Date(value).toISOString();
 };
 
-const mapReviewRow = (row) => {
+const mapReviewRow = (row) => {// Permet de mapper une ligne de résultat de la base de données en un objet de revue avec les champs correctement formatés, en vérifiant d'abord si la ligne est nulle, puis en extrayant les champs nécessaires et en formatant les dates
   if (!row) {
     return null;
   }
 
-  return {
+  return {// On mappe les champs de la ligne de la base de données aux champs de l'objet de revue, en utilisant des noms de champs plus conviviaux et en formatant les dates au format ISO
     id: row.id,
     dealId: row.deal_id,
     fromUserId: row.from_user_id,
@@ -33,7 +33,7 @@ const mapReviewRow = (row) => {
   };
 };
 
-export const ensureReviewsTable = async () => {
+export const ensureReviewsTable = async () => {// Permet de s'assurer que la table des avis existe dans la base de données, et qu'elle a les colonnes nécessaires pour stocker les informations des avis, en créant la table si elle n'existe pas, et en ajout
   await db.query(`
     CREATE TABLE IF NOT EXISTS reviews (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -66,7 +66,7 @@ export const ensureReviewsTable = async () => {
     "updated_at",
     "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at",
   );
-
+// On s'assure que l'index unique sur deal_id et from_user_id existe pour éviter les doublons liés au même deal et au même auteur, puis on nettoie les doublons historiques et on ajoute une contrainte d'unicité sur le couple from_user_id et to_user_id pour garantir qu'un utilisateur ne peut laisser qu'un seul avis par cible
   const [existingIndexes] = await db.query("SHOW INDEX FROM reviews WHERE Key_name = 'uq_reviews_deal_from_user'");
   if (existingIndexes.length === 0) {
     await db.query("ALTER TABLE reviews ADD UNIQUE KEY uq_reviews_deal_from_user (deal_id, from_user_id)");

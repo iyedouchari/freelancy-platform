@@ -1,7 +1,7 @@
 import Joi from "joi";
 
 const requestStatuses = ["Ouverte", "En cours", "Fermee"];
-
+// Schéma de validation pour la création d'une demande, qui vérifie que les champs nécessaires sont présents et conformes aux attentes, et que les champs optionnels sont correctement formatés si fournis
 const requestBaseSchema = {
   title: Joi.string().trim().max(255).required().messages({
     "string.empty": "Le titre est requis",
@@ -29,7 +29,7 @@ const requestBaseSchema = {
   domains: Joi.array().items(Joi.string().trim().max(100)).default([]),
   skills: Joi.array().items(Joi.string().trim().max(80)).default([]),
 };
-
+// Schéma de validation pour la création d'une demande, qui vérifie que les champs nécessaires sont présents et conformes aux attentes, et que les champs optionnels sont correctement formatés si fournis
 export const createRequestSchema = Joi.object(requestBaseSchema).or("domain", "category");
 
 export const updateRequestSchema = Joi.object({
@@ -44,7 +44,7 @@ export const updateRequestSchema = Joi.object({
   skills: Joi.array().items(Joi.string().trim().max(80)).optional(),
   status: Joi.string().valid(...requestStatuses).optional(),
 });
-
+// Schéma de validation pour la liste des demandes, qui vérifie que les paramètres de filtrage, de pagination et de tri sont conformes aux attentes, et qu'ils ont des valeurs par défaut si non fournis
 export const filterRequestSchema = Joi.object({
   domain: Joi.string().trim().max(100).optional(),
   status: Joi.string().valid(...requestStatuses).optional(),
@@ -57,7 +57,7 @@ export const filterRequestSchema = Joi.object({
   sortOrder: Joi.string().valid("ASC", "DESC").default("DESC"),
 });
 
-export const idParamSchema = Joi.object({
+export const idParamSchema = Joi.object({// Schéma de validation pour les paramètres d'identification d'une demande, qui vérifie que l'id est un nombre entier positif et qu'il est présent dans les paramètres de la requête
   id: Joi.number().integer().positive().required(),
 });
 
@@ -69,6 +69,6 @@ export const domainBodySchema = Joi.object({
   domain: Joi.string().trim().min(1).max(100).required(),
 });
 
-export const domainParamSchema = Joi.object({
+export const domainParamSchema = Joi.object({// Schéma de validation pour les paramètres d'identification d'un domaine, qui vérifie que le domaine est une chaîne de caractères non vide et qu'il est présent dans les paramètres de la requête
   domain: Joi.string().trim().min(1).max(100).required(),
 });

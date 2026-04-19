@@ -3,7 +3,7 @@ import { mailer } from "../../utils/mailer.js";
 import { adminRepository } from "./admin.repository.js";
 import { disconnectUser } from "../../config/socketManager.js";
 
-const parsePositiveId = (value, label = "Id") => {
+const parsePositiveId = (value, label = "Id") => {// Si l'id n'est pas défini, on retourne une erreur de validation claire plutôt que d'essayer de parser une valeur invalide
   const parsed = Number.parseInt(value, 10);
 
   if (Number.isNaN(parsed) || parsed <= 0) {
@@ -14,7 +14,7 @@ const parsePositiveId = (value, label = "Id") => {
 };
 
 const parseDurationDays = (value) => {
-  if (value === null || value === undefined || value === "") {
+  if (value === null || value === undefined || value === "") {// Si la durée n'est pas définie, on considère que le ban est indéfini plutôt que de retourner une erreur de validation
     return null;
   }
 
@@ -39,7 +39,7 @@ const computeSuspendedUntilFromDuration = (durationDays) => {
   return new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
 };
 
-const formatDeadline = (value) => {
+const formatDeadline = (value) => {// Si la date de retour n'est pas définie, on affiche une mention claire plutôt qu'une date invalide
   if (!value) {
     return "date de retour non definie";
   }
@@ -53,10 +53,10 @@ const formatDeadline = (value) => {
       minute: "2-digit",
     });
   } catch {
-    return String(value);
+    return String(value);// En cas d'erreur de format de date, on retourne la valeur brute plutôt que d'afficher une date invalide
   }
 };
-
+// Permet de récupérer la liste de tous les utilisateurs
 const formatDurationLabel = (value) => {
   const days = Number.parseInt(value, 10);
   if (Number.isNaN(days) || days <= 0) {
@@ -74,7 +74,7 @@ const buildBanDetailsHtml = ({ reason, suspendedUntil, durationDays }) => `
   <p><strong>Date de retour :</strong> ${formatDeadline(suspendedUntil)}</p>
   <p><strong>Durée :</strong> ${formatDurationLabel(durationDays)}</p>
 `;
-
+// Permet de récupérer la liste de tous les utilisateurs
 const buildBanEmailPayload = ({ name, reason, suspendedUntil, durationDays }) => ({
   subject: "Votre compte Freelancy a été banni",
   text: `Bonjour ${name},\n\nVotre compte a été banni suite a un signalement verifié.\n${buildBanDetailsText({
@@ -93,12 +93,12 @@ const buildBanEmailPayload = ({ name, reason, suspendedUntil, durationDays }) =>
     <p>Si vous pensez qu'il s'agit d'une erreur, merci de contacter le support.</p>
   `,
 });
-
+// Permet de récupérer la liste de tous les utilisateurs
 export const adminService = {
   async listUsers() {
     return adminRepository.listUsers();
   },
-
+// Permet de récupérer la liste de tous les utilisateurs
   async getUserById(userId) {
     const normalizedUserId = parsePositiveId(userId, "User id");
     const user = await adminRepository.findUserById(normalizedUserId);
@@ -109,7 +109,7 @@ export const adminService = {
 
     return user;
   },
-
+// Permet de récupérer les détails d'un utilisateur par son email
   async getUserByEmail(email) {
     const normalizedEmail = String(email || "").trim().toLowerCase();
 
@@ -129,7 +129,7 @@ export const adminService = {
   async listReports() {
     return adminRepository.listReports();
   },
-
+// Permet de récupérer les détails d'un signalement par son ID
   async getReportById(reportId) {
     const normalizedReportId = parsePositiveId(reportId, "Report id");
     const report = await adminRepository.findReportById(normalizedReportId);
@@ -140,7 +140,7 @@ export const adminService = {
 
     return report;
   },
-
+// Permet de récupérer la liste de tous les utilisateurs
   async closeReport(reportId) {
     const report = await this.getReportById(reportId);
 
@@ -162,7 +162,7 @@ export const adminService = {
     if (!["en_cours", "ouvert", "ferme", "refuse"].includes(normalizedStatus)) {
       throw new AppError("Statut de signalement invalide.", 400, "INVALID_REPORT_STATUS");
     }
-
+// Si le statut ne change pas, on ne fait pas de mise à jour en base pour éviter d'écraser des dates d'envoi d'emails ou autres données liées au changement de statut
     if (report.status === normalizedStatus) {
       if (
         normalizedStatus === "ferme" &&

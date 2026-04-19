@@ -7,7 +7,7 @@ import {
   payTotal,
   refundPayment,
 } from "./payment.controller.js";
-import {
+import {// On importe les fonctions de validation pour les différentes routes de paiement, afin de s'assurer que les données reçues dans les requêtes sont valides avant d'exécuter la logique métier
   validateAdvancePayment,
   validateFinalPayment,
   validateRefund,

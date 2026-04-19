@@ -24,7 +24,7 @@ const filterOptions = [
 const typeMeta = {
   credit:     { label: "Credit",     className: "credit", prefix: "+" },
   debit:      { label: "Paiement",   className: "debit",  prefix: "-" },
-  escrow:     { label: "Escrow",     className: "escrow", prefix: "-" },
+  escrow:     { label: "Séquestre",  className: "escrow", prefix: "-" },
   fee:        { label: "Frais",      className: "fee",    prefix: "-" },
   topup:      { label: "Recharge",   className: "credit", prefix: "+" },
   withdrawal: { label: "Retrait",    className: "debit",  prefix: "-" },
@@ -317,7 +317,7 @@ export default function ClientWallet() {
           <div className="client-wallet-copy">
             <span className="client-wallet-eyebrow">Wallet client</span>
             <h1>Suivre votre solde, vos fonds bloques et les paiements projet</h1>
-            <p>Ce wallet vous donne une vue claire sur les recharges, les montants places en escrow et les paiements deja liberes sur vos collaborations.</p>
+            <p>Ce wallet vous donne une vue claire sur les recharges, les montants places en sequestre et les paiements deja liberes sur vos collaborations.</p>
           </div>
 
           <div className="client-wallet-recharge-card">
@@ -337,7 +337,7 @@ export default function ClientWallet() {
             <strong>{format(stats.availableBalance)} DT</strong>
           </article>
           <article>
-            <span>Fonds en escrow</span>
+            <span>Fonds en sequestre</span>
             <strong>{format(stats.escrowLocked)} DT</strong>
           </article>
           <article>

@@ -9,7 +9,7 @@ import {
   ensureSystemWalletOwner,
   findSystemWallet,
   findWalletByOwnerId,
-} from "../wallet/wallet.repository.js";
+} from "../wallet/wallet.repository.js";// On importe les fonctions de gestion des transactions et des wallets pour pouvoir manipuler les fonds lors des paiements
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const PENALTY_RATE = 0.1;
@@ -24,12 +24,25 @@ const NON_PAYMENT_ACTIVE_DEAL_STATUSES = [
   "Terminé",
 ];
 
-const roundMoney = (value) => Math.round(Number(value) * 100) / 100;
+const roundMoney = (value) => Math.round(Number(value) * 100) / 100;// Fonction utilitaire pour arrondir les montants à 2 décimales, afin d'éviter les problèmes de précision avec les nombres à virgule flottante en JavaScript
 
 let nonPaymentRuleTimer = null;
 let nonPaymentRuleRunning = false;
 
-export async function stripeDummy({ amount, metadata = {} }) {
+function isDealDeadlineReached(deadline, now = new Date()) {// Permet de vérifier si la date limite d'un deal est atteinte en comparant la date limite avec la date actuelle, en prenant en compte les formats de date et en gérant les cas où la date limite n'est pas définie ou invalide
+  if (!deadline) {
+    return false;
+  }
+
+  const deadlineDate = new Date(`${deadline}T23:59:59`);
+  if (Number.isNaN(deadlineDate.getTime()) || Number.isNaN(now.getTime())) {
+    return false;
+  }
+
+  return now.getTime() >= deadlineDate.getTime();
+}
+
+export async function stripeDummy({ amount, metadata = {} }) {// Fonction simulant un paiement Stripe pour les besoins de développement et de test, en attendant l'intégration réelle avec l'API Stripe. Elle retourne une réponse simulée après un délai pour imiter le comportement d'un paiement réel.
   await new Promise((resolve) => setTimeout(resolve, 30));
   return {
     id: `pi_dummy_${Date.now()}`,
@@ -44,19 +57,19 @@ async function resolveFreelancerId(dealId, freelancerIdFromRequest, connection =
   if (!Number.isInteger(Number(dealId)) || dealId <= 0) {
     throw new Error("Invalid deal ID");
   }
-  
+  // Si un freelancerId est fourni dans la requête, on vérifie qu'il correspond à un wallet existant et on le retourne. Sinon, on récupère le freelancerId associé au deal depuis la base de données pour s'assurer que le paiement est bien lié au deal concerné
   if (freelancerIdFromRequest) {
     const wallet = await findWalletByOwnerId(freelancerIdFromRequest, connection);
     if (wallet) return freelancerIdFromRequest;
   }
-
+// Si le freelancerId n'est pas fourni ou est invalide, on récupère le freelancerId associé au deal depuis la base de données pour s'assurer que le paiement est bien lié au deal concerné
   const [rows] = await connection.query(
     "SELECT freelancer_id FROM deals WHERE id = ?",
     [dealId],
   );
   if (!rows[0]) throw new Error("Deal introuvable.");
   const realFreelancerId = rows[0].freelancer_id;
-
+// On vérifie que le freelancerId récupéré est valide et correspond à un wallet existant, sinon on retourne une erreur pour éviter de créer un paiement avec un freelancerId incorrect
   if (!Number.isInteger(Number(realFreelancerId)) || realFreelancerId <= 0) {
     throw new Error("Invalid freelancer ID in deal");
   }
@@ -66,7 +79,7 @@ async function resolveFreelancerId(dealId, freelancerIdFromRequest, connection =
 
   return realFreelancerId;
 }
-
+// Permet de payer une avance pour un deal spécifique, en vérifiant que les conditions de paiement sont remplies (pas de paiement déjà effectué, solde suffisant dans le wallet du client, etc.), en créant les transactions nécessaires dans les wallets et en mettant à jour le statut du paiement et du deal en conséquence
 function formatDealDate(value) {
   if (!value) {
     return "date limite indisponible";
@@ -79,7 +92,7 @@ function formatDealDate(value) {
 
   return parsed.toLocaleDateString("fr-FR");
 }
-
+// Permet de calculer la pénalité de
 function computeDelayPenalty(deal) {
   if (!deal?.deadline) {
     return {
@@ -89,7 +102,7 @@ function computeDelayPenalty(deal) {
       hasPenalty: false,
     };
   }
-
+// On calcule
   const deadlineDate = new Date(`${deal.deadline}T23:59:59`);
   if (Number.isNaN(deadlineDate.getTime())) {
     return {
@@ -99,7 +112,7 @@ function computeDelayPenalty(deal) {
       hasPenalty: false,
     };
   }
-
+// La date de référence pour le calcul
   const referenceDate = deal.submittedAt ? new Date(deal.submittedAt) : new Date();
   if (Number.isNaN(referenceDate.getTime())) {
     return {
@@ -162,6 +175,40 @@ async function hasSubmissionRelease(connection, dealId) {
   return rows.length > 0;
 }
 
+async function getWalletTransactionAmountByType(connection, { walletId, dealId, type }) {
+  const [rows] = await connection.query(
+    `SELECT COALESCE(SUM(amount), 0) AS total
+     FROM wallet_transactions
+     WHERE wallet_id = ?
+       AND deal_id = ?
+       AND type = ?`,
+    [walletId, dealId, type],
+  );
+
+  return roundMoney(Number(rows[0]?.total || 0));
+}
+// Permet de trouver les deals candidats pour la règle de libération à échéance de l'avance, en effectuant une requête SQL pour sélectionner les deals qui ont une deadline dépassée, un paiement d'avance payé, et qui n'ont pas encore bénéficié d'une libération liée à la soumission, et en retournant les résultats sous forme de tableau d'IDs de deals
+async function findAdvanceDeadlineReleaseCandidateDealIds(connection = db) {
+  const [rows] = await connection.query(
+    `SELECT d.id
+     FROM deals d
+     WHERE d.deadline IS NOT NULL
+       AND d.status <> 'Annule'
+       AND EXISTS (
+         SELECT 1
+         FROM payments p
+         WHERE p.deal_id = d.id
+           AND p.payment_type = 'Avance'
+           AND p.status = 'Paye'
+       )
+       AND TIMESTAMPDIFF(SECOND, CONCAT(DATE(d.deadline), ' 23:59:59'), NOW()) >= 0`,
+  );
+
+  return rows
+    .map((row) => Number(row.id))
+    .filter((dealId) => Number.isInteger(dealId) && dealId > 0);
+}
+// Permet de trouver les deals candidats pour la règle d'annulation pour non-paiement, en effectuant une requête SQL pour sélectionner les deals qui ont été soumis depuis plus de X heures, qui ont un paiement d'avance payé, qui n'ont pas de paiement final payé, et qui sont dans un statut actif, et en retournant les résultats sous forme de tableau d'IDs de deals
 async function applyAutoCancellationForNonPayment(connection, deal) {
   const dealId = Number(deal?.id);
   const dealStatus = String(deal?.status || "");
@@ -288,18 +335,29 @@ export async function enforceNonPaymentFinalRule() {
   }
 }
 
-export function startNonPaymentFinalRuleWatcher() {
-  if (!env.NON_PAYMENT_RULE_ENABLED) {
-    return null;
-  }
+export async function enforceAdvanceDeadlineReleaseRule() {
+  return {
+    candidates: 0,
+    processed: 0,
+    skipped: 0,
+    failed: 0,
+  };
+}
 
+export function startNonPaymentFinalRuleWatcher() {
   if (nonPaymentRuleTimer) {
     return nonPaymentRuleTimer;
   }
 
   const runTick = async () => {
     try {
+      const advanceSummary = await enforceAdvanceDeadlineReleaseRule();
       const summary = await enforceNonPaymentFinalRule();
+      if (advanceSummary.processed > 0 || advanceSummary.failed > 0) {
+        console.log(
+          `[advance-deadline-release] candidates=${advanceSummary.candidates} processed=${advanceSummary.processed} failed=${advanceSummary.failed}`,
+        );
+      }
       if (summary.processed > 0 || summary.failed > 0) {
         console.log(
           `[non-payment-rule] candidates=${summary.candidates} processed=${summary.processed} failed=${summary.failed}`,
@@ -515,7 +573,7 @@ export async function payFinal({ dealId, clientId, freelancerId, amount }) {
         amount: finalAmountToEscrow,
         balanceBefore: Number(systemWallet.balance),
         balanceAfter: roundMoney(Number(systemWallet.balance) + finalAmountToEscrow),
-        note: "Paiement final place en sequestre (wallet 999) jusqu'a la soumission finale.",
+        note: "Paiement final place en sequestre (wallet 999) jusqu'au paiement total et a la liberation des fonds.",
       }, connection);
 
       await creditWallet(systemWallet.owner_id, finalAmountToEscrow, connection);
@@ -526,7 +584,7 @@ export async function payFinal({ dealId, clientId, freelancerId, amount }) {
     }
 
     const note = finalAmountToEscrow > 0
-      ? "Paiement final confirme. Montant place en sequestre (wallet 999) et libere a la soumission finale."
+      ? "Paiement final confirme. Le sequestre total est libere au freelancer."
       : "Paiement final confirme sans montant supplementaire.";
 
     const nextDealStatus = deal?.submittedAt ? "Terminé" : "Totalité payée";
@@ -538,6 +596,8 @@ export async function payFinal({ dealId, clientId, freelancerId, amount }) {
       penaltyCycles: Number(deal?.penaltyCycles ?? 0),
     });
 
+    const submissionRelease = await releaseFreelancerPaymentOnSubmission({ dealId }, connection);
+
     return {
       payment: payment ? { ...payment, status: "Paye" } : null,
       penalty: {
@@ -548,6 +608,7 @@ export async function payFinal({ dealId, clientId, freelancerId, amount }) {
         amountFromEscrow: 0,
       },
       deal: await dealRepository.findById(dealId, connection),
+      submissionRelease,
     };
   });
 }
@@ -582,8 +643,100 @@ export async function refundPayment({ paymentId, clientId }) {
   return { refunded: true, amount: payment.amount };
 }
 
-export async function releaseFreelancerPaymentOnSubmission({ dealId }) {
-  return runPaymentTransaction(async (connection) => {
+export async function releaseAdvancePaymentOnDeadline({ dealId }, externalConnection = null) {
+  return { released: false, reason: "disabled" };
+  const execute = async (connection) => {
+    const deal = await dealRepository.findById(dealId, connection);
+    if (!deal) {
+      throw new Error("Deal introuvable.");
+    }
+
+    const dealStatus = String(deal?.status || "");
+    if (["Annule", "Annulé"].includes(dealStatus)) {
+      return { released: false, reason: "deal_cancelled" };
+    }
+
+    if (!isDealDeadlineReached(deal?.deadline)) {
+      return { released: false, reason: "deadline_not_reached" };
+    }
+
+    const advancePaid = await isPaymentTypePaid(connection, dealId, "Avance");
+    if (!advancePaid) {
+      return { released: false, reason: "advance_not_paid" };
+    }
+
+    await ensureSystemWalletOwner(connection);
+    const systemWallet = await findSystemWallet(connection);
+    const freelancerId = Number(deal.freelancerId || deal.freelancer_id);
+    const freelancerWallet = await findWalletByOwnerId(freelancerId, connection);
+    const advanceAmount = roundMoney(Number(deal.advanceAmount || deal.advance_amount || 0));
+    const finalPaid = await isPaymentTypePaid(connection, dealId, "Paiement final");
+    const finalPayment = finalPaid
+      ? await paymentRepo.findPaymentByDealAndType(dealId, "Paiement final", connection)
+      : null;
+    const finalEscrowAmount = roundMoney(Number(finalPayment?.amount || 0));
+
+    const alreadyReleasedToFreelancer = await getWalletTransactionAmountByType(connection, {
+      walletId: freelancerWallet.id,
+      dealId,
+      type: "submission_release",
+    });
+
+    const alreadyReleasedAdvance = roundMoney(
+      Math.max(alreadyReleasedToFreelancer - finalEscrowAmount, 0),
+    );
+    const remainingAdvanceRelease = roundMoney(
+      Math.max(advanceAmount - alreadyReleasedAdvance, 0),
+    );
+
+    if (remainingAdvanceRelease <= 0) {
+      return { released: false, reason: "advance_already_released" };
+    }
+
+    if (Number(systemWallet.balance) < remainingAdvanceRelease) {
+      throw new Error(`Wallet systeme insuffisant pour la liberation de l'avance du deal #${dealId}.`);
+    }
+
+    const systemBalanceBefore = Number(systemWallet.balance);
+    await debitWallet(systemWallet.owner_id, remainingAdvanceRelease, connection);
+    await createTransaction({
+      walletId: systemWallet.id,
+      dealId,
+      type: "submission_release",
+      amount: remainingAdvanceRelease,
+      balanceBefore: systemBalanceBefore,
+      balanceAfter: roundMoney(systemBalanceBefore - remainingAdvanceRelease),
+      note: "Liberation de l'avance a la date limite du deal.",
+    }, connection);
+
+    const freelancerBalanceBefore = Number(freelancerWallet.balance);
+    await creditWallet(freelancerId, remainingAdvanceRelease, connection);
+    await createTransaction({
+      walletId: freelancerWallet.id,
+      dealId,
+      type: "submission_release",
+      amount: remainingAdvanceRelease,
+      balanceBefore: freelancerBalanceBefore,
+      balanceAfter: roundMoney(freelancerBalanceBefore + remainingAdvanceRelease),
+      note: "Avance liberee automatiquement a la date limite du deal.",
+    }, connection);
+
+    return {
+      released: true,
+      dealId,
+      releasedAmount: remainingAdvanceRelease,
+    };
+  };
+
+  if (externalConnection) {
+    return execute(externalConnection);
+  }
+
+  return runPaymentTransaction(execute);
+}
+
+export async function releaseFreelancerPaymentOnSubmission({ dealId }, externalConnection = null) {
+  const execute = async (connection) => {
     const deal = await dealRepository.findById(dealId, connection);
     if (!deal) {
       throw new Error("Deal introuvable.");
@@ -594,22 +747,9 @@ export async function releaseFreelancerPaymentOnSubmission({ dealId }) {
       throw new Error("Le deal est annule.");
     }
 
-    // Check if already released
-    const [existingRelease] = await connection.query(
-      `SELECT 1 FROM wallet_transactions 
-       WHERE deal_id = ? AND type = 'submission_release' 
-       LIMIT 1`,
-      [dealId],
-    );
-    
-    if (existingRelease.length > 0) {
-      return { released: false, reason: "already_released" };
-    }
-
     const freelancerId = Number(deal.freelancerId || deal.freelancer_id);
     const clientId = Number(deal.clientId || deal.client_id);
     const advanceAmount = roundMoney(Number(deal.advanceAmount || deal.advance_amount || 0));
-
     const advancePaid = await isPaymentTypePaid(connection, dealId, "Avance");
     const finalPaid = await isPaymentTypePaid(connection, dealId, "Paiement final");
     const finalPayment = finalPaid
@@ -625,62 +765,91 @@ export async function releaseFreelancerPaymentOnSubmission({ dealId }) {
     await ensureSystemWalletOwner(connection);
     const systemWallet = await findSystemWallet(connection);
     const freelancerWallet = await findWalletByOwnerId(freelancerId, connection);
+    const clientWallet = await findWalletByOwnerId(clientId, connection);
 
-    if (Number(systemWallet.balance) < escrowAmount) {
-      throw new Error(`Wallet systeme insuffisant pour la liberation du paiement freelance du deal #${dealId}.`);
-    }
-
-    const penalty = computeDelayPenalty(deal);
-    const penaltyAmount = roundMoney(Math.max(Number(penalty.penaltyAmount || 0), 0));
-    const penaltyReturnAmount = roundMoney(Math.min(penaltyAmount, escrowAmount));
-    const releaseToFreelancer = roundMoney(Math.max(escrowAmount - penaltyReturnAmount, 0));
-
-    const systemBalanceBefore = Number(systemWallet.balance);
-    const systemBalanceAfter = roundMoney(systemBalanceBefore - escrowAmount);
-    await debitWallet(systemWallet.owner_id, escrowAmount, connection);
-    await createTransaction({
+    const alreadyReleasedFromSystem = await getWalletTransactionAmountByType(connection, {
       walletId: systemWallet.id,
       dealId,
       type: "submission_release",
-      amount: escrowAmount,
-      balanceBefore: systemBalanceBefore,
-      balanceAfter: systemBalanceAfter,
-      note: "Liberation des fonds escrow apres soumission finale.",
-    }, connection);
+    });
+    const alreadyReleasedToFreelancer = await getWalletTransactionAmountByType(connection, {
+      walletId: freelancerWallet.id,
+      dealId,
+      type: "submission_release",
+    });
+    const alreadyReturnedToClient = await getWalletTransactionAmountByType(connection, {
+      walletId: clientWallet.id,
+      dealId,
+      type: "penalty_credit",
+    });
 
-    if (releaseToFreelancer > 0) {
+    const penalty = computeDelayPenalty(deal);
+    const penaltyAmount = roundMoney(Math.max(Number(penalty.penaltyAmount || 0), 0));
+    const targetPenaltyReturnAmount = roundMoney(Math.min(penaltyAmount, escrowAmount));
+    const targetReleaseToFreelancer = roundMoney(Math.max(escrowAmount - targetPenaltyReturnAmount, 0));
+    const remainingEscrowToRelease = roundMoney(Math.max(escrowAmount - alreadyReleasedFromSystem, 0));
+    const remainingReleaseToFreelancer = roundMoney(
+      Math.max(targetReleaseToFreelancer - alreadyReleasedToFreelancer, 0),
+    );
+    const remainingPenaltyReturnAmount = roundMoney(
+      Math.max(targetPenaltyReturnAmount - alreadyReturnedToClient, 0),
+    );
+
+    if (remainingEscrowToRelease <= 0 && remainingReleaseToFreelancer <= 0 && remainingPenaltyReturnAmount <= 0) {
+      return { released: false, reason: "already_released" };
+    }
+
+    if (Number(systemWallet.balance) < remainingEscrowToRelease) {
+      throw new Error(`Wallet systeme insuffisant pour la liberation du paiement freelance du deal #${dealId}.`);
+    }
+
+    const systemBalanceBefore = Number(systemWallet.balance);
+    const systemBalanceAfter = roundMoney(systemBalanceBefore - remainingEscrowToRelease);
+    if (remainingEscrowToRelease > 0) {
+      await debitWallet(systemWallet.owner_id, remainingEscrowToRelease, connection);
+      await createTransaction({
+        walletId: systemWallet.id,
+        dealId,
+        type: "submission_release",
+        amount: remainingEscrowToRelease,
+        balanceBefore: systemBalanceBefore,
+        balanceAfter: systemBalanceAfter,
+        note: "Liberation du sequestre vers le freelancer apres paiement total.",
+      }, connection);
+    }
+
+    if (remainingReleaseToFreelancer > 0) {
       const freelancerBalanceBefore = Number(freelancerWallet.balance);
-      await creditWallet(freelancerId, releaseToFreelancer, connection);
+      await creditWallet(freelancerId, remainingReleaseToFreelancer, connection);
       await createTransaction({
         walletId: freelancerWallet.id,
         dealId,
         type: "submission_release",
-        amount: releaseToFreelancer,
+        amount: remainingReleaseToFreelancer,
         balanceBefore: freelancerBalanceBefore,
-        balanceAfter: roundMoney(freelancerBalanceBefore + releaseToFreelancer),
-        note: `Paiement libere a la soumission de travail. Penalite appliquee: ${penaltyReturnAmount.toFixed(2)} DT (${penalty.cycles} cycle(s), ${penalty.daysLate} jour(s) de retard).`,
+        balanceAfter: roundMoney(freelancerBalanceBefore + remainingReleaseToFreelancer),
+        note: `Paiement libere au freelancer apres paiement total. Penalite appliquee: ${targetPenaltyReturnAmount.toFixed(2)} DT (${penalty.cycles} cycle(s), ${penalty.daysLate} jour(s) de retard).`,
       }, connection);
     }
 
-    if (penaltyReturnAmount > 0) {
-      const clientWallet = await findWalletByOwnerId(clientId, connection);
+    if (remainingPenaltyReturnAmount > 0) {
       const clientBalanceBefore = Number(clientWallet.balance);
-      await creditWallet(clientId, penaltyReturnAmount, connection);
-      const clientBalanceAfterPenalty = roundMoney(clientBalanceBefore + penaltyReturnAmount);
+      await creditWallet(clientId, remainingPenaltyReturnAmount, connection);
+      const clientBalanceAfterPenalty = roundMoney(clientBalanceBefore + remainingPenaltyReturnAmount);
       await createTransaction({
         walletId: clientWallet.id,
         dealId,
         type: "penalty_credit",
-        amount: penaltyReturnAmount,
+        amount: remainingPenaltyReturnAmount,
         balanceBefore: clientBalanceBefore,
         balanceAfter: clientBalanceAfterPenalty,
-        note: `Penalite de retard creditee au client: ${penaltyReturnAmount.toFixed(2)} DT.`,
+        note: `Penalite de retard creditee au client: ${remainingPenaltyReturnAmount.toFixed(2)} DT.`,
       }, connection);
     }
 
     const note = penalty.hasPenalty
-      ? `Travail soumis. Penalite appliquee: ${penaltyReturnAmount.toFixed(2)} DT (${penalty.cycles} cycle(s), ${penalty.daysLate} jour(s) de retard). Montant verse au freelance: ${releaseToFreelancer.toFixed(2)} DT.`
-      : `Travail soumis. Paiement freelance libere: ${releaseToFreelancer.toFixed(2)} DT.`;
+      ? `Travail soumis. Penalite appliquee: ${targetPenaltyReturnAmount.toFixed(2)} DT (${penalty.cycles} cycle(s), ${penalty.daysLate} jour(s) de retard). Montant total verse au freelance: ${targetReleaseToFreelancer.toFixed(2)} DT.`
+      : `Paiement total confirme. Montant total verse au freelance: ${targetReleaseToFreelancer.toFixed(2)} DT.`;
 
     await connection.query(
       `UPDATE deals 
@@ -693,9 +862,16 @@ export async function releaseFreelancerPaymentOnSubmission({ dealId }) {
       released: true,
       dealId,
       freelancerId,
-      releasedAmount: releaseToFreelancer,
-      penaltyDeducted: penaltyReturnAmount,
-      finalNetAmount: releaseToFreelancer,
+      releasedAmount: remainingReleaseToFreelancer,
+      totalReleasedAmount: targetReleaseToFreelancer,
+      penaltyDeducted: remainingPenaltyReturnAmount,
+      finalNetAmount: targetReleaseToFreelancer,
     };
-  });
+  };
+
+  if (externalConnection) {
+    return execute(externalConnection);
+  }
+
+  return runPaymentTransaction(execute);
 }

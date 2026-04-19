@@ -558,6 +558,15 @@ export default function Workspace({
               onChange={handleDeliveryFile}
             />
 
+            <div className="workspace-action-warnings">
+              <p>
+                <strong>Chaque retard de 3 jours apres la livraison penalise le freelancer de 10% sur le montant total.</strong>
+              </p>
+              <p>
+                <strong>Le client doit payer la totalite sous 24h apres la livraison, sinon le freelancer garde l&apos;avance et le contrat est annule.</strong>
+              </p>
+            </div>
+
             <div className="workspace-delivery-list">
               <h4>Fichiers envoyés</h4>
               {deliveryAccessMessage ? (

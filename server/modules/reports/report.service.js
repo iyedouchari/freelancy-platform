@@ -1,7 +1,7 @@
 import AppError from "../../utils/AppError.js";
 import { reportRepository } from "./report.repository.js";
 
-const parsePositiveId = (value, label = "Id") => {
+const parsePositiveId = (value, label = "Id") => {// Permet de valider et de parser un
   const parsed = Number.parseInt(value, 10);
 
   if (Number.isNaN(parsed) || parsed <= 0) {
@@ -10,7 +10,7 @@ const parsePositiveId = (value, label = "Id") => {
 
   return parsed;
 };
-
+// Permet de formater un timestamp en une chaîne de caractères au format ISO, pour assurer une cohérence dans la représentation des dates dans l'application
 export const reportService = {
   async createReport(currentUser, payload) {
     const reporterId = parsePositiveId(currentUser.id, "Reporter id");
@@ -23,7 +23,7 @@ export const reportService = {
     if (reporterId === reportedUserId) {
       throw new AppError("Vous ne pouvez pas vous signaler vous-meme.", 400, "SELF_REPORT_FORBIDDEN");
     }
-
+// On vérifie que le signalement est lié à un deal si le reporter est un freelancer, ou qu'il n'est pas lié à un deal si le reporter est un client, pour éviter les incohérences dans les signalements
     return reportRepository.create({
       reporterId,
       reportedUserId,
@@ -36,7 +36,7 @@ export const reportService = {
       attachmentSize: payload.attachmentSize,
     });
   },
-
+// Permet de récupérer la liste des signalements liés à l'utilisateur connecté, en fonction de son rôle (client ou freelancer), et de retourner les résultats avec un message de succès
   async listMyReports(currentUser) {
     const reporterId = parsePositiveId(currentUser.id, "Reporter id");
     return reportRepository.listForReporter(reporterId);

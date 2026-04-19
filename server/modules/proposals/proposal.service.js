@@ -8,7 +8,7 @@ import { payAdvance } from "../payments/payment.service.js";
 
 const db = getDb();
 const ACCEPT_AND_PAY_STEP_TIMEOUT_MS = 10000;
-
+// Permet d'exécuter une promesse avec un timeout spécifique pour chaque étape du processus d'acceptation et de paiement, afin de garantir que chaque étape ne prend pas trop de temps et de gérer les erreurs de timeout de manière appropriée
 const withStepTimeout = async (promise, stepLabel) => {
   let timeoutId;
   try {
@@ -26,7 +26,7 @@ const withStepTimeout = async (promise, stepLabel) => {
     }
   }
 };
-
+// Permet d'ajouter une colonne à une table si elle n'existe pas déjà, en effectuant une requête SQL pour vérifier l'existence de la colonne, et en exécutant une requête d'ALTER TABLE pour ajouter la colonne si nécessaire
 const isAdmin = (role) => role === "admin";
 
 const ensurePositiveId = (value, label) => {
@@ -38,7 +38,7 @@ const ensurePositiveId = (value, label) => {
 
   return id;
 };
-
+// Permet de vérifier que l'utilisateur connecté est bien le client associé à la proposition, en effectuant une requête pour vérifier la propriété de la demande liée à la proposition, et en lançant une erreur si l'utilisateur n'est pas autorisé à effectuer l'action
 const assertClientOwnsRequest = async (proposal, userId, role) => {
   if (isAdmin(role)) {
     return;
@@ -50,7 +50,7 @@ const assertClientOwnsRequest = async (proposal, userId, role) => {
     throw new AppError("Action non autorisee.", 403, "FORBIDDEN");
   }
 };
-
+// Permet de vérifier que l'utilisateur connecté est bien le freelancer associé à la proposition, en effectuant une vérification simple sur les IDs, et en lançant une erreur si l'utilisateur n'est pas autorisé à effectuer l'action
 const assertFreelancerOwnsProposal = (proposal, userId, role) => {
   if (isAdmin(role)) {
     return;
@@ -60,7 +60,7 @@ const assertFreelancerOwnsProposal = (proposal, userId, role) => {
     throw new AppError("Action non autorisee.", 403, "FORBIDDEN");
   }
 };
-
+// Permet de mapper une ligne de résultat de la base de données pour une proposition en un objet JavaScript avec les propriétés correspondantes, en effectuant les conversions nécessaires pour les types de données et en structurant les informations liées au freelancer et à la demande associée
 export const proposalService = {
   async listByRequest(requestId) {
     const normalizedRequestId = ensurePositiveId(requestId, "Request id");
@@ -80,7 +80,7 @@ export const proposalService = {
 
     return proposalRepository.findByFreelancerId(userId);
   },
-
+// Permet de créer une nouvelle proposition en utilisant les informations fournies dans le corps de la requête, et en associant la proposition à l'utilisateur connecté, puis en retournant la proposition créée avec un message de succès
   async createProposal(user, data) {
     if (user.role !== "freelancer") {
       throw new AppError(
@@ -104,7 +104,7 @@ export const proposalService = {
         "REQUEST_CLOSED",
       );
     }
-
+// On vérifie que le freelancer n'a pas déjà envoyé une proposition pour cette demande, afin d'éviter les doublons et de garantir que chaque freelancer ne peut soumettre qu'une seule proposition par demande
     const existingProposal = await proposalRepository.findByRequestAndFreelancer(requestId, user.id);
     if (existingProposal) {
       throw new AppError(
@@ -126,7 +126,7 @@ export const proposalService = {
         "PROPOSAL_FIELDS_REQUIRED",
       );
     }
-
+// On crée la proposition en base de données en associant les informations fournies avec l'utilisateur connecté et la demande associée, et en retournant l'objet de la proposition créée
     return proposalRepository.create({
       requestId,
       freelancerId: user.id,
@@ -135,7 +135,7 @@ export const proposalService = {
       coverLetter: data.coverLetter,
     });
   },
-
+// Permet de changer le statut d'une proposition spécifique en utilisant les informations fournies dans le corps de la requête, et en vérifiant que l'utilisateur connecté a les droits nécessaires pour effectuer cette action, puis en retournant le résultat avec un message de succès
   async changeStatus(proposalId, status, userId, role) {
     const normalizedProposalId = ensurePositiveId(proposalId, "Proposal id");
     const proposal = await proposalRepository.findById(normalizedProposalId);
@@ -161,7 +161,7 @@ export const proposalService = {
         deal: null,
       };
     }
-
+// Seul le freelancer peut annuler une proposition, et cela n'est autorisé que si la proposition n'a pas encore été acceptée, afin de permettre au freelancer de retirer une proposition avant qu'elle ne soit traitée par le client
     if (status === "Annulee") {
       if (role !== "freelancer" && !isAdmin(role)) {
         throw new AppError(
@@ -170,7 +170,7 @@ export const proposalService = {
           "FORBIDDEN",
         );
       }
-
+// On vérifie que le freelancer est bien le propriétaire de la proposition avant de lui permettre de l'annuler, afin de garantir que seul le freelancer qui a soumis la proposition peut la retirer, et d'éviter que d'autres utilisateurs ne puissent annuler des propositions qui ne leur appartiennent pas
       assertFreelancerOwnsProposal(proposal, userId, role);
 
       const updatedProposal = await proposalRepository.updateStatus(normalizedProposalId, status);
@@ -186,7 +186,7 @@ export const proposalService = {
       "ADVANCE_PAYMENT_REQUIRED",
     );
   },
-
+// Permet d'envoyer une réponse à une proposition en tant que client, en utilisant les informations fournies dans le corps de la requête, et en vérifiant que l'utilisateur connecté est bien le client associé à la proposition, puis en retournant le résultat avec un message de succès
   async sendClientResponse(proposalId, userId, role, payload) {
     const normalizedProposalId = ensurePositiveId(proposalId, "Proposal id");
     const proposal = await proposalRepository.findById(normalizedProposalId);
@@ -325,7 +325,7 @@ export const proposalService = {
         }, connection),
         "paiement avance",
       );
-
+// Si tout s'est bien passé, on commit la transaction et on retourne les données de la proposition et du deal avec un message de succès
       await connection.commit();
 
       return {

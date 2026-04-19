@@ -1,7 +1,7 @@
 import { getDb } from "../../config/db.js";
 
 const db = getDb();
-
+// Permet d'ajouter une colonne à une table si elle n'existe pas déjà, en vérifiant d'abord si la colonne est présente dans la table, et en exécutant une requête ALTER TABLE pour ajouter la colonne avec la définition fournie si elle est absente
 const addColumnIfMissing = async (tableName, columnName, columnDefinition) => {
   const [rows] = await db.query(`SHOW COLUMNS FROM ${tableName} LIKE ?`, [columnName]);
 
@@ -9,7 +9,7 @@ const addColumnIfMissing = async (tableName, columnName, columnDefinition) => {
     await db.query(`ALTER TABLE ${tableName} ADD COLUMN ${columnDefinition}`);
   }
 };
-
+// Permet de formater une date en ne gardant que la partie date (YYYY-MM-DD), en acceptant soit une chaîne de caractères, soit un objet Date, et en retournant null si la valeur est falsy
 const formatDateOnly = (value) => {
   if (!value) {
     return null;
@@ -21,7 +21,7 @@ const formatDateOnly = (value) => {
 
   return new Date(value).toISOString().slice(0, 10);
 };
-
+// Permet de formater une valeur de date ou de timestamp en une chaîne ISO 8601, en acceptant soit une chaîne de caractères, soit un objet Date, et en retournant null si la valeur est falsy
 const formatTimestamp = (value) => {
   if (!value) {
     return null;
@@ -33,7 +33,7 @@ const formatTimestamp = (value) => {
 
   return new Date(value).toISOString();
 };
-
+// Permet de formater une date en une chaîne compatible avec MySQL (YYYY-MM-DD ou YYYY-MM-DD HH:MM:SS), en acceptant soit une chaîne de caractères, soit un objet Date, et en retournant null si la valeur est falsy ou invalide
 const formatDateForMySQL = (dateValue, withTime = false) => {
   if (!dateValue) {
     return null;
@@ -51,7 +51,7 @@ const formatDateForMySQL = (dateValue, withTime = false) => {
   if (Number.isNaN(date.getTime())) {
     return null;
   }
-
+// Formatar a data para o formato MySQL
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
@@ -68,7 +68,7 @@ const mapProposalRow = (row) => {
   if (!row) {
     return null;
   }
-
+// Déterminer le type de proposition en comparant les termes proposés avec les termes de la demande, et en tenant compte du fait que la demande peut être négociable ou non, pour catégoriser la proposition comme "same_terms", "counter_offer" ou "fixed_terms"
   const proposalDate = formatDateOnly(row.proposed_deadline_at);
   const requestDate = formatDateOnly(row.request_deadline);
   const sameTerms =
@@ -110,7 +110,7 @@ const mapProposalRow = (row) => {
       : null,
   };
 };
-
+// Permet de récupérer une proposition par son ID en effectuant une requête SQL pour sélectionner la proposition correspondante à l'ID fourni, en joignant les tables nécessaires pour obtenir les informations du freelancer et de la demande associée, et en retournant le résultat formaté sous forme d'objet
 const proposalSelect = `
   SELECT
     p.*,
@@ -163,11 +163,13 @@ export const ensureProposalsTable = async () => {
     "client_response_price",
     "client_response_price DECIMAL(15,2) DEFAULT NULL AFTER client_response_type",
   );
+  // On ajoute une colonne pour la deadline de la réponse du client, qui peut être utilisée pour limiter dans le temps la validité d'une contre-offre ou d'une acceptation, et pour permettre au client de donner une échéance claire pour sa réponse
   await addColumnIfMissing(
     "proposals",
     "client_response_deadline",
     "client_response_deadline DATE DEFAULT NULL AFTER client_response_price",
   );
+  // On ajoute une colonne pour le statut de la réponse du client, qui peut être "En attente", "Acceptee" ou "Refusee", afin de suivre l'état de la réponse du client à une proposition, et de permettre des actions spécifiques en fonction de ce statut (par exemple, déclencher un paiement si la proposition est acceptée)
   await addColumnIfMissing(
     "proposals",
     "client_response_status",
@@ -179,13 +181,13 @@ export const ensureProposalsTable = async () => {
     "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at",
   );
 };
-
+// Permet de récupérer la liste des propositions liées à l'utilisateur connecté, en fonction de son rôle (client ou freelancer), et de retourner les résultats avec un message de succès
 export const proposalRepository = {
   async findById(id, connection = db) {
     const [rows] = await connection.query(`${proposalSelect} WHERE p.id = ? LIMIT 1`, [id]);
     return mapProposalRow(rows[0]);
   },
-
+// Permet de récupérer une proposition liée à une demande spécifique, en effectuant une requête SQL pour sélectionner les propositions correspondantes au requestId fourni, en joignant les tables nécessaires pour obtenir les informations du freelancer et de la demande associée, et en retournant les résultats formatés sous forme de tableau d'objets
   async findByRequestId(requestId, connection = db) {
     const [rows] = await connection.query(
       `${proposalSelect} WHERE p.request_id = ? ORDER BY p.created_at DESC`,
@@ -194,7 +196,7 @@ export const proposalRepository = {
 
     return rows.map(mapProposalRow);
   },
-
+// Permet de récupérer une proposition liée à une demande spécifique et à un freelancer spécifique, en effectuant une requête SQL pour sélectionner la proposition correspondante au requestId et freelancerId fournis, en joignant les tables nécessaires pour obtenir les informations du freelancer et de la demande associée, et en retournant le résultat formaté sous forme d'objet
   async findByRequestAndFreelancer(requestId, freelancerId, connection = db) {
     const [rows] = await connection.query(
       `${proposalSelect} WHERE p.request_id = ? AND p.freelancer_id = ? LIMIT 1`,
@@ -203,7 +205,7 @@ export const proposalRepository = {
 
     return mapProposalRow(rows[0]);
   },
-
+// Permet de récupérer la liste des propositions liées à un freelancer spécifique, en effectuant une requête SQL pour sélectionner les propositions correspondantes au freelancerId fourni, et en retournant les résultats sous forme de tableau d'objets
   async findByFreelancerId(freelancerId, connection = db) {
     const [rows] = await connection.query(
       `${proposalSelect} WHERE p.freelancer_id = ? ORDER BY p.created_at DESC`,
@@ -249,7 +251,7 @@ export const proposalRepository = {
       [requestId, acceptedProposalId],
     );
   },
-
+// Permet d'envoyer une réponse à une proposition en tant que client, en utilisant les informations fournies dans le corps de la requête, et en vérifiant que l'utilisateur connecté est bien le client associé à la proposition, puis en retournant le résultat avec un message de succès
   async setClientResponse(id, data, connection = db) {
     await connection.query(
       `

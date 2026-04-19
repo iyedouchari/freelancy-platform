@@ -1,5 +1,5 @@
 import { getDb } from "../../config/db.js";
-
+// Permet de créer un message dans une conversation liée à un deal
 export const createMessage = async (dealId, senderId, receiverId, content) => {
   const db = getDb();
   // Ta table a besoin de deal_id, sender_id, receiver_id, content
@@ -10,7 +10,7 @@ export const createMessage = async (dealId, senderId, receiverId, content) => {
   const [result] = await db.execute(query, [dealId, senderId, receiverId, content]);
   return result.insertId;
 };
-
+// Permet de récupérer l'historique des messages d'une conversation liée à un deal
 export const findMessagesByDeal = async (dealId) => {
   const db = getDb();
   // On récupère l'historique par deal_id

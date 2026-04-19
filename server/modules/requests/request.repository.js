@@ -36,7 +36,7 @@ const addColumnIfMissing = async (tableName, columnName, columnDefinition) => {
   }
 };
 
-const normalizeDate = (value) => {
+const normalizeDate = (value) => {// Permet de normaliser une date en une chaîne de caractères au format YYYY-MM-DD, en acceptant différentes entrées (string, Date, timestamp) et en gérant les cas où la valeur est falsy ou invalide
   if (!value) {
     return null;
   }
@@ -47,7 +47,7 @@ const normalizeDate = (value) => {
 
   return new Date(value).toISOString().slice(0, 10);
 };
-
+// Permet de normaliser un timestamp en une chaîne de caractères au format ISO, pour assurer une cohérence dans la représentation des dates dans l'application
 const normalizeTimestamp = (value) => {
   if (!value) {
     return null;
@@ -59,7 +59,7 @@ const normalizeTimestamp = (value) => {
 
   return new Date(value).toISOString();
 };
-
+// Permet de créer la table des demandes dans la base de données si elle n'existe pas déjà, en définissant les colonnes, les types de données, les contraintes et les relations nécessaires pour stocker les informations des demandes et assurer l'intégrité des données
 const formatDateForMySQL = (dateValue, withTime = false) => {
   if (!dateValue) {
     return null;

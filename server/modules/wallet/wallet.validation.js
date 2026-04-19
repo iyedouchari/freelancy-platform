@@ -10,7 +10,7 @@ export function validateTopup(req, res, next) {
 
   next();
 }
-
+// Permet de valider les données de la requête pour le retrait du portefeuille, en vérifiant que le montant est un nombre valide et supérieur ou égal à 100, et que les informations de compte bancaire sont fournies, avant de passer au middleware suivant ou au contrôleur
 export function validateWithdraw(req, res, next) {
   const amount = Number(req.body.amount);
 
@@ -26,6 +26,7 @@ export function validateWithdraw(req, res, next) {
 
   next();
 }
+// Permet de valider les paramètres de la requête pour récupérer le résumé des paiements d'un deal, en vérifiant que l'identifiant du deal est un nombre valide, avant de passer au middleware suivant ou au contrôleur
 
 export const validatewalletPayload = (payload) => {
   return payload || {};
@@ -38,7 +39,7 @@ export function validateDealIdParam(req, res, next) {
   }
   next();
 }
-
+// Permet de valider le montant final optionnel dans la requête de paiement final d'un deal, en vérifiant que le montant est un nombre valide et supérieur à 0 si il est fourni, avant de passer au middleware suivant ou au contrôleur
 export function validateOptionalFinalAmount(req, res, next) {
   if (req.body?.amount === undefined || req.body?.amount === null || req.body?.amount === "") {
     return next();
@@ -49,7 +50,7 @@ export function validateOptionalFinalAmount(req, res, next) {
   }
   next();
 }
-
+// Permet de valider les paramètres de la requête pour payer le montant total d'un deal, en vérifiant que l'identifiant du deal est un nombre valide, que le montant total et le montant de l'avance sont des nombres valides et que la date limite est une date valide, avant de passer au middleware suivant ou au contrôleur
 export function validateDealTotalPayment(req, res, next) {
   const dealId = Number(req.params.dealId);
   if (!dealId || isNaN(dealId)) {

@@ -14,7 +14,7 @@ const router = express.Router();
 function sanitizeFileName(fileName) {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, "_") || "file";
 }
-
+// Génère une clé de stockage sécurisée pour un fichier uploadé, en préservant l'extension et en ajoutant un identifiant unique
 function buildStorageKey(folder, fileName) {
   const ext = fileName.includes(".") ? `.${fileName.split(".").pop()}` : "";
   const baseName = ext ? fileName.slice(0, -ext.length) : fileName;
@@ -26,7 +26,7 @@ function buildChatDownloadUrl(fileName) {
   const params = new URLSearchParams({ fileName });
   return `/uploads/chat/${fileName}?${params.toString()}`;
 }
-
+// Permet de récupérer l'historique des messages d'une conversation liée à un deal
 router.get("/history/:dealId", async (req, res) => {
   const { dealId } = req.params;
 
@@ -38,15 +38,15 @@ router.get("/history/:dealId", async (req, res) => {
     res.status(500).json({ error: "Impossible de charger l'historique." });
   }
 });
-
+// Permet de marquer les messages d'une conversation comme lus pour un utilisateur donné
 router.patch("/read/:dealId/:userId", async (req, res) => {
   const { dealId, userId } = req.params;
 
   try {
-    await markMessagesAsRead(dealId, userId);
+    await markMessagesAsRead(dealId, userId);// On retourne une réponse simple pour indiquer que l'opération a réussi, sans renvoyer de données spécifiques
     res.json({ success: true });
   } catch (err) {
-    console.error("Erreur /read :", err.message);
+    console.error("Erreur /read :", err.message);// En cas d'erreur, on retourne une réponse d'erreur claire plutôt que d'essayer de masquer l'erreur
     res.status(500).json({ error: "Impossible de marquer les messages." });
   }
 });
@@ -104,7 +104,7 @@ router.post(
         storedFileName,
         mimeType,
         size: req.body.length,
-        fileUrl: buildChatDownloadUrl(storedFileName),
+        fileUrl: buildChatDownloadUrl(storedFileName),// On retourne une URL de téléchargement sécurisée pour le fichier uploadé, plutôt que de renvoyer le chemin de stockage interne
       });
     } catch (err) {
       console.error("Erreur /upload :", err.message);

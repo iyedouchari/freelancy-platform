@@ -27,7 +27,7 @@ import {
   idParamSchema,
   updateRequestSchema,
 } from "./request.validation.js";
-
+// Permet de vérifier que le module de demandes est opérationnel et de fournir des informations sur les routes disponibles
 const router = Router();
 
 router.get("/status", asyncHandler(getrequestStatus));

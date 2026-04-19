@@ -2,7 +2,7 @@ import { getDb } from "../../config/db.js";
 import { ensureReportsTable } from "../admin/admin.repository.js";
 
 const db = getDb();
-
+// Permet de supprimer l'index unique legacy sur deal_id et reporter_id dans la table des reports, qui posait problème pour les utilisateurs qui voulaient faire plusieurs signalements liés au même deal, en vérifiant d'abord si l'index existe, puis en le supprimant et en recréant la contrainte de clé étrangère sans l'unicité
 const dropLegacyDealReporterIndex = async () => {
   const [rows] = await db.query(
     `
@@ -15,7 +15,7 @@ const dropLegacyDealReporterIndex = async () => {
     `,
   );
 
-  if (!rows[0]) {
+  if (!rows[0]) {// Si l'index n'existe pas, on considère que c'est déjà réglé et on retourne true pour continuer le processus de création du report
     return false;
   }
 
@@ -50,7 +50,7 @@ const dropLegacyDealReporterIndex = async () => {
   return true;
 };
 
-const insertReport = async ({
+const insertReport = async ({// Permet d'insérer un nouveau signalement dans la base de données en effectuant une requête SQL d'insertion avec les informations du signalement fournies, et en retournant le résultat de l'insertion pour pouvoir récupérer l'ID généré
   reporterId,
   reportedUserId,
   dealId,
@@ -100,7 +100,7 @@ const formatTimestamp = (value) => {
 
   return new Date(value).toISOString();
 };
-
+// Permet de normaliser le statut d'un signalement en français, en convertissant les différentes variantes possibles de statut en une valeur standardisée (ouvert, en_cours, ferme, refuse), pour faciliter la gestion des statuts dans l'application
 const normalizeReportStatus = (status) => {
   if (status === "open" || status === "ouvert") {
     return "ouvert";
@@ -160,7 +160,7 @@ export const reportRepository = {
   }) {
     await ensureReportsTable();
     let result;
-
+// On tente d'insérer le report, mais si une erreur de contrainte d'unicité legacy est détectée, on supprime l'index problématique et on réessaie l'insertion
     try {
       [result] = await insertReport({
         reporterId,

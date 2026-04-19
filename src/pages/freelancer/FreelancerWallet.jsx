@@ -14,8 +14,7 @@ const QUICK_AMOUNTS = [100, 200, 500, 1000, 2000];
 
 const filterOptions = [
   { key: "all", label: "Toutes" },
-  { key: "advance_credit", label: "Avances recues" },
-  { key: "final_credit", label: "Paiements finaux" },
+  { key: "submission_release", label: "Paiements recus" },
   { key: "refund", label: "Retraits" },
 ];
 
@@ -23,6 +22,7 @@ const typeMeta = {
   refund: { label: "Retrait", className: "debit", prefix: "-" },
   advance_credit: { label: "Avance", className: "credit", prefix: "+" },
   final_credit: { label: "Paiement final", className: "credit", prefix: "+" },
+  submission_release: { label: "Paiement libere", className: "credit", prefix: "+" },
   topup: { label: "Recharge", className: "credit", prefix: "+" },
 };
 
@@ -295,7 +295,7 @@ export default function FreelancerWallet() {
     return {
       availableBalance: Number(wallet?.balance ?? 0),
       totalReceived: transactions
-        .filter((transaction) => transaction.type === "advance_credit" || transaction.type === "final_credit")
+        .filter((transaction) => transaction.type === "submission_release")
         .reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount)), 0),
       totalWithdrawn: transactions
         .filter((transaction) => transaction.type === "refund")

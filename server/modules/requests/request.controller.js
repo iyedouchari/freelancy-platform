@@ -1,7 +1,7 @@
 import { successResponse, errorResponse } from "../../utils/apiResponse.js";
 import { requestService } from "./request.service.js";
 
-
+// Permet de vérifier que le module de demandes est opérationnel et de fournir des informations sur les routes disponibles
 export const getrequestStatus = async (_req, res) => {
   return successResponse(res, {
     statuses: ["Ouverte", "En cours", "Fermee"],
@@ -9,7 +9,7 @@ export const getrequestStatus = async (_req, res) => {
     message: "requests module is operational.",
   });
 };
-
+// Permet de créer une nouvelle demande en utilisant les informations fournies dans le corps de la requête, et en associant la demande à l'utilisateur connecté, puis en retournant la demande créée avec un message de succès
 
 export const createRequest = async (req, res) => {
   try {
