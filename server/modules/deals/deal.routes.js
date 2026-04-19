@@ -348,9 +348,15 @@ router.post(
     const db = getDb();
     const { id } = req.params;
     const { senderId, receiverId, fileName } = req.query;
+    const requesterId = Number(req.user?.id);
+    const requesterRole = String(req.user?.role || "").toLowerCase();
 
-    if (!id || !senderId || !receiverId || !fileName) {
+    if (!id || !fileName) {
       return res.status(400).json({ message: "Parametres manquants pour la livraison." });
+    }
+
+    if (!requesterId || Number.isNaN(requesterId)) {
+      return res.status(401).json({ message: "Session invalide pour la soumission." });
     }
 
     if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
@@ -365,7 +371,7 @@ router.post(
       await ensureDeliveriesTable();
       let storedFileUrl;
       const [dealRows] = await db.execute(
-        `SELECT freelancer_id
+        `SELECT client_id, freelancer_id
          FROM deals
          WHERE id = ?
          LIMIT 1`,
@@ -376,7 +382,32 @@ router.post(
         return res.status(404).json({ message: "Deal introuvable." });
       }
 
-      const isFreelancerSubmission = Number(dealRows[0].freelancer_id) === Number(senderId);
+      const dealContext = dealRows[0];
+      const isClientParticipant = Number(dealContext.client_id) === requesterId;
+      const isFreelancerParticipant = Number(dealContext.freelancer_id) === requesterId;
+
+      if (requesterRole !== "admin" && !isClientParticipant && !isFreelancerParticipant) {
+        return res.status(403).json({ message: "Acces non autorise pour cette soumission." });
+      }
+
+      const safeSenderId =
+        requesterRole === "admin"
+          ? Number(senderId || requesterId)
+          : requesterId;
+
+      const parsedReceiverId = Number(receiverId);
+      const inferredReceiverId = safeSenderId === Number(dealContext.freelancer_id)
+        ? Number(dealContext.client_id)
+        : Number(dealContext.freelancer_id);
+      const safeReceiverId = Number.isInteger(parsedReceiverId) && parsedReceiverId > 0
+        ? parsedReceiverId
+        : inferredReceiverId;
+
+      if (!safeSenderId || !safeReceiverId) {
+        return res.status(400).json({ message: "Participants invalides pour la livraison." });
+      }
+
+      const isFreelancerSubmission = Number(dealContext.freelancer_id) === Number(safeSenderId);
 
       if (hasB2Config()) {
         await uploadToB2({
@@ -396,7 +427,7 @@ router.post(
       const [insertResult] = await db.execute(
         `INSERT INTO deliveries (deal_id, sender_id, receiver_id, file_name, file_url)
          VALUES (?, ?, ?, ?, ?)`,
-        [id, senderId, receiverId, safeOriginalName, storedFileUrl]
+        [id, safeSenderId, safeReceiverId, safeOriginalName, storedFileUrl]
       );
 
       await db.execute(
@@ -411,7 +442,7 @@ router.post(
                ELSE submitted_at
              END
          WHERE id = ?`,
-        [Number(senderId), Number(senderId), Number(senderId), id]
+        [Number(safeSenderId), Number(safeSenderId), Number(safeSenderId), id]
       );
 
       const [rows] = await db.execute(
@@ -428,7 +459,7 @@ router.post(
         : null;
 
       logUserActivity("Utilisateur a soumis une livraison", {
-        userId: Number(senderId),
+        userId: requesterId,
         requestId: Number(id),
         deliveryId: Number(insertResult.insertId),
         title: safeOriginalName,
@@ -441,7 +472,7 @@ router.post(
           const paymentRelease = await releaseFreelancerPaymentOnSubmission({ dealId: Number(id) });
           if (paymentRelease.released) {
             logUserActivity("Paiement freelance libere a la soumission", {
-              userId: Number(senderId),
+              userId: requesterId,
               dealId: Number(id),
               releasedAmount: paymentRelease.releasedAmount,
               penaltyDeducted: paymentRelease.penaltyDeducted,

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import "../../styles/landing.css";
 import Chat from "./Chat.jsx";
 import { reportService } from "../../services/reportService";
+import { showAppFeedback } from "../../utils/appFeedback";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
 const API_BASE = API_BASE_URL.replace(/\/api\/?$/, "");
@@ -348,7 +349,12 @@ export default function Workspace({
 
   const handleDeliveryFile = async (event) => {
     const file = event.target.files?.[0];
-    if (!file || !resolvedDealId || !resolvedMyUserId || !workspaceMeta.receiverId) {
+    if (!file || !resolvedDealId) {
+      showAppFeedback({
+        tone: "warning",
+        title: "Soumission impossible",
+        message: "Impossible d'identifier le deal pour envoyer la livraison.",
+      });
       event.target.value = "";
       return;
     }
@@ -356,11 +362,15 @@ export default function Workspace({
     lastScrollYRef.current = window.scrollY;
     setDeliveryUploading(true);
     try {
-      const params = new URLSearchParams({
-        senderId: String(resolvedMyUserId),
-        receiverId: String(workspaceMeta.receiverId),
-        fileName: file.name,
-      });
+      const params = new URLSearchParams({ fileName: file.name });
+
+      if (resolvedMyUserId) {
+        params.set("senderId", String(resolvedMyUserId));
+      }
+
+      if (workspaceMeta.receiverId) {
+        params.set("receiverId", String(workspaceMeta.receiverId));
+      }
 
       const uploadRes = await fetch(`${API_BASE}/api/deals/${resolvedDealId}/deliveries/upload?${params.toString()}`, {
         method: "POST",
@@ -372,7 +382,16 @@ export default function Workspace({
       });
 
       if (!uploadRes.ok) {
-        throw new Error(`Upload HTTP ${uploadRes.status}`);
+        let uploadMessage = `Echec de la soumission (${uploadRes.status}).`;
+        try {
+          const payload = await uploadRes.json();
+          if (payload?.message) {
+            uploadMessage = payload.message;
+          }
+        } catch {
+          // Ignore parse error.
+        }
+        throw new Error(uploadMessage);
       }
 
       const uploaded = await uploadRes.json();
@@ -389,8 +408,18 @@ export default function Workspace({
         return merged.sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt));
       });
       await loadDeliveries();
+      showAppFeedback({
+        tone: "success",
+        title: "Soumission envoyee",
+        message: "Le fichier de livraison a ete envoye avec succes.",
+      });
     } catch (err) {
       console.error("Erreur lors de l'envoi de la livraison :", err);
+      showAppFeedback({
+        tone: "error",
+        title: "Soumission echouee",
+        message: err?.message || "Le fichier n'a pas pu etre envoye. Verifie le serveur puis reessaie.",
+      });
     } finally {
       setDeliveryUploading(false);
       event.target.value = "";
