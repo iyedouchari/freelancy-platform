@@ -96,6 +96,43 @@ const mapDealRow = (row) => {
   };
 };
 
+const reconcileStatusesForUserScope = async ({ userId, role }, connection = db) => {
+  if (!userId || !role || !["client", "freelancer"].includes(role)) {
+    return;
+  }
+
+  const roleColumn = role === "client" ? "d.client_id" : "d.freelancer_id";
+
+  await connection.query(
+    `UPDATE deals d
+     LEFT JOIN (
+       SELECT
+         p.deal_id,
+         MAX(CASE WHEN p.payment_type = 'Avance' AND p.status = 'Paye' THEN 1 ELSE 0 END) AS advance_paid,
+         MAX(CASE WHEN p.payment_type = 'Paiement final' AND p.status = 'Paye' THEN 1 ELSE 0 END) AS final_paid
+       FROM payments p
+       GROUP BY p.deal_id
+     ) pay ON pay.deal_id = d.id
+     LEFT JOIN (
+       SELECT wt.deal_id, MAX(wt.created_at) AS released_at
+       FROM wallet_transactions wt
+       WHERE wt.type = 'submission_release'
+       GROUP BY wt.deal_id
+     ) rel ON rel.deal_id = d.id
+     SET
+       d.submitted_at = COALESCE(d.submitted_at, rel.released_at),
+       d.status = CASE
+         WHEN d.status IN ('Annule', 'Annulé') THEN 'Annule'
+         WHEN COALESCE(pay.final_paid, 0) = 1 AND COALESCE(d.submitted_at, rel.released_at) IS NOT NULL THEN 'Terminé'
+         WHEN COALESCE(pay.final_paid, 0) = 1 THEN 'Totalité payée'
+         WHEN COALESCE(pay.advance_paid, 0) = 1 THEN 'En cours'
+         ELSE d.status
+       END
+     WHERE ${roleColumn} = ?`,
+    [userId],
+  );
+};
+
 const baseSelect = `
   SELECT
     d.*,
@@ -148,6 +185,7 @@ export const ensureDealsTable = async () => {
         'En attente acompte',
         'En cours',
         'Totalité payé',
+        'Totalité payée',
         'Terminé',
         'Actif',
         'Soumis',
@@ -188,9 +226,10 @@ export const ensureDealsTable = async () => {
         'Totalite paye',
         'Totalité paye'
       ) THEN 'En cours'
+      WHEN status = 'Totalité payé' THEN 'Totalité payée'
       WHEN status IN (
         'En cours',
-        'Totalité payé',
+        'Totalité payée',
         'Terminé',
         'Actif',
         'Soumis',
@@ -206,7 +245,7 @@ export const ensureDealsTable = async () => {
     MODIFY COLUMN status ENUM(
       'En attente acompte',
       'En cours',
-      'Totalité payé',
+      'Totalité payée',
       'Terminé',
       'Actif',
       'Soumis',
@@ -272,7 +311,10 @@ export const ensureDealTriggers = async () => {
       IF NEW.status = 'Paye' AND OLD.status <> 'Paye'
          AND NEW.payment_type = 'Paiement final' THEN
         UPDATE deals
-        SET status = 'Totalité payé',
+        SET status = CASE
+              WHEN submitted_at IS NOT NULL THEN 'Terminé'
+              ELSE 'Totalité payée'
+            END,
             final_paid_at = CURRENT_TIMESTAMP
         WHERE id = NEW.deal_id;
       END IF;
@@ -329,6 +371,8 @@ export const dealRepository = {
   },
 
   async findForUser({ userId, role }, connection = db) {
+    await reconcileStatusesForUserScope({ userId, role }, connection);
+
     let whereSql = "";
     const params = [];
 

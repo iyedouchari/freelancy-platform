@@ -24,7 +24,7 @@ const canAccessDeal = (deal, user) => {
 const STATUS_BY_CLIENT_ACTION = {
   active: "En cours",
   completed: "Terminé",
-  fully_paid: "Totalité payé",
+  fully_paid: "Totalité payée",
 };
 
 const normalizeDateOnly = (value) => {

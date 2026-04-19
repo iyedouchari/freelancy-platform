@@ -13,10 +13,10 @@ async function migrate() {
         'Termine',
         'Annule',
         'Avance payé',
-        'Totalité payé'
+        'Totalité payée'
       ) NOT NULL DEFAULT 'En attente acompte'
     `);
-    console.log("ENUM updated with Avance payé / Totalité payé");
+    console.log("ENUM updated with Avance payé / Totalité payée");
   } catch (e) {
     console.error("ENUM error:", e.message);
   }
@@ -42,7 +42,7 @@ async function migrate() {
         IF NEW.status = 'Paye' AND OLD.status <> 'Paye'
            AND NEW.payment_type = 'Paiement final' THEN
           UPDATE deals
-          SET status = 'Totalité payé', final_paid_at = CURRENT_TIMESTAMP
+          SET status = 'Totalité payée', final_paid_at = CURRENT_TIMESTAMP
           WHERE id = NEW.deal_id;
         END IF;
 

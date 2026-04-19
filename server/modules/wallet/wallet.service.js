@@ -172,7 +172,7 @@ export async function getDealPaymentSummary({ dealId, clientId }) {
   const payments = await paymentService.getPaymentsByDeal(dealId);
   const advancePayment = payments.find((p) => p.payment_type === "Avance" && p.status === "Paye");
   const finalPayment = payments.find((p) => p.payment_type === "Paiement final" && p.status === "Paye");
-  const finalPaidByStatus = String(deal.status || "") === "Totalité payé";
+  const finalPaidByStatus = ["Totalité payé", "Totalité payée"].includes(String(deal.status || ""));
 
   const advanceAmount = Number(deal.advance_amount);
   const finalAmount = Math.max(0, Number(deal.final_price) - advanceAmount);

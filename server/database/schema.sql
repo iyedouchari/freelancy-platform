@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS deals (
         'En attente paiement final',
         'Terminé',
         'Annule',
-        'Totalité payé'
+        'Totalité payée'
     ) NOT NULL DEFAULT 'En cours',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_deal_proposal FOREIGN KEY (proposal_id)
@@ -286,7 +286,10 @@ BEGIN
     IF NEW.status = 'Paye' AND OLD.status <> 'Paye'
        AND NEW.payment_type = 'Paiement final' THEN
         UPDATE deals
-        SET status = 'Totalité payé',
+        SET status = CASE
+              WHEN submitted_at IS NOT NULL THEN 'Terminé'
+              ELSE 'Totalité payée'
+            END,
             final_paid_at = CURRENT_TIMESTAMP
         WHERE id = NEW.deal_id;
     END IF;

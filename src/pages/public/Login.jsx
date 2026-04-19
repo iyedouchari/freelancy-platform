@@ -114,8 +114,7 @@ const Login = () => {
       <div className="auth-branding">
         <div className="auth-branding-content">
           <Link to="/" className="auth-branding-logo">
-            <div className="auth-branding-logo-icon">Fy</div>
-            <span>Freelancy</span>
+            <img src="/brand-logo.png" alt="Freelancy logo" className="auth-branding-brand-logo" />
           </Link>
           <h2 className="auth-branding-title">
             Bienvenue sur votre <span>plateforme freelance</span>

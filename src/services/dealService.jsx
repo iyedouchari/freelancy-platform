@@ -45,16 +45,16 @@ const formatDealStatus = (status) => {
     return { status: "Terminé", daysLeft: null, statusType: "done" };
   }
 
-  if (status === "Annule") {
-    return { status: "Annule", daysLeft: null, statusType: "canceled" };
+  if (status === "Annule" || status === "Annulé") {
+    return { status: "Annulé", daysLeft: null, statusType: "canceled" };
   }
 
   if (status === "En attente acompte") {
     return { status: "En attente acompte", statusType: "waiting_advance" };
   }
 
-  if (status === "Totalité payé") {
-    return { status: "Totalité payé", statusType: "fully_paid" };
+  if (status === "Totalité payé" || status === "Totalité payée") {
+    return { status: "Totalité payée", statusType: "fully_paid" };
   }
 
   if (status === "Soumis") {

@@ -1,6 +1,7 @@
 import { DOMAIN_OPTIONS } from "../data/domains";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
+const REQUEST_TIMEOUT_MS = 30000;
 
 const getToken = () => localStorage.getItem("auth_token");
 
@@ -30,14 +31,28 @@ const parseJson = async (response) => {
 };
 
 const request = async (path, options = {}) => {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    cache: "no-store",
-    headers: {
-      ...buildHeaders(),
-      ...(options.headers || {}),
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      cache: "no-store",
+      signal: controller.signal,
+      headers: {
+        ...buildHeaders(),
+        ...(options.headers || {}),
+      },
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("La requete a pris trop de temps. Verifiez le serveur puis reessayez.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 
   return parseJson(response);
 };

@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import Footer from "../../components/Footer";
 import Navbar from "../../components/Navbar";
 import ClientDashboard from "./ClientDashboard";
@@ -17,6 +17,7 @@ const CLIENT_DEAL_KEY = "client_selected_deal_id";
 const CLIENT_PROFILE_USER_KEY = "client_selected_profile_user_id";
 const CLIENT_DEALS_STORAGE_KEY = "client_deals_state";
 const CLIENT_REQUESTS_STORAGE_KEY = "client_requests_state";
+const CLIENT_AUTO_REFRESH_INTERVAL_MS = 8000;
 
 const clientNavItems = [
   { key: "dashboard", label: "Tableau de bord", actionProp: "onDashboard" },
@@ -83,11 +84,30 @@ function formatMoney(value) {
   }).format(Number(value || 0));
 }
 
+function withTimeout(promise, timeoutMs, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    }),
+  ]);
+}
+
 function AdvancePaymentModal({ deal, proposal, onClose, onSuccess, onGoToWallet }) {
   const [walletBalance, setWalletBalance] = useState(0);
   const [loadingWallet, setLoadingWallet] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const submitWatchdogRef = useRef(null);
+  const submitLockRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      if (submitWatchdogRef.current) {
+        window.clearTimeout(submitWatchdogRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -120,20 +140,54 @@ function AdvancePaymentModal({ deal, proposal, onClose, onSuccess, onGoToWallet 
   const displayTitle = deal ? deal.title : proposal?.title;
 
   const handlePayAdvance = async () => {
+    if (submitLockRef.current) {
+      return;
+    }
+    submitLockRef.current = true;
     setSubmitting(true);
     setError("");
+    if (submitWatchdogRef.current) {
+      window.clearTimeout(submitWatchdogRef.current);
+    }
+    submitWatchdogRef.current = window.setTimeout(() => {
+      setSubmitting(false);
+      setError("Le paiement a pris trop de temps. Verifie le serveur puis reessaie.");
+    }, 20000);
 
     try {
       if (deal) {
-        const result = await walletService.payAdvance(deal.id);
-        await onSuccess?.(result);
+        const result = await withTimeout(
+          walletService.payAdvance(deal.id),
+          15000,
+          "Le paiement prend trop de temps. Verifie le serveur puis reessaie.",
+        );
+        setSubmitting(false);
+        Promise.resolve(onSuccess?.(result)).catch((refreshError) => {
+          console.error("Erreur post-paiement (refresh):", refreshError);
+        });
+        return;
       } else if (proposal) {
         // New flow: Accept and pay in one go
-        const result = await requestService.acceptAndPayProposal(proposal.id);
-        await onSuccess?.(result);
+        const result = await withTimeout(
+          requestService.acceptAndPayProposal(proposal.id),
+          15000,
+          "Le paiement prend trop de temps. Verifie le serveur puis reessaie.",
+        );
+        setSubmitting(false);
+        Promise.resolve(onSuccess?.(result)).catch((refreshError) => {
+          console.error("Erreur post-paiement (refresh):", refreshError);
+        });
+        return;
+      } else {
+        throw new Error("Aucun accord ou proposition selectionne.");
       }
     } catch (paymentError) {
       setError(paymentError?.message || "Le paiement de l'avance a echoue.");
+    } finally {
+      if (submitWatchdogRef.current) {
+        window.clearTimeout(submitWatchdogRef.current);
+      }
+      submitLockRef.current = false;
       setSubmitting(false);
     }
   };
@@ -340,6 +394,80 @@ export default function ClientShell() {
     };
   }, []);
 
+  useEffect(() => {
+    const shouldAutoRefresh = ["dashboard", "requests", "workspace"].includes(page);
+    if (!shouldAutoRefresh) {
+      return undefined;
+    }
+
+    let isMounted = true;
+
+    const refreshClientData = async () => {
+      if (document.visibilityState === "hidden") {
+        return;
+      }
+
+      try {
+        const [requestRows, dealRows] = await Promise.all([
+          requestService.listMine(),
+          loadDealsWithRetry(),
+        ]);
+
+        if (!isMounted) {
+          return;
+        }
+
+        const nextRequests = Array.isArray(requestRows) ? requestRows : [];
+        const nextDeals = Array.isArray(dealRows) ? dealRows : [];
+
+        setRequests(nextRequests);
+        setDeals(nextDeals);
+        setSelectedDeal((current) => {
+          const currentDealId = current?.id ?? localStorage.getItem(CLIENT_DEAL_KEY);
+          if (!currentDealId) {
+            return nextDeals[0] ?? null;
+          }
+
+          return nextDeals.find((item) => String(item.id) === String(currentDealId)) ?? current;
+        });
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        console.error("Error refreshing client data:", error);
+      }
+    };
+
+    const timer = window.setInterval(refreshClientData, CLIENT_AUTO_REFRESH_INTERVAL_MS);
+    const onFocus = () => {
+      void refreshClientData();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refreshClientData();
+      }
+    };
+
+    const onSocketConnect = () => {
+      void refreshClientData();
+    };
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    socket.on("connect", onSocketConnect);
+    void refreshClientData();
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      socket.off("connect", onSocketConnect);
+    };
+  }, [page]);
+
   const openWorkspace = (dealOrId) => {
     const resolvedDeal =
       typeof dealOrId === "object"
@@ -411,6 +539,7 @@ export default function ClientShell() {
 
   const handleAcceptAndPaySuccess = async (result) => {
     const createdDeal = result?.deal ? toUiDeal(result.deal) : null;
+    setProposalToAccept(null);
     
     // Refresh data
     const [nextRequests, nextDeals] = await Promise.all([
@@ -427,15 +556,15 @@ export default function ClientShell() {
     } else {
       setPage(navigateClientPage("dashboard"));
     }
-    
-    setProposalToAccept(null);
   };
   const handleAdvancePaymentSuccess = async (result) => {
     const updatedDeal = result?.deal ? toUiDeal(result.deal) : null;
-    const nextDeals = await loadDealsWithRetry((deal) => deal.id === pendingAdvanceDeal?.id);
+    const targetDealId = pendingAdvanceDeal?.id;
+    setPendingAdvanceDeal(null);
+    const nextDeals = await loadDealsWithRetry((deal) => deal.id === targetDealId);
     const resolvedDeal =
       updatedDeal ??
-      nextDeals.find((deal) => deal.id === pendingAdvanceDeal?.id) ??
+      nextDeals.find((deal) => deal.id === targetDealId) ??
       pendingAdvanceDeal;
 
     setDeals((current) => {
@@ -445,7 +574,6 @@ export default function ClientShell() {
     });
 
     setSelectedDeal(resolvedDeal ?? null);
-    setPendingAdvanceDeal(null);
     setPage(navigateClientPage(resolvedDeal ? "workspace" : "dashboard"));
   };
 
@@ -473,7 +601,7 @@ export default function ClientShell() {
                   dealStatusUpdate.newStatus === "completed"
                     ? "Terminé"
                     : dealStatusUpdate.newStatus === "fully_paid"
-                      ? "Totalité payé"
+                      ? "Totalité payée"
                       : "En cours",
                 statusType:
                   dealStatusUpdate.newStatus === "completed"
@@ -502,7 +630,7 @@ export default function ClientShell() {
           dealStatusUpdate.newStatus === "completed"
             ? "Terminé"
             : dealStatusUpdate.newStatus === "fully_paid"
-              ? "Totalité payé"
+              ? "Totalité payée"
               : "En cours",
         statusType:
           dealStatusUpdate.newStatus === "completed"

@@ -3,7 +3,8 @@ import "../../styles/landing.css";
 import Chat from "./Chat.jsx";
 import { reportService } from "../../services/reportService";
 
-const API_BASE = "http://localhost:4000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
+const API_BASE = API_BASE_URL.replace(/\/api\/?$/, "");
 
 function getAuthHeaders() {
   const token = localStorage.getItem("auth_token");
@@ -70,6 +71,24 @@ function formatDateTime(dateStr) {
   });
 }
 
+function extractFileNameFromDisposition(dispositionHeader) {
+  if (!dispositionHeader) {
+    return null;
+  }
+
+  const utf8Match = dispositionHeader.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch {
+      return utf8Match[1];
+    }
+  }
+
+  const basicMatch = dispositionHeader.match(/filename="?([^";]+)"?/i);
+  return basicMatch?.[1] || null;
+}
+
 function formatRemainingTime(deadline) {
   if (!deadline) return "Date limite indisponible";
 
@@ -108,7 +127,9 @@ export default function Workspace({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [deliveryFiles, setDeliveryFiles] = useState([]);
+  const [deliveryAccessMessage, setDeliveryAccessMessage] = useState("");
   const [deliveryUploading, setDeliveryUploading] = useState(false);
+  const [downloadingDeliveryId, setDownloadingDeliveryId] = useState(null);
   const [deletingDeliveryId, setDeletingDeliveryId] = useState(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
@@ -123,6 +144,7 @@ export default function Workspace({
   const loadDeliveries = async () => {
     if (!resolvedDealId) {
       setDeliveryFiles([]);
+      setDeliveryAccessMessage("");
       return;
     }
 
@@ -130,7 +152,26 @@ export default function Workspace({
       const res = await fetch(`${API_BASE}/api/deals/${resolvedDealId}/deliveries`, {
         headers: getAuthHeaders(),
       });
-      if (!res.ok) throw new Error("Impossible de charger les livraisons.");
+      if (!res.ok) {
+        let blockedMessage = "Impossible de charger les livraisons.";
+        try {
+          const payload = await res.json();
+          if (payload?.message) {
+            blockedMessage = payload.message;
+          }
+        } catch {
+          // ignore parse error
+        }
+
+        if (res.status === 403) {
+          setDeliveryAccessMessage(blockedMessage);
+          return;
+        }
+
+        throw new Error(blockedMessage);
+      }
+
+      setDeliveryAccessMessage("");
       const rows = await res.json();
 
       const files = rows
@@ -141,6 +182,8 @@ export default function Workspace({
           receiverId: msg.receiver_id,
           fileName: msg.file_name || "Fichier",
           fileUrl: resolveFileUrl(msg.file_url),
+          canDownload: Boolean(msg.can_download ?? true),
+          lockedReason: String(msg.locked_reason || ""),
           sentAt: msg.created_at,
         }))
         .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt));
@@ -148,6 +191,7 @@ export default function Workspace({
       setDeliveryFiles(files);
     } catch {
       setDeliveryFiles([]);
+      setDeliveryAccessMessage("");
     }
   };
 
@@ -376,6 +420,42 @@ export default function Workspace({
     }
   };
 
+  const handleDownloadDelivery = async (file) => {
+    if (!file?.fileUrl || !file?.canDownload) {
+      return;
+    }
+
+    setDownloadingDeliveryId(file.id);
+    try {
+      const response = await fetch(file.fileUrl, {
+        method: "GET",
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error("Impossible de telecharger le fichier.");
+      }
+
+      const blob = await response.blob();
+      const disposition = response.headers.get("Content-Disposition");
+      const downloadedName =
+        extractFileNameFromDisposition(disposition) || file.fileName || "download";
+
+      const objectUrl = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = downloadedName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (downloadError) {
+      console.error("Erreur telechargement livraison:", downloadError);
+    } finally {
+      setDownloadingDeliveryId(null);
+    }
+  };
+
   return (
     <div className="workspace-page">
       <div className="workspace-back-row">
@@ -451,7 +531,9 @@ export default function Workspace({
 
             <div className="workspace-delivery-list">
               <h4>Fichiers envoyés</h4>
-              {deliveryFiles.length === 0 ? (
+              {deliveryAccessMessage ? (
+                <p className="workspace-delivery-empty">{deliveryAccessMessage}</p>
+              ) : deliveryFiles.length === 0 ? (
                 <p className="workspace-delivery-empty">Aucun fichier envoyé pour le moment.</p>
               ) : (
                 <ul>
@@ -459,9 +541,21 @@ export default function Workspace({
                     <li key={file.id}>
                       <div className="workspace-delivery-row">
                         <div className="workspace-delivery-main">
-                          <a href={file.fileUrl} target="_blank" rel="noreferrer">
-                            {file.fileName}
-                          </a>
+                          <button
+                            type="button"
+                            className="workspace-delivery-download"
+                            onClick={() => {
+                              void handleDownloadDelivery(file);
+                            }}
+                            disabled={downloadingDeliveryId === file.id || !file.canDownload}
+                            title={!file.canDownload ? file.lockedReason || "Accessible apres paiement de la totalite." : ""}
+                          >
+                            {downloadingDeliveryId === file.id
+                              ? "Telechargement..."
+                              : !file.canDownload
+                                ? `${file.fileName} (verrouille)`
+                                : file.fileName}
+                          </button>
                           <strong className="workspace-delivery-author">
                             Envoyé par{" "}
                             {String(file.senderId) === String(readDealField(selectedDeal, "clientId", "client_id"))

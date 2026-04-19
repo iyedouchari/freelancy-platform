@@ -83,7 +83,7 @@ function DealCard({ deal, onOpenWorkspace }) {
 export default function FreelancerDeals({ deals = [], onBack, onOpenWorkspace, isLoading = false }) {
   const [tab, setTab] = useState("active");
   const canceledDeals = useMemo(
-    () => deals.filter((deal) => deal.statusType === "canceled" || deal.status === "Annule"),
+    () => deals.filter((deal) => deal.statusType === "canceled" || deal.status === "Annule" || deal.status === "Annulé"),
     [deals],
   );
   const completedDeals = useMemo(() => deals.filter((deal) => deal.statusType === "done"), [deals]);

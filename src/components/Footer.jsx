@@ -3,11 +3,8 @@ const Footer = () => {
     <footer className="mt-10 bg-ink text-slate-200 border-t border-slate-800">
       <div className="max-w-7xl mx-auto px-6 py-10 grid gap-8 md:grid-cols-4">
         <div className="space-y-2">
-          <div className="inline-flex items-center gap-2">
-            <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-primary-600 to-primary-500 grid place-items-center text-white font-bold">
-              Fy
-            </div>
-            <span className="font-semibold text-white text-lg">Freelancy</span>
+          <div className="inline-flex items-center">
+            <img src="/brand-logo.png" alt="Freelancy logo" className="h-5 w-auto object-contain" />
           </div>
           <p className="text-sm text-slate-400">
             La place de marché élégante pour freelances et clients exigeants.

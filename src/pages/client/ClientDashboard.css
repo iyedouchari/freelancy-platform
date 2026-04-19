@@ -336,6 +336,11 @@
   min-width: 190px;
 }
 
+.client-dashboard-completed-meta {
+  align-content: start;
+  justify-items: start;
+}
+
 .client-dashboard-deal-meta span,
 .client-dashboard-completed-meta small {
   color: #64748b;
@@ -441,6 +446,16 @@
 
 .cdb-btn-pay {
   background: linear-gradient(135deg, #b45309, #ea580c);
+}
+
+.cdb-btn-workspace-compact {
+  width: auto;
+  justify-self: start;
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  box-shadow: 0 4px 20px rgba(22, 47, 107, 0.25);
 }
 
 @media (max-width: 1080px) {

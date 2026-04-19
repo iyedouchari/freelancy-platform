@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { dealService, toUiDeal } from "../../services/dealService";
 import { walletService } from "../../services/walletService";
 import { format } from "../../utils/format";
@@ -10,7 +10,7 @@ function parseDealTotal(value) {
 }
 
 function getAvailablePaymentOptions(deal) {
-  if (deal.finalPaid || deal.status === "Totalité payé" || deal.status === "Terminé") {
+  if (deal.finalPaid || deal.status === "Totalité payé" || deal.status === "Totalité payée" || deal.status === "Terminé") {
     return deal.status === "Terminé" ? ["final"] : [];
   }
 
@@ -37,27 +37,68 @@ function getPaymentAmount(deal, option) {
   return Math.max(Number(deal.remainingAmount ?? 0), Math.round(total * 0.7 * 100) / 100);
 }
 
+function withTimeout(promise, timeoutMs, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    }),
+  ]);
+}
+
 function PaymentModal({ deal, walletBalance, onClose, onGoToWallet, onSuccess }) {
   const options = getAvailablePaymentOptions(deal);
   const [selectedOption, setSelectedOption] = useState(options[0] ?? "final");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const submitWatchdogRef = useRef(null);
+  const submitLockRef = useRef(false);
   const amount = getPaymentAmount(deal, selectedOption);
   const hasSufficientFunds = walletBalance >= amount;
 
+  useEffect(() => {
+    return () => {
+      if (submitWatchdogRef.current) {
+        window.clearTimeout(submitWatchdogRef.current);
+      }
+    };
+  }, []);
+
   const handleConfirm = async () => {
     if (!selectedOption) return;
+    if (submitLockRef.current) {
+      return;
+    }
+    submitLockRef.current = true;
     setLoading(true);
     setError("");
+    if (submitWatchdogRef.current) {
+      window.clearTimeout(submitWatchdogRef.current);
+    }
+    submitWatchdogRef.current = window.setTimeout(() => {
+      setLoading(false);
+      setError("Le paiement a pris trop de temps. Verifie le serveur puis reessaie.");
+    }, 20000);
 
     try {
-      await onSuccess?.({
+      const payload = {
         deal,
         paymentType: selectedOption,
         amount,
-      });
+      };
+
+      await withTimeout(
+        Promise.resolve(onSuccess?.(payload)),
+        15000,
+        "Le paiement prend trop de temps. Verifie le serveur puis reessaie.",
+      );
     } catch (err) {
       setError(err?.message || "Le paiement a echoue.");
+    } finally {
+      if (submitWatchdogRef.current) {
+        window.clearTimeout(submitWatchdogRef.current);
+      }
+      submitLockRef.current = false;
       setLoading(false);
     }
   };
@@ -199,7 +240,9 @@ export default function ClientDashboard({
     };
   }, []);
 
-  const canceledDeals = localDeals.filter((deal) => deal.statusType === "canceled" || deal.status === "Annule");
+  const canceledDeals = localDeals.filter(
+    (deal) => deal.statusType === "canceled" || deal.status === "Annule" || deal.status === "Annulé",
+  );
   const completedDeals = localDeals.filter((deal) => deal.statusType === "done");
   const activeDeals = localDeals.filter(
     (deal) => deal.statusType !== "done" && deal.statusType !== "canceled",
@@ -270,10 +313,10 @@ export default function ClientDashboard({
     const penaltyAmount = Number(result?.penalty?.amount || 0);
     if (penaltyAmount > 0) {
       showNotification(
-        `Paiement effectue avec penalite de retard (${format(penaltyAmount)} DT). Statut: Totalité payé.`,
+        `Paiement effectue avec penalite de retard (${format(penaltyAmount)} DT). Statut: Totalité payée.`,
       );
     } else {
-      showNotification(`Paiement de ${format(amount)} DT effectue avec succes. Statut: Totalité payé.`);
+      showNotification(`Paiement de ${format(amount)} DT effectue avec succes. Statut: Totalité payée.`);
     }
     onDealUpdate?.({
       dealId: updatedDeal.id,
@@ -394,6 +437,13 @@ export default function ClientDashboard({
                   <div className="client-dashboard-completed-meta">
                     <strong>{deal.total} DT</strong>
                     <small>{deal.deadline}</small>
+                    <button
+                      type="button"
+                      className="cdb-btn-workspace cdb-btn-workspace-compact"
+                      onClick={() => onOpenWorkspace?.(deal)}
+                    >
+                      Acceder au travail
+                    </button>
                   </div>
                 </article>
               ))}

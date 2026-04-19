@@ -18,8 +18,7 @@ const Landing = () => (
     <nav className="landing-navbar">
       <div className="landing-navbar-inner">
         <Link to="/" className="landing-logo">
-          <div className="landing-logo-icon">Fy</div>
-          <span className="landing-logo-text">Freelancy</span>
+          <img src="/brand-logo.png" alt="Freelancy logo" className="landing-brand-logo" />
         </Link>
         <ul className="landing-nav-links">
           <li><a href="#hero">Accueil</a></li>
@@ -159,8 +158,7 @@ const Landing = () => (
       <div className="landing-footer-inner">
         <div className="landing-footer-brand">
           <div className="landing-logo" style={{ color: "#fff" }}>
-            <div className="landing-logo-icon">Fy</div>
-            <span className="landing-logo-text" style={{ color: "#fff" }}>Freelancy</span>
+            <img src="/brand-logo.png" alt="Freelancy logo" className="landing-brand-logo" />
           </div>
           <p>La place de marché élégante pour freelances et clients exigeants.</p>
         </div>

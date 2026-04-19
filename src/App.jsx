@@ -24,6 +24,7 @@ const FREELANCER_PAGE_KEY = "freelancer_active_page";
 const FREELANCER_DEAL_KEY = "freelancer_selected_deal_id";
 const CLIENT_PAGE_KEY = "client_active_page";
 const CLIENT_DEAL_KEY = "client_selected_deal_id";
+const FREELANCER_AUTO_REFRESH_INTERVAL_MS = 8000;
 function getStoredSession() {
   return {
     role: localStorage.getItem("app_role"),
@@ -105,6 +106,30 @@ const FreelancerShell = () => {
   const [isLoadingDeals, setIsLoadingDeals] = useState(true);
   const session = getStoredSession();
 
+  const refreshDeals = async ({ silent = false } = {}) => {
+    try {
+      if (!silent) {
+        setIsLoadingDeals(true);
+      }
+
+      const rows = await dealService.listMine();
+      if (Array.isArray(rows)) {
+        setDeals(rows);
+      } else {
+        setDeals([]);
+      }
+    } catch (error) {
+      console.error("Error loading deals:", error);
+      if (!silent) {
+        setDeals([]);
+      }
+    } finally {
+      if (!silent) {
+        setIsLoadingDeals(false);
+      }
+    }
+  };
+
   useEffect(() => {
     localStorage.setItem(FREELANCER_PAGE_KEY, page);
   }, [page]);
@@ -119,35 +144,37 @@ const FreelancerShell = () => {
   }, [selectedDealId]);
 
   useEffect(() => {
-    let isMounted = true;
+    void refreshDeals();
+  }, []);
 
-    const loadDeals = async () => {
-      try {
-        setIsLoadingDeals(true);
-        const rows = await dealService.listMine();
-        if (!isMounted) return;
-        if (Array.isArray(rows)) {
-          setDeals(rows);
-        } else {
-          setDeals([]);
-        }
-      } catch (error) {
-        if (!isMounted) return;
-        console.error("Error loading deals:", error);
-        setDeals([]);
-      } finally {
-        if (isMounted) {
-          setIsLoadingDeals(false);
-        }
+  useEffect(() => {
+    const shouldAutoRefresh = ["dashboard", "deals", "workspace"].includes(page);
+    if (!shouldAutoRefresh) {
+      return undefined;
+    }
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState !== "hidden") {
+        void refreshDeals({ silent: true });
       }
     };
 
-    loadDeals();
+    const handleSocketConnect = () => {
+      void refreshDeals({ silent: true });
+    };
+
+    const timer = window.setInterval(refreshIfVisible, FREELANCER_AUTO_REFRESH_INTERVAL_MS);
+    window.addEventListener("focus", refreshIfVisible);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+    socket.on("connect", handleSocketConnect);
 
     return () => {
-      isMounted = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshIfVisible);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+      socket.off("connect", handleSocketConnect);
     };
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search || "");
@@ -267,6 +294,8 @@ const App = () => (
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/login1" element={<Navigate to="/login" replace />} />
+        <Route path="/login1/*" element={<Navigate to="/login" replace />} />
         <Route path="/register" element={<Register />} />
         <Route path="/blocked-access" element={<BlockedAccess />} />
         <Route path="/admin" element={<AdminRoute />} />

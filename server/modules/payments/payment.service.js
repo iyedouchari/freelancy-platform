@@ -30,7 +30,7 @@ let nonPaymentRuleTimer = null;
 let nonPaymentRuleRunning = false;
 
 export async function stripeDummy({ amount, metadata = {} }) {
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  await new Promise((resolve) => setTimeout(resolve, 30));
   return {
     id: `pi_dummy_${Date.now()}`,
     amount,
@@ -170,7 +170,7 @@ async function applyAutoCancellationForNonPayment(connection, deal) {
     return { applied: false, reason: "invalid_deal" };
   }
 
-  if (dealStatus === "Annule" || dealStatus === "Totalité payé") {
+  if (["Annule", "Annulé", "Totalité payée"].includes(dealStatus)) {
     return { applied: false, reason: "terminal_status" };
   }
 
@@ -365,8 +365,8 @@ export async function getPaymentsByDeal(dealId) {
   return paymentRepo.findPaymentsByDealId(dealId);
 }
 
-export async function payAdvance({ dealId, clientId, freelancerId, amount }) {
-  return runPaymentTransaction(async (connection) => {
+export async function payAdvance({ dealId, clientId, freelancerId, amount }, externalConnection = null) {
+  const execute = async (connection) => {
     await guardDuplicatePayment(connection, dealId, "Avance", "L'avance a deja ete payee pour ce deal.");
 
     await ensureSystemWalletOwner(connection);
@@ -426,7 +426,13 @@ export async function payAdvance({ dealId, clientId, freelancerId, amount }) {
       payment: { ...payment, status: "Paye" },
       deal: await dealRepository.findById(dealId, connection),
     };
-  });
+  };
+
+  if (externalConnection) {
+    return execute(externalConnection);
+  }
+
+  return runPaymentTransaction(execute);
 }
 
 export async function payFinal({ dealId, clientId, freelancerId, amount }) {
@@ -445,7 +451,7 @@ export async function payFinal({ dealId, clientId, freelancerId, amount }) {
     const deal = await dealRepository.findById(dealId, connection);
     const requestedFinalAmount = roundMoney(Number(amount));
 
-    if (deal?.status === "Annule") {
+    if (["Annule", "Annulé"].includes(String(deal?.status || ""))) {
       throw new Error("Le deal est annule.");
     }
 
@@ -462,7 +468,7 @@ export async function payFinal({ dealId, clientId, freelancerId, amount }) {
       );
     }
 
-    if (deal?.status === "Totalité payé") {
+    if (deal?.status === "Totalité payée") {
       throw new Error("Le paiement final a deja ete effectue pour ce deal.");
     }
 
@@ -523,10 +529,12 @@ export async function payFinal({ dealId, clientId, freelancerId, amount }) {
       ? "Paiement final confirme. Montant place en sequestre (wallet 999) et libere a la soumission finale."
       : "Paiement final confirme sans montant supplementaire.";
 
+    const nextDealStatus = deal?.submittedAt ? "Terminé" : "Totalité payée";
+
     await updateDealAfterPayment(connection, {
       dealId,
       note,
-      status: "Totalité payé",
+      status: nextDealStatus,
       penaltyCycles: Number(deal?.penaltyCycles ?? 0),
     });
 
@@ -582,7 +590,7 @@ export async function releaseFreelancerPaymentOnSubmission({ dealId }) {
     }
 
     const dealStatus = String(deal?.status || "");
-    if (dealStatus === "Annule") {
+    if (["Annule", "Annulé"].includes(dealStatus)) {
       throw new Error("Le deal est annule.");
     }
 

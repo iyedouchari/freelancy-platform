@@ -38,10 +38,9 @@ function buildStorageKey(folder, fileName) {
   return `${folder}/${Date.now()}-${crypto.randomUUID()}-${safeBaseName}${ext}`;
 }
 
-function buildDeliveryDownloadUrl(dealId, key, fileName) {
+function buildDeliveryDownloadUrl(dealId, deliveryId) {
   const params = new URLSearchParams({
-    key,
-    fileName,
+    deliveryId: String(deliveryId),
   });
 
   return `/api/deals/${dealId}/deliveries/download?${params.toString()}`;
@@ -54,6 +53,10 @@ function buildLocalDeliveryUrl(fileName) {
 function getKeyFromStoredUrl(fileUrl) {
   if (!fileUrl) {
     return null;
+  }
+
+  if (String(fileUrl).startsWith("b2://")) {
+    return String(fileUrl).slice("b2://".length) || null;
   }
 
   try {
@@ -89,6 +92,52 @@ async function ensureDeliveriesTable() {
   `);
 }
 
+async function getDealAccessContext(db, dealId) {
+  const [rows] = await db.execute(
+    `SELECT d.id, d.client_id, d.freelancer_id,
+            COALESCE((
+              SELECT COUNT(*)
+              FROM payments p
+              WHERE p.deal_id = d.id
+                AND p.payment_type = 'Paiement final'
+                AND p.status = 'Paye'
+            ), 0) AS final_paid_count
+     FROM deals d
+     WHERE d.id = ?
+     LIMIT 1`,
+    [dealId],
+  );
+
+  return rows[0] || null;
+}
+
+function canAccessDealDeliveries({ dealContext, requesterId, requesterRole, purpose = "list" }) {
+  if (!dealContext) {
+    return { allowed: false, statusCode: 404, message: "Deal introuvable." };
+  }
+
+  if (requesterRole === "admin") {
+    return { allowed: true };
+  }
+
+  const isClient = Number(dealContext.client_id) === Number(requesterId);
+  const isFreelancer = Number(dealContext.freelancer_id) === Number(requesterId);
+
+  if (!isClient && !isFreelancer) {
+    return { allowed: false, statusCode: 403, message: "Acces non autorise aux livraisons." };
+  }
+
+  if (purpose === "download" && isClient && Number(dealContext.final_paid_count || 0) === 0) {
+    return {
+      allowed: false,
+      statusCode: 403,
+      message: "Le client peut ouvrir les livraisons uniquement apres paiement de la totalite.",
+    };
+  }
+
+  return { allowed: true };
+}
+
 router.get("/test/:id", async (req, res) => {
   const db = getDb();
   const [rows] = await db.execute(
@@ -115,9 +164,22 @@ router.get("/:id/deliveries", async (req, res) => {
   const db = getDb();
   const { id } = req.params;
   const { senderId } = req.query;
+  const requesterId = Number(req.user?.id);
+  const requesterRole = String(req.user?.role || "").toLowerCase();
 
   try {
     await ensureDeliveriesTable();
+
+    const dealContext = await getDealAccessContext(db, id);
+    const access = canAccessDealDeliveries({
+      dealContext,
+      requesterId,
+      requesterRole,
+      purpose: "list",
+    });
+    if (!access.allowed) {
+      return res.status(access.statusCode).json({ message: access.message });
+    }
 
     let query = `
       SELECT id, deal_id, sender_id, receiver_id, file_name, file_url, created_at
@@ -134,7 +196,18 @@ router.get("/:id/deliveries", async (req, res) => {
     query += ` ORDER BY created_at DESC`;
 
     const [rows] = await db.execute(query, params);
-    res.json(rows);
+    const isClient = Number(dealContext.client_id) === requesterId;
+    const clientCanDownload = Number(dealContext.final_paid_count || 0) > 0;
+    const safeRows = rows.map((row) => ({
+      ...row,
+      file_url: buildDeliveryDownloadUrl(id, row.id),
+      can_download: requesterRole === "admin" || !isClient || clientCanDownload,
+      locked_reason:
+        requesterRole !== "admin" && isClient && !clientCanDownload
+          ? "Accessible apres paiement de la totalite."
+          : "",
+    }));
+    res.json(safeRows);
   } catch (error) {
     console.error("Erreur SQL dans /api/deals/:id/deliveries :", error);
     res.status(500).json({ message: "Erreur serveur" });
@@ -142,20 +215,64 @@ router.get("/:id/deliveries", async (req, res) => {
 });
 
 router.get("/:id/deliveries/download", async (req, res) => {
-  const { key, fileName } = req.query;
+  const db = getDb();
+  const { id } = req.params;
+  const { deliveryId } = req.query;
+  const requesterId = Number(req.user?.id);
+  const requesterRole = String(req.user?.role || "").toLowerCase();
 
-  if (!key) {
-    return res.status(400).json({ message: "Cle fichier manquante." });
+  if (!deliveryId) {
+    return res.status(400).json({ message: "Identifiant de livraison manquant." });
   }
 
   try {
-    const safeFileName = sanitizeFileName(String(fileName || "download"));
-    const object = await downloadFromB2(String(key));
+    const dealContext = await getDealAccessContext(db, id);
+    const access = canAccessDealDeliveries({
+      dealContext,
+      requesterId,
+      requesterRole,
+      purpose: "download",
+    });
+    if (!access.allowed) {
+      return res.status(access.statusCode).json({ message: access.message });
+    }
 
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${safeFileName}"`
+    const [rows] = await db.execute(
+      `SELECT id, file_name, file_url
+       FROM deliveries
+       WHERE id = ? AND deal_id = ?
+       LIMIT 1`,
+      [deliveryId, id],
     );
+
+    const delivery = rows[0];
+    if (!delivery) {
+      return res.status(404).json({ message: "Livraison introuvable." });
+    }
+
+    const safeFileName = sanitizeFileName(String(delivery.file_name || "download"));
+    const contentDisposition = `attachment; filename="${safeFileName}"`;
+
+    if (String(delivery.file_url || "").startsWith("/uploads/deliveries/")) {
+      const localFileName = path.basename(delivery.file_url);
+      const localFilePath = path.join(localDeliveriesDir, localFileName);
+
+      if (!fs.existsSync(localFilePath)) {
+        return res.status(404).json({ message: "Fichier introuvable sur le serveur." });
+      }
+
+      res.setHeader("Content-Disposition", contentDisposition);
+      return res.download(localFilePath, safeFileName);
+    }
+
+    const storageKey = getKeyFromStoredUrl(delivery.file_url);
+    if (!storageKey) {
+      return res.status(404).json({ message: "Cle de stockage introuvable." });
+    }
+
+    const object = await downloadFromB2(String(storageKey));
+
+    res.setHeader("Content-Disposition", contentDisposition);
     res.setHeader(
       "Content-Type",
       object.ContentType || "application/octet-stream"
@@ -247,6 +364,19 @@ router.post(
     try {
       await ensureDeliveriesTable();
       let storedFileUrl;
+      const [dealRows] = await db.execute(
+        `SELECT freelancer_id
+         FROM deals
+         WHERE id = ?
+         LIMIT 1`,
+        [id],
+      );
+
+      if (!dealRows[0]) {
+        return res.status(404).json({ message: "Deal introuvable." });
+      }
+
+      const isFreelancerSubmission = Number(dealRows[0].freelancer_id) === Number(senderId);
 
       if (hasB2Config()) {
         await uploadToB2({
@@ -254,7 +384,7 @@ router.post(
           body: req.body,
           contentType: mimeType,
         });
-        storedFileUrl = buildDeliveryDownloadUrl(id, key, safeOriginalName);
+        storedFileUrl = `b2://${key}`;
       } else {
         await ensureLocalDeliveriesDir();
         const localStoredName = `${Date.now()}-${crypto.randomUUID()}-${safeOriginalName}`;
@@ -272,7 +402,8 @@ router.post(
       await db.execute(
         `UPDATE deals
          SET status = CASE
-           WHEN freelancer_id = ? THEN 'Terminé'
+           WHEN freelancer_id = ? AND status = 'Totalité payée' THEN 'Terminé'
+           WHEN freelancer_id = ? THEN 'Soumis'
            ELSE status
          END,
              submitted_at = CASE
@@ -280,7 +411,7 @@ router.post(
                ELSE submitted_at
              END
          WHERE id = ?`,
-        [Number(senderId), Number(senderId), id]
+        [Number(senderId), Number(senderId), Number(senderId), id]
       );
 
       const [rows] = await db.execute(
@@ -289,6 +420,12 @@ router.post(
          WHERE id = ?`,
         [insertResult.insertId]
       );
+      const createdDelivery = rows[0]
+        ? {
+            ...rows[0],
+            file_url: buildDeliveryDownloadUrl(id, rows[0].id),
+          }
+        : null;
 
       logUserActivity("Utilisateur a soumis une livraison", {
         userId: Number(senderId),
@@ -299,23 +436,25 @@ router.post(
       });
 
       // Release freelancer payment on work submission
-      try {
-        const paymentRelease = await releaseFreelancerPaymentOnSubmission({ dealId: Number(id) });
-        if (paymentRelease.released) {
-          logUserActivity("Paiement freelance libere a la soumission", {
-            userId: Number(senderId),
-            dealId: Number(id),
-            releasedAmount: paymentRelease.releasedAmount,
-            penaltyDeducted: paymentRelease.penaltyDeducted,
-          });
+      if (isFreelancerSubmission) {
+        try {
+          const paymentRelease = await releaseFreelancerPaymentOnSubmission({ dealId: Number(id) });
+          if (paymentRelease.released) {
+            logUserActivity("Paiement freelance libere a la soumission", {
+              userId: Number(senderId),
+              dealId: Number(id),
+              releasedAmount: paymentRelease.releasedAmount,
+              penaltyDeducted: paymentRelease.penaltyDeducted,
+            });
+          }
+        } catch (paymentError) {
+          console.error("Erreur liberation paiement freelance sur soumission:", paymentError.message);
+          // Don't fail the delivery upload if payment release fails
         }
-      } catch (paymentError) {
-        console.error("Erreur liberation paiement freelance sur soumission:", paymentError.message);
-        // Don't fail the delivery upload if payment release fails
       }
 
       res.status(201).json({
-        ...rows[0],
+        ...createdDelivery,
         key,
         mimeType,
         size: req.body.length,

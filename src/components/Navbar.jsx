@@ -75,11 +75,7 @@ const Navbar = ({
     <header className="app-navbar">
       <div className="app-navbar-inner">
         <div className="app-navbar-brand" onClick={onDashboard}>
-          <div className="app-navbar-logo">Fy</div>
-          <div className="app-navbar-brand-text">
-            <span className="app-navbar-brand-sub">{brandSubtitle}</span>
-            <span className="app-navbar-brand-main">{brandTitle}</span>
-          </div>
+          <img src="/brand-logo.png" alt={brandSubtitle} className="app-navbar-brand-logo" />
         </div>
 
         <nav className="app-navbar-nav">
