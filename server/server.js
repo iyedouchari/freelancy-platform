@@ -4,7 +4,7 @@ import { checkDatabaseConnection } from "./config/db.js";
 import { env } from "./config/env.js";
 import { attachSocket } from "./config/socket.js";
 import { prepareAuthStorage } from "./modules/auth/auth.repository.js";
-import { ensureDealsTable, ensureDealTriggers } from "./modules/deals/deal.repository.js";
+import { ensureDealsTable } from "./modules/deals/deal.repository.js";
 import { ensurePaymentsTable } from "./modules/payments/payment.repository.js";
 import { startNonPaymentFinalRuleWatcher } from "./modules/payments/payment.service.js";
 import { ensureProposalsTable } from "./modules/proposals/proposal.repository.js";
@@ -68,7 +68,6 @@ export const startServer = async () => {
   await ensureDealsTable();
   await ensurePaymentsTable();
   await ensureWalletTables();
-  await ensureDealTriggers();
   await ensureReviewsTable();
   await ensureReportsTable();
 

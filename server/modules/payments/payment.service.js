@@ -578,6 +578,9 @@ export async function refundPayment({ paymentId, clientId }) {
   });
 
   await paymentRepo.updatePaymentStatus(paymentId, "Rembourse");
+  if (payment.deal_id) {
+    await db.query(`UPDATE deals SET status = 'Annule' WHERE id = ?`, [payment.deal_id]);
+  }
 
   return { refunded: true, amount: payment.amount };
 }

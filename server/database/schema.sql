@@ -239,6 +239,9 @@ CREATE TABLE IF NOT EXISTS notifications (
         REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Triggers below are optional and commented out for TiDB Cloud / distributed SQL compatibility.
+-- All business logic (deals, wallet accounts, and payment lifecycle) is handled natively by the Node.js backend.
+/*
 DROP TRIGGER IF EXISTS trig_after_insert_user;
 DROP TRIGGER IF EXISTS trig_after_proposal_accept;
 DROP TRIGGER IF EXISTS trig_before_payment_update;
@@ -302,3 +305,4 @@ BEGIN
 END //
 
 DELIMITER ;
+*/

@@ -274,58 +274,8 @@ export const ensureDealsTable = async () => {
 };
 
 export const ensureDealTriggers = async () => {
-  await db.query("DROP TRIGGER IF EXISTS trig_after_proposal_accept");
-  await db.query("DROP TRIGGER IF EXISTS trig_before_payment_update");
-  await db.query("DROP TRIGGER IF EXISTS trig_after_payment_update");
-
-  // NOTE: trig_after_proposal_accept has been removed.
-  // Deals are now created explicitly in proposalService.acceptAndPay().
-
-  await db.query(`
-    CREATE TRIGGER trig_before_payment_update
-    BEFORE UPDATE ON payments
-    FOR EACH ROW
-    BEGIN
-      IF NEW.status = 'Paye' AND OLD.status <> 'Paye' THEN
-        SET NEW.paid_at = CURRENT_TIMESTAMP;
-      END IF;
-
-      IF NEW.status <> 'Paye' THEN
-        SET NEW.paid_at = NULL;
-      END IF;
-    END
-  `);
-
-  await db.query(`
-    CREATE TRIGGER trig_after_payment_update
-    AFTER UPDATE ON payments
-    FOR EACH ROW
-    BEGIN
-      IF NEW.status = 'Paye' AND OLD.status <> 'Paye'
-         AND NEW.payment_type = 'Avance' THEN
-        UPDATE deals
-        SET status = 'En cours'
-        WHERE id = NEW.deal_id;
-      END IF;
-
-      IF NEW.status = 'Paye' AND OLD.status <> 'Paye'
-         AND NEW.payment_type = 'Paiement final' THEN
-        UPDATE deals
-        SET status = CASE
-              WHEN submitted_at IS NOT NULL THEN 'Terminé'
-              ELSE 'Totalité payée'
-            END,
-            final_paid_at = CURRENT_TIMESTAMP
-        WHERE id = NEW.deal_id;
-      END IF;
-
-      IF NEW.status = 'Rembourse' AND OLD.status <> 'Rembourse' THEN
-        UPDATE deals
-        SET status = 'Annule'
-        WHERE id = NEW.deal_id;
-      END IF;
-    END
-  `);
+  // Triggers removed for TiDB Cloud compatibility.
+  // All payment, deal status, and proposal logic is handled natively in JavaScript services.
 };
 
 export const dealRepository = {

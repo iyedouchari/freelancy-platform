@@ -72,7 +72,7 @@ export async function createPayment({
 
 export async function updatePaymentStatus(paymentId, status, connection = db) {
   await connection.query(
-    `UPDATE payments SET status = ? WHERE id = ?`,
-    [status, paymentId],
+    `UPDATE payments SET status = ?, paid_at = CASE WHEN ? = 'Paye' THEN CURRENT_TIMESTAMP ELSE NULL END WHERE id = ?`,
+    [status, status, paymentId],
   );
 }
