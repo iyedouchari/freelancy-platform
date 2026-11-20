@@ -24,6 +24,7 @@ export const ensureDefaultAdminAccount = async () => {
       passwordHash,
       role: "admin",
     });
+    console.log(`[Admin] Compte administrateur créé avec succès : ${DEFAULT_ADMIN_EMAIL} (Rôle: ADMIN)`);
     return;
   }
 
@@ -54,6 +55,7 @@ export const ensureDefaultAdminAccount = async () => {
       DEFAULT_ADMIN_EMAIL,
     ],
   );
+  console.log(`[Admin] Compte administrateur synchronisé avec succès : ${DEFAULT_ADMIN_EMAIL} (Rôle: ADMIN)`);
 };
 
 export const prepareAuthStorage = async () => {
