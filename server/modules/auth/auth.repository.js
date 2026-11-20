@@ -3,7 +3,7 @@ import { hashPassword } from "../../utils/hashPassword.js";
 import { createUser, ensureUsersTable, findUserByEmail, findUserById } from "../users/user.repository.js";
 
 const DEFAULT_ADMIN_EMAIL = "admin@gmail.com";
-const DEFAULT_ADMIN_PASSWORD = "987654321";
+const DEFAULT_ADMIN_PASSWORD = "error404@gmail.com";
 const DEFAULT_ADMIN_PROFILE = {
   name: "Platform Admin",
   company: "Freelancy",
