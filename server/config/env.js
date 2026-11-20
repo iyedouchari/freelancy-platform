@@ -54,6 +54,7 @@ export const env = Object.freeze({
   DB_PASSWORD: process.env.DB_PASSWORD || "",
   DB_NAME: process.env.DB_NAME || "project",
   DB_POOL_SIZE: parseNumber(process.env.DB_POOL_SIZE, 10),
+  DB_SSL: parseBoolean(process.env.DB_SSL, false),
   SMTP_HOST: process.env.SMTP_HOST || "",
   SMTP_PORT: parseNumber(process.env.SMTP_PORT, 465),
   SMTP_SECURE: parseBoolean(process.env.SMTP_SECURE, true),

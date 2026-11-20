@@ -53,12 +53,23 @@ const run = async () => {
     throw new Error("No SQL statements found in schema.sql.");
   }
 
+  const isCloudOrSsl =
+    env.DB_SSL ||
+    env.DB_PORT === 4000 ||
+    String(env.DB_HOST).includes("tidbcloud.com");
+
   const connection = await mysql.createConnection({
     host: env.DB_HOST,
     port: env.DB_PORT,
     user: env.DB_USER,
     password: env.DB_PASSWORD,
     multipleStatements: false,
+    ssl: isCloudOrSsl
+      ? {
+          minVersion: "TLSv1.2",
+          rejectUnauthorized: true,
+        }
+      : undefined,
   });
 
   try {

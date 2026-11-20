@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { DOMAIN_OPTIONS } from "../../data/domains";
 import { authService } from "../../services/authService";
 import { showAppFeedback } from "../../utils/appFeedback";
+import { LocationAutocomplete } from "../../components/auth/LocationAutocomplete";
+import { InternationalPhoneInput } from "../../components/auth/InternationalPhoneInput";
 import "../../styles/landing.css";
 
 const CATEGORIES = DOMAIN_OPTIONS;
@@ -291,9 +293,9 @@ const RegistrationSuccess = ({ title, message, onLogin }) => (
         </div>
 
         <div className="auth-success-actions">
-          <button type="button" className="auth-submit" onClick={onLogin}>
+          <Link to="/login" className="auth-submit">
             <span>Aller a la connexion</span>
-          </button>
+          </Link>
           <p className="auth-footer-link">
             <Link to="/">Retour a l'accueil</Link>
           </p>
@@ -306,10 +308,14 @@ const RegistrationSuccess = ({ title, message, onLogin }) => (
 const Register = () => {
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
+  const [isIndependent, setIsIndependent] = useState(false);
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
+  const [isLocationValid, setIsLocationValid] = useState(false);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [isPhoneValid, setIsPhoneValid] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState("");
@@ -323,18 +329,36 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setHasSubmitted(true);
+
     if (!role) {
       showAppFeedback({
         tone: "warning",
-        title: "Role requis",
-        message: "Veuillez choisir votre role.",
+        title: "Rôle requis",
+        message: "Veuillez choisir votre rôle (Freelance ou Client).",
+      });
+      return;
+    }
+    if (!isLocationValid || !location.trim()) {
+      showAppFeedback({
+        tone: "warning",
+        title: "Localisation invalide",
+        message: "Veuillez sélectionner une ville et un pays réels dans la liste des suggestions.",
+      });
+      return;
+    }
+    if (!isPhoneValid || !phone.trim()) {
+      showAppFeedback({
+        tone: "warning",
+        title: "Numéro de téléphone invalide",
+        message: "Veuillez saisir un numéro de téléphone valide selon les règles du pays sélectionné.",
       });
       return;
     }
     if (password !== confirmPassword) {
       showAppFeedback({
         tone: "warning",
-        title: "Mots de passe differents",
+        title: "Mots de passe différents",
         message: "Les mots de passe ne correspondent pas.",
       });
       return;
@@ -343,14 +367,14 @@ const Register = () => {
       showAppFeedback({
         tone: "warning",
         title: "Mot de passe trop court",
-        message: "Le mot de passe doit contenir au moins 10 caracteres.",
+        message: "Le mot de passe doit contenir au moins 10 caractères.",
       });
       return;
     }
     if (!acceptTerms) {
       showAppFeedback({
         tone: "warning",
-        title: "Conditions non acceptees",
+        title: "Conditions non acceptées",
         message: "Veuillez accepter les conditions d'utilisation.",
       });
       return;
@@ -360,7 +384,7 @@ const Register = () => {
     setIsSubmitting(true);
 
     const normalizedName = name.trim();
-    const normalizedCompany = company.trim();
+    const normalizedCompany = isIndependent ? "Indépendant" : company.trim();
     const normalizedTitle = title.trim();
     const normalizedLocation = location.trim();
     const normalizedEmail = email.trim().toLowerCase();
@@ -380,7 +404,7 @@ const Register = () => {
 
   const handleOnboardingComplete = async (data) => {
     const normalizedName = name.trim();
-    const normalizedCompany = company.trim();
+    const normalizedCompany = isIndependent ? "Indépendant" : company.trim();
     const normalizedTitle = title.trim();
     const normalizedLocation = location.trim();
     const normalizedEmail = email.trim().toLowerCase();
@@ -569,22 +593,46 @@ const Register = () => {
               </div>
 
               <div className="auth-field">
-                <label className="auth-label">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 7h18" />
-                    <path d="M5 7V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2" />
-                    <rect x="3" y="7" width="18" height="13" rx="2" />
-                  </svg>
-                  Entreprise
-                </label>
+                <div className="auth-label-wrap">
+                  <label className="auth-label">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 7h18" />
+                      <path d="M5 7V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2" />
+                      <rect x="3" y="7" width="18" height="13" rx="2" />
+                    </svg>
+                    Entreprise
+                  </label>
+                  <span className="auth-label-hint">Optionnel</span>
+                </div>
                 <input
-                  className="auth-input"
+                  className={`auth-input ${isIndependent ? "is-disabled-soft" : ""}`}
                   type="text"
-                  placeholder="Nom de l'entreprise"
-                  value={company}
-                  onChange={(e) => setCompany(e.target.value)}
-                  required
+                  placeholder={isIndependent ? "Indépendant (sans entreprise)" : "Nom de l'entreprise"}
+                  value={isIndependent ? "Indépendant" : company}
+                  onChange={(e) => {
+                    setCompany(e.target.value);
+                    if (isIndependent) setIsIndependent(false);
+                  }}
+                  disabled={isIndependent}
                 />
+                <label className="company-independent-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={isIndependent}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setIsIndependent(checked);
+                      if (checked) {
+                        setCompany("Indépendant");
+                      } else {
+                        setCompany("");
+                      }
+                    }}
+                  />
+                  <span className="company-independent-text">
+                    Je travaille en indépendant / sans entreprise
+                  </span>
+                </label>
               </div>
             </div>
 
@@ -615,36 +663,34 @@ const Register = () => {
                   </svg>
                   Localisation
                 </label>
-                <input
-                  className="auth-input"
-                  type="text"
-                  placeholder="Ville, Pays"
+                <LocationAutocomplete
                   value={location}
-                  onChange={(e) => setLocation(e.target.value)}
+                  onChange={(val) => setLocation(val)}
+                  onValidationChange={(valid) => setIsLocationValid(valid)}
+                  hasSubmitted={hasSubmitted}
                   required
                 />
               </div>
             </div>
 
-            <div className="auth-fields-row">
-              <div className="auth-field">
+            <div className="auth-fields-row auth-fields-row-phone-email">
+              <div className="auth-field auth-field-phone">
                 <label className="auth-label">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.87 19.87 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.87 19.87 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                   </svg>
                   Téléphone
                 </label>
-                <input
-                  className="auth-input"
-                  type="tel"
-                  placeholder="+216 XX XXX XXX"
+                <InternationalPhoneInput
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(val) => setPhone(val)}
+                  onValidationChange={(valid) => setIsPhoneValid(valid)}
+                  hasSubmitted={hasSubmitted}
                   required
                 />
               </div>
 
-              <div className="auth-field">
+              <div className="auth-field auth-field-email">
                 <label className="auth-label">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />

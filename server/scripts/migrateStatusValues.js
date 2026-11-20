@@ -3,12 +3,25 @@ import { env } from "../config/env.js";
 
 const run = async () => {
   let connection;
+  const isCloudDb =
+    Boolean(env.DB_HOST && !["localhost", "127.0.0.1"].includes(env.DB_HOST)) ||
+    Boolean(env.DB_SSL) ||
+    Number(env.DB_PORT) === 4000 ||
+    String(env.DB_HOST).includes("tidbcloud.com");
+
   try {
     connection = await mysql.createConnection({
       host: env.DB_HOST,
+      port: env.DB_PORT,
       user: env.DB_USER,
       password: env.DB_PASSWORD,
       database: env.DB_NAME,
+      ssl: isCloudDb
+        ? {
+            minVersion: "TLSv1.2",
+            rejectUnauthorized: true,
+          }
+        : undefined,
     });
 
     console.log("Connected to database");
