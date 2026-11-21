@@ -1,18 +1,30 @@
 import React, { useState, useEffect, useRef } from "react";
-import { searchFallbackCities } from "../../data/citiesFallback";
+import { searchFallbackCities, rankLocations } from "../../data/citiesFallback";
 
 export const formatLocationLabel = (city, state, country) => {
   const parts = [];
-  if (city) parts.push(city.trim());
+  const c = String(city || "").trim();
+  const s = String(state || "").trim();
+  const co = String(country || "").trim();
+
+  if (c) parts.push(c);
+
+  // Add state/region if informative (not "Pays", and not redundant with city or country)
   if (
-    state &&
-    state.trim() &&
-    !city.toLowerCase().includes(state.toLowerCase()) &&
-    !state.toLowerCase().includes(city.toLowerCase())
+    s &&
+    s.toLowerCase() !== "pays" &&
+    !c.toLowerCase().includes(s.toLowerCase()) &&
+    !s.toLowerCase().includes(c.toLowerCase()) &&
+    !co.toLowerCase().includes(s.toLowerCase())
   ) {
-    parts.push(state.trim());
+    parts.push(s);
   }
-  if (country && country.trim()) parts.push(country.trim());
+
+  // Add country if not identical to city (prevents "Allemagne, Allemagne")
+  if (co && co.toLowerCase() !== c.toLowerCase()) {
+    parts.push(co);
+  }
+
   return parts.join(", ");
 };
 
@@ -65,15 +77,8 @@ export const LocationAutocomplete = ({
   }, [isSelected, query]);
 
   // Fetch places from instant fallback + global Photon OSM API
-  const fetchPlaces = async (text) => {
-    const trimmed = text.trim();
-    if (trimmed.length < 1) {
-      setSuggestions([]);
-      setIsOpen(false);
-      return;
-    }
-
-    setIsLoading(true);
+  const fetchPlaces = async (text = "") => {
+    const trimmed = String(text || "").trim();
 
     // 1. Instant local results (instant response, full coverage of all 24 Tunisian governorates + major global cities)
     const localMatches = searchFallbackCities(trimmed).map((item) => ({
@@ -81,6 +86,8 @@ export const LocationAutocomplete = ({
       city: item.city,
       state: item.state || "",
       country: item.country,
+      isGovernorate: Boolean(item.isGovernorate),
+      isCountry: Boolean(item.isCountry),
       label: formatLocationLabel(item.city, item.state, item.country),
     }));
 
@@ -89,12 +96,19 @@ export const LocationAutocomplete = ({
       setIsOpen(true);
     }
 
+    if (trimmed.length < 2) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
       // 2. OpenStreetMap Photon API (free, worldwide coverage, supports all cities & administrative regions)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-      const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(trimmed)}&lang=fr&limit=10`;
+      const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(trimmed)}&lang=fr&limit=15`;
       const res = await fetch(url, { signal: controller.signal });
       clearTimeout(timeoutId);
 
@@ -106,13 +120,15 @@ export const LocationAutocomplete = ({
             const type = String(props.type || "").toLowerCase();
             const osmVal = String(props.osm_value || "").toLowerCase();
 
-            // Exclude individual street segments, houses, and transport stops
+            // Exclude rural hamlets, tiny localities, farms, isolated dwellings, street segments, houses, and stops
             const isExcluded = [
-              "street", "residential", "house", "building", "motorway", "service",
-              "cycleway", "footway", "path", "track", "bus_stop", "stop", "platform"
+              "hamlet", "isolated_dwelling", "farm", "allotments", "residential",
+              "street", "house", "building", "motorway", "service", "cycleway",
+              "footway", "path", "track", "bus_stop", "stop", "platform", "locality"
             ].includes(type) || [
-              "street", "residential", "house", "building", "motorway", "service",
-              "cycleway", "footway", "path", "track", "bus_stop", "stop", "platform"
+              "hamlet", "isolated_dwelling", "farm", "allotments", "residential",
+              "street", "house", "building", "motorway", "service", "cycleway",
+              "footway", "path", "track", "bus_stop", "stop", "platform", "locality"
             ].includes(osmVal);
 
             return props.name && props.country && !isExcluded;
@@ -131,17 +147,17 @@ export const LocationAutocomplete = ({
             };
           });
 
-        // Merge & deduplicate by label
-        const seen = new Set();
-        const combined = [...localMatches, ...apiPlaces].filter((item) => {
-          const key = item.label.toLowerCase();
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
+        // Classement et déduplication unifiés selon la pertinence
+        const combined = rankLocations([...localMatches, ...apiPlaces], trimmed);
 
         if (combined.length > 0) {
-          setSuggestions(combined.slice(0, 10));
+          setSuggestions(
+            combined.slice(0, 24).map((item) => ({
+              ...item,
+              id: item.id || `loc-${item.city}-${item.country}`,
+              label: item.label || formatLocationLabel(item.city, item.state, item.country),
+            }))
+          );
           setIsOpen(true);
         }
       }
@@ -176,8 +192,7 @@ export const LocationAutocomplete = ({
         fetchPlaces(val);
       }, 200);
     } else {
-      setSuggestions([]);
-      setIsOpen(false);
+      fetchPlaces("");
     }
   };
 
@@ -221,16 +236,20 @@ export const LocationAutocomplete = ({
         <input
           className={`auth-input location-input ${showError ? "is-invalid" : ""} ${isSelected ? "is-valid" : ""}`}
           type="text"
+          name="locationSearchField"
           placeholder="Ville, Gouvernorat, Pays"
           value={query}
           onChange={handleInputChange}
           onFocus={() => {
-            if (suggestions.length > 0 && !isSelected) setIsOpen(true);
-            else if (query.trim().length >= 1) fetchPlaces(query);
+            if (!isSelected) {
+              fetchPlaces(query);
+            }
           }}
           onKeyDown={handleKeyDown}
           required={required}
-          autoComplete="off"
+          autoComplete="one-time-code"
+          autoCorrect="off"
+          spellCheck={false}
         />
 
         {/* Right Status Indicator */}

@@ -916,8 +916,24 @@
   padding: 22px 2rem;
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
   font-size: 0.82rem;
   color: #64748b;
+}
+.landing-footer-bottom-links {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.landing-footer-bottom-links a {
+  color: #64748b;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.landing-footer-bottom-links a:hover {
+  color: #cbd5e1;
 }
 
 /* =================== AUTH PAGES (Compact & Modern) =================== */
@@ -1248,16 +1264,17 @@ select.auth-input.auth-select:focus {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  right: 0;
+  width: max(100%, 300px);
+  max-width: min(380px, 92vw);
   background: #ffffff;
   border: 1.5px solid #e2e8f0;
   border-radius: 12px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
   list-style: none;
   padding: 6px;
   margin: 0;
-  z-index: 50;
-  max-height: 220px;
+  z-index: 65;
+  max-height: 280px;
   overflow-y: auto;
 }
 .location-item {
@@ -1358,8 +1375,8 @@ select.auth-input.auth-select:focus {
 .intl-country-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 10px;
+  gap: 5px;
+  padding: 0 8px;
   background: #f8fafc;
   border: none;
   border-right: 1.5px solid #e2e8f0;
@@ -1407,7 +1424,7 @@ select.auth-input.auth-select:focus {
   min-width: 0;
   border: none;
   outline: none;
-  padding: 10px 34px 10px 12px;
+  padding: 10px 32px 10px 10px;
   font-size: 0.88rem;
   font-family: 'Inter', sans-serif;
   color: #0f172a;
@@ -1528,17 +1545,6 @@ select.auth-input.auth-select:focus {
   text-align: center;
   font-size: 0.8rem;
   color: #94a3b8;
-}
-
-/* Phone & Email Proportions (Smaller Phone, Larger Email) */
-.auth-fields-row-phone-email {
-  grid-template-columns: minmax(180px, 205px) 1fr;
-  align-items: flex-start;
-}
-@media (max-width: 640px) {
-  .auth-fields-row-phone-email {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Entreprise - Option Indépendant / Sans Entreprise */
@@ -1749,6 +1755,24 @@ select.auth-input.auth-select:focus {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+/* Location & Phone 2-column row */
+.auth-fields-row.auth-fields-row-location-phone {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: flex-start;
+}
+.auth-fields-row.auth-fields-row-location-phone .auth-field-location,
+.auth-fields-row.auth-fields-row-location-phone .auth-field-phone {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Full-width standalone fields */
+.auth-field.auth-field-full {
+  width: 100%;
 }
 
 /* ---- Role Selection (Redesigned) ---- */
@@ -2111,8 +2135,18 @@ select.auth-input.auth-select:focus {
     min-height: auto;
     padding: 30px 24px;
   }
-  .auth-fields-row {
-    grid-template-columns: 1fr;
+  .auth-fields-row,
+  .auth-fields-row.auth-fields-row-location-phone,
+  .auth-fields-row.auth-fields-row-phone-email {
+    grid-template-columns: 1fr !important;
+  }
+  .auth-fields-row.auth-fields-row-location-phone .auth-field-phone,
+  .auth-fields-row.auth-fields-row-phone-email .auth-field-phone {
+    max-width: 100%;
+  }
+  .location-dropdown {
+    width: 100% !important;
+    max-width: 100% !important;
   }
   .auth-branding-stats {
     flex-wrap: wrap;

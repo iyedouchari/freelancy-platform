@@ -122,15 +122,6 @@ function EditClientProfile({ profile, onSave, onCancel }) {
               />
             </label>
             <label>
-              <span>Fonction</span>
-              <input
-                value={draft.title}
-                onChange={(event) =>
-                  setDraft((current) => ({ ...current, title: event.target.value }))
-                }
-              />
-            </label>
-            <label>
               <span>Localisation</span>
               <input
                 value={draft.location}
@@ -409,10 +400,6 @@ export default function ClientProfile({
             <div>
               <span>Entreprise</span>
               <strong>{profile.company}</strong>
-            </div>
-            <div>
-              <span>Fonction</span>
-              <strong>{profile.title}</strong>
             </div>
             <div>
               <span>Email</span>

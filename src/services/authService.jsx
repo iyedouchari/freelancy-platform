@@ -48,7 +48,19 @@ export const authService = {
     return sendAuthRequest("/auth/login", { email, password });
   },
   register: async ({ name, email, password, role, ...profile }) => {
-    return sendAuthRequest("/auth/register", { name, email, password, role, ...profile });
+    const defaultTitle =
+      profile.title ||
+      profile.professionalTitle ||
+      (role === "freelancer" ? "Freelance" : "Client");
+    return sendAuthRequest("/auth/register", {
+      name,
+      email,
+      password,
+      role,
+      title: defaultTitle,
+      professionalTitle: defaultTitle,
+      ...profile,
+    });
   },
   logout: () => {},
 };

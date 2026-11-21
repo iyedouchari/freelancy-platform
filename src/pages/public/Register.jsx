@@ -326,6 +326,18 @@ const Register = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
+  const handleCompanyChange = (e) => {
+    const val = e.target.value;
+    if (val.trim().toLowerCase() === "none") {
+      setCompany("");
+    } else {
+      setCompany(val);
+    }
+    if (isIndependent) {
+      setIsIndependent(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setHasSubmitted(true);
@@ -383,7 +395,7 @@ const Register = () => {
     setIsSubmitting(true);
 
     const normalizedName = name.trim();
-    const normalizedCompany = isIndependent ? "Indépendant" : company.trim();
+    const normalizedCompany = isIndependent || company.trim().toLowerCase() === "none" ? "" : company.trim();
     const normalizedLocation = location.trim();
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedPhone = phone.trim();
@@ -402,14 +414,17 @@ const Register = () => {
 
   const handleOnboardingComplete = async (data) => {
     const normalizedName = name.trim();
-    const normalizedCompany = isIndependent ? "Indépendant" : company.trim();
+    const normalizedCompany = isIndependent || company.trim().toLowerCase() === "none" ? "" : company.trim();
     const normalizedLocation = location.trim();
     const normalizedEmail = email.trim().toLowerCase();
 
     try {
+      const defaultRoleTitle = role === "freelancer" ? "Freelance" : "Client";
       const registerResult = await authService.register({
         name: normalizedName,
-        company: normalizedCompany,
+        company: normalizedCompany || null,
+        title: defaultRoleTitle,
+        professionalTitle: defaultRoleTitle,
         location: normalizedLocation,
         email: normalizedEmail,
         phone: phone.trim(),
@@ -436,7 +451,11 @@ const Register = () => {
         localStorage.setItem("client_sectors", JSON.stringify(data.fields));
         localStorage.setItem("client_bio", data.bio);
         localStorage.setItem("client_name", normalizedName);
-        localStorage.setItem("client_company", normalizedCompany);
+        if (normalizedCompany) {
+          localStorage.setItem("client_company", normalizedCompany);
+        } else {
+          localStorage.removeItem("client_company");
+        }
         localStorage.setItem("client_location", normalizedLocation);
         localStorage.setItem("client_email", normalizedEmail);
         localStorage.setItem("client_phone", phone.trim());
@@ -609,14 +628,13 @@ const Register = () => {
                 <input
                   className={`auth-input ${isIndependent ? "is-disabled-soft" : ""}`}
                   type="text"
-                  name="companyName"
+                  name="company"
                   autoComplete="off"
-                  placeholder={isIndependent ? "Indépendant (sans entreprise)" : "Nom de l'entreprise"}
-                  value={isIndependent ? "Indépendant" : company}
-                  onChange={(e) => {
-                    setCompany(e.target.value);
-                    if (isIndependent) setIsIndependent(false);
-                  }}
+                  autoCorrect="off"
+                  spellCheck={false}
+                  placeholder={isIndependent ? "Indépendant" : "Nom de l'entreprise"}
+                  value={isIndependent ? "" : company}
+                  onChange={handleCompanyChange}
                   disabled={isIndependent}
                 />
                 <label className="company-independent-checkbox">
@@ -627,37 +645,35 @@ const Register = () => {
                       const checked = e.target.checked;
                       setIsIndependent(checked);
                       if (checked) {
-                        setCompany("Indépendant");
-                      } else {
                         setCompany("");
                       }
                     }}
                   />
                   <span className="company-independent-text">
-                    Je travaille en indépendant / sans entreprise
+                    Je travaille à mon compte (indépendant)
                   </span>
                 </label>
               </div>
             </div>
 
-            <div className="auth-field">
-              <label className="auth-label">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                  <circle cx="12" cy="9" r="2.5" />
-                </svg>
-                Localisation
-              </label>
-              <LocationAutocomplete
-                value={location}
-                onChange={(val) => setLocation(val)}
-                onValidationChange={(valid) => setIsLocationValid(valid)}
-                hasSubmitted={hasSubmitted}
-                required
-              />
-            </div>
+            <div className="auth-fields-row auth-fields-row-location-phone">
+              <div className="auth-field auth-field-location">
+                <label className="auth-label">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                    <circle cx="12" cy="9" r="2.5" />
+                  </svg>
+                  Localisation
+                </label>
+                <LocationAutocomplete
+                  value={location}
+                  onChange={(val) => setLocation(val)}
+                  onValidationChange={(valid) => setIsLocationValid(valid)}
+                  hasSubmitted={hasSubmitted}
+                  required
+                />
+              </div>
 
-            <div className="auth-fields-row auth-fields-row-phone-email">
               <div className="auth-field auth-field-phone">
                 <label className="auth-label">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -673,24 +689,24 @@ const Register = () => {
                   required
                 />
               </div>
+            </div>
 
-              <div className="auth-field auth-field-email">
-                <label className="auth-label">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                    <polyline points="22,6 12,13 2,6" />
-                  </svg>
-                  Adresse email
-                </label>
-                <input
-                  className="auth-input"
-                  type="email"
-                  placeholder="votre@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
+            <div className="auth-field auth-field-full auth-field-email">
+              <label className="auth-label">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+                Adresse email
+              </label>
+              <input
+                className="auth-input"
+                type="email"
+                placeholder="votre@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </div>
 
             <div className="auth-fields-row">

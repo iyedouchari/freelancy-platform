@@ -23,7 +23,13 @@ const sanitizeRole = (value) => {
 export const validateRegisterPayload = (body) => {
   const name = String(body?.name || "").trim();
   const company = String(body?.company || "").trim();
-  const title = String(body?.title || "").trim();
+  const title = String(
+    body?.title ||
+    body?.professionalTitle ||
+    body?.professional_title ||
+    body?.fonction ||
+    ""
+  ).trim();
   const location = String(body?.location || "").trim();
   const email = String(body?.email || "").trim().toLowerCase();
   const phone = String(body?.phone || "").trim();
@@ -45,7 +51,7 @@ export const validateRegisterPayload = (body) => {
     throw new AppError("Le mot de passe doit contenir au moins 10 caractères.", 400, "PASSWORD_WEAK");
   }
 
-  // Le champ title (Fonction) a été retiré du formulaire d'inscription et est désormais optionnel.
+  // Le champ title/fonction est totalement optionnel et ne doit jamais bloquer l'inscription.
 
   if (!location) {
     throw new AppError("La localisation est requise.", 400, "LOCATION_REQUIRED");
@@ -55,7 +61,19 @@ export const validateRegisterPayload = (body) => {
     throw new AppError("Le numéro de téléphone est requis.", 400, "PHONE_REQUIRED");
   }
 
-  return { name, company, title, location, email, phone, bio, avatarUrl, password, role, fields };
+  return {
+    name,
+    company: company || null,
+    title: title || (role === ROLES.FREELANCER ? "Freelance" : "Client"),
+    location,
+    email,
+    phone,
+    bio: bio || null,
+    avatarUrl: avatarUrl || null,
+    password,
+    role,
+    fields,
+  };
 };
 
 export const validateLoginPayload = (body) => {
