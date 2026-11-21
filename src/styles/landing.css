@@ -1284,11 +1284,27 @@ select.auth-input.auth-select:focus {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  gap: 2px;
+}
+.location-item-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 .location-item-city {
   font-size: 0.84rem;
   font-weight: 700;
   color: #0f172a;
+}
+.location-item-gov-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #1e40af;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 1px 6px;
+  border-radius: 4px;
 }
 .location-item-country {
   font-size: 0.72rem;

@@ -1,6 +1,21 @@
 import React, { useState, useEffect, useRef } from "react";
 import { searchFallbackCities } from "../../data/citiesFallback";
 
+export const formatLocationLabel = (city, state, country) => {
+  const parts = [];
+  if (city) parts.push(city.trim());
+  if (
+    state &&
+    state.trim() &&
+    !city.toLowerCase().includes(state.toLowerCase()) &&
+    !state.toLowerCase().includes(city.toLowerCase())
+  ) {
+    parts.push(state.trim());
+  }
+  if (country && country.trim()) parts.push(country.trim());
+  return parts.join(", ");
+};
+
 export const LocationAutocomplete = ({
   value = "",
   onChange,
@@ -29,7 +44,7 @@ export const LocationAutocomplete = ({
 
   // Notify parent of validity state
   useEffect(() => {
-    const isValid = isSelected && query.trim().length > 0;
+    const isValid = (isSelected || query.trim().length >= 3) && query.trim().length > 0;
     if (onValidationChange) {
       onValidationChange(isValid);
     }
@@ -40,7 +55,6 @@ export const LocationAutocomplete = ({
     const handleClickOutside = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setIsOpen(false);
-        // If not selected strictly, clear or mark invalid on blur
         if (!isSelected && query.trim().length > 0) {
           setTouched(true);
         }
@@ -50,10 +64,10 @@ export const LocationAutocomplete = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isSelected, query]);
 
-  // Fetch real cities from Photon OSM API + fallback
+  // Fetch places from instant fallback + global Photon OSM API
   const fetchPlaces = async (text) => {
     const trimmed = text.trim();
-    if (trimmed.length < 2) {
+    if (trimmed.length < 1) {
       setSuggestions([]);
       setIsOpen(false);
       return;
@@ -61,21 +75,26 @@ export const LocationAutocomplete = ({
 
     setIsLoading(true);
 
-    // 1. Instant local results
+    // 1. Instant local results (instant response, full coverage of all 24 Tunisian governorates + major global cities)
     const localMatches = searchFallbackCities(trimmed).map((item) => ({
-      id: `local-${item.city}-${item.country}`,
+      id: `local-${item.city}-${item.state || ""}-${item.country}`,
       city: item.city,
-      state: item.state,
+      state: item.state || "",
       country: item.country,
-      label: `${item.city}, ${item.country}`,
+      label: formatLocationLabel(item.city, item.state, item.country),
     }));
 
-    try {
-      // 2. OpenStreetMap Photon API (free, no API key, global coverage)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2500);
+    if (localMatches.length > 0) {
+      setSuggestions(localMatches);
+      setIsOpen(true);
+    }
 
-      const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(trimmed)}&lang=fr&limit=8`;
+    try {
+      // 2. OpenStreetMap Photon API (free, worldwide coverage, supports all cities & administrative regions)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+      const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(trimmed)}&lang=fr&limit=10`;
       const res = await fetch(url, { signal: controller.signal });
       clearTimeout(timeoutId);
 
@@ -84,26 +103,31 @@ export const LocationAutocomplete = ({
         const apiPlaces = (data.features || [])
           .filter((f) => {
             const props = f.properties || {};
-            // Keep cities, towns, villages, localities, regions
-            return (
-              props.name &&
-              props.country &&
-              ["city", "town", "village", "municipality", "locality", "administrative", "district"].includes(
-                props.type || props.osm_value
-              )
-            );
+            const type = String(props.type || "").toLowerCase();
+            const osmVal = String(props.osm_value || "").toLowerCase();
+
+            // Exclude individual street segments, houses, and transport stops
+            const isExcluded = [
+              "street", "residential", "house", "building", "motorway", "service",
+              "cycleway", "footway", "path", "track", "bus_stop", "stop", "platform"
+            ].includes(type) || [
+              "street", "residential", "house", "building", "motorway", "service",
+              "cycleway", "footway", "path", "track", "bus_stop", "stop", "platform"
+            ].includes(osmVal);
+
+            return props.name && props.country && !isExcluded;
           })
           .map((f) => {
             const p = f.properties;
             const city = p.name;
             const country = p.country;
-            const state = p.state || p.county || "";
+            const state = p.state || p.county || p.district || "";
             return {
               id: `osm-${p.osm_id || Math.random()}`,
               city,
               state,
               country,
-              label: `${city}, ${country}`,
+              label: formatLocationLabel(city, state, country),
             };
           });
 
@@ -116,16 +140,17 @@ export const LocationAutocomplete = ({
           return true;
         });
 
-        setSuggestions(combined.slice(0, 8));
-        setIsOpen(combined.length > 0);
-      } else {
-        setSuggestions(localMatches);
-        setIsOpen(localMatches.length > 0);
+        if (combined.length > 0) {
+          setSuggestions(combined.slice(0, 10));
+          setIsOpen(true);
+        }
       }
     } catch {
-      // Fallback on network error/timeout
-      setSuggestions(localMatches);
-      setIsOpen(localMatches.length > 0);
+      // Graceful fallback to local matches
+      if (localMatches.length > 0) {
+        setSuggestions(localMatches);
+        setIsOpen(true);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -139,17 +164,17 @@ export const LocationAutocomplete = ({
     setTouched(true);
 
     if (onChange) {
-      onChange(""); // Clear until valid selection made
+      onChange(val);
     }
 
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
 
-    if (val.trim().length >= 2) {
+    if (val.trim().length >= 1) {
       debounceTimerRef.current = setTimeout(() => {
         fetchPlaces(val);
-      }, 250);
+      }, 200);
     } else {
       setSuggestions([]);
       setIsOpen(false);
@@ -188,7 +213,7 @@ export const LocationAutocomplete = ({
     }
   };
 
-  const showError = (hasSubmitted || touched) && (!isSelected || !query.trim());
+  const showError = (hasSubmitted || touched) && !query.trim();
 
   return (
     <div className="location-autocomplete-container" ref={containerRef}>
@@ -196,11 +221,12 @@ export const LocationAutocomplete = ({
         <input
           className={`auth-input location-input ${showError ? "is-invalid" : ""} ${isSelected ? "is-valid" : ""}`}
           type="text"
-          placeholder="Ville, Pays"
+          placeholder="Ville, Gouvernorat, Pays"
           value={query}
           onChange={handleInputChange}
           onFocus={() => {
             if (suggestions.length > 0 && !isSelected) setIsOpen(true);
+            else if (query.trim().length >= 1) fetchPlaces(query);
           }}
           onKeyDown={handleKeyDown}
           required={required}
@@ -237,7 +263,7 @@ export const LocationAutocomplete = ({
         </div>
       </div>
 
-      {/* Dropdown list of real places */}
+      {/* Dropdown list with Governorates / Regions clearly displayed */}
       {isOpen && suggestions.length > 0 && (
         <ul className="location-dropdown" role="listbox">
           {suggestions.map((item, index) => (
@@ -249,17 +275,19 @@ export const LocationAutocomplete = ({
               onClick={() => handleSelect(item)}
             >
               <div className="location-item-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
                   <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
                   <circle cx="12" cy="9" r="2.5" />
                 </svg>
               </div>
               <div className="location-item-text">
-                <strong className="location-item-city">{item.city}</strong>
-                <span className="location-item-country">
-                  {item.state ? `${item.state}, ` : ""}
-                  {item.country}
-                </span>
+                <div className="location-item-title-row">
+                  <strong className="location-item-city">{item.city}</strong>
+                  {item.state && (
+                    <span className="location-item-gov-badge">{item.state}</span>
+                  )}
+                </div>
+                <span className="location-item-country">{item.country}</span>
               </div>
               <span className="location-item-badge">Sélectionner</span>
             </li>
@@ -270,7 +298,7 @@ export const LocationAutocomplete = ({
       {/* Validation Message */}
       {showError && (
         <p className="location-error-msg">
-          Veuillez sélectionner une ville valide dans la liste déroulante.
+          Veuillez renseigner votre localisation (ville, gouvernorat/région, pays).
         </p>
       )}
     </div>

@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { DOMAIN_OPTIONS } from "../../data/domains";
-import { TUNISIAN_GOVERNORATES } from "../../data/tunisianGovernorates";
 import { authService } from "../../services/authService";
 import { showAppFeedback } from "../../utils/appFeedback";
+import { LocationAutocomplete } from "../../components/auth/LocationAutocomplete";
 import { InternationalPhoneInput } from "../../components/auth/InternationalPhoneInput";
 import "../../styles/landing.css";
 
@@ -310,6 +310,7 @@ const Register = () => {
   const [company, setCompany] = useState("");
   const [isIndependent, setIsIndependent] = useState(false);
   const [location, setLocation] = useState("");
+  const [isLocationValid, setIsLocationValid] = useState(false);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [isPhoneValid, setIsPhoneValid] = useState(false);
@@ -337,11 +338,11 @@ const Register = () => {
       });
       return;
     }
-    if (!location || !TUNISIAN_GOVERNORATES.includes(location)) {
+    if (!location || !location.trim()) {
       showAppFeedback({
         tone: "warning",
         title: "Localisation requise",
-        message: "Veuillez sélectionner votre gouvernorat parmi les 24 gouvernorats tunisiens.",
+        message: "Veuillez renseigner votre localisation (ville, gouvernorat / région, pays).",
       });
       return;
     }
@@ -640,28 +641,20 @@ const Register = () => {
             </div>
 
             <div className="auth-field">
-              <label className="auth-label" htmlFor="register-location">
+              <label className="auth-label">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
                   <circle cx="12" cy="9" r="2.5" />
                 </svg>
-                Localisation (Gouvernorat)
+                Localisation
               </label>
-              <select
-                id="register-location"
-                name="location"
-                className={`auth-input auth-select ${hasSubmitted && (!location || !TUNISIAN_GOVERNORATES.includes(location)) ? "is-invalid" : ""}`}
+              <LocationAutocomplete
                 value={location}
-                onChange={(e) => setLocation(e.target.value)}
+                onChange={(val) => setLocation(val)}
+                onValidationChange={(valid) => setIsLocationValid(valid)}
+                hasSubmitted={hasSubmitted}
                 required
-              >
-                <option value="">Sélectionnez votre gouvernorat (Tunisie)</option>
-                {TUNISIAN_GOVERNORATES.map((gov) => (
-                  <option key={gov} value={gov}>
-                    {gov}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             <div className="auth-fields-row auth-fields-row-phone-email">
