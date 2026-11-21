@@ -383,6 +383,14 @@ export const ensureReportsTable = async () => {
     ALTER TABLE ban_history
     ADD COLUMN email_sent_at TIMESTAMP NULL DEFAULT NULL
   `).catch(() => {});
+
+  await db.query(`
+    CREATE INDEX idx_reports_reported_user ON reports(reported_user_id)
+  `).catch(() => {});
+
+  await db.query(`
+    CREATE INDEX idx_reports_reporter ON reports(reporter_id)
+  `).catch(() => {});
   })().catch((error) => {
     ensureReportsTablePromise = null;
     throw error;
@@ -409,11 +417,19 @@ const userSelect = `
     u.suspension_duration_days,
     u.suspended_until,
     u.created_at,
-    COUNT(DISTINCT received.id) AS reports_received,
-    COUNT(DISTINCT submitted.id) AS reports_submitted
+    COALESCE(r_recv.total, 0) AS reports_received,
+    COALESCE(r_sub.total, 0) AS reports_submitted
   FROM users u
-  LEFT JOIN reports received ON received.reported_user_id = u.id
-  LEFT JOIN reports submitted ON submitted.reporter_id = u.id
+  LEFT JOIN (
+    SELECT reported_user_id, COUNT(*) AS total
+    FROM reports
+    GROUP BY reported_user_id
+  ) r_recv ON r_recv.reported_user_id = u.id
+  LEFT JOIN (
+    SELECT reporter_id, COUNT(*) AS total
+    FROM reports
+    GROUP BY reporter_id
+  ) r_sub ON r_sub.reporter_id = u.id
 `;
 
 const reportSelect = `
@@ -454,24 +470,7 @@ export const adminRepository = {
 
     const [rows] = await db.query(`
       ${userSelect}
-      GROUP BY
-        u.id,
-        u.name,
-        u.email,
-        u.role,
-        u.company,
-        u.professional_title,
-        u.location,
-        u.phone,
-        u.bio,
-        u.avatar_url,
-        u.points,
-        u.is_suspended,
-        u.suspension_reason,
-        u.suspension_duration_days,
-        u.suspended_until,
-        u.created_at
-      ORDER BY u.created_at DESC, u.id DESC
+      ORDER BY u.id DESC
     `);
 
     return rows.map(mapUserRow);
@@ -484,23 +483,6 @@ export const adminRepository = {
       `
         ${userSelect}
         WHERE u.id = ?
-        GROUP BY
-          u.id,
-          u.name,
-          u.email,
-          u.role,
-          u.company,
-          u.professional_title,
-          u.location,
-          u.phone,
-          u.bio,
-          u.avatar_url,
-          u.points,
-          u.is_suspended,
-          u.suspension_reason,
-          u.suspension_duration_days,
-          u.suspended_until,
-          u.created_at
         LIMIT 1
       `,
       [userId],
@@ -522,23 +504,6 @@ export const adminRepository = {
       `
         ${userSelect}
         WHERE LOWER(u.email) = LOWER(?)
-        GROUP BY
-          u.id,
-          u.name,
-          u.email,
-          u.role,
-          u.company,
-          u.professional_title,
-          u.location,
-          u.phone,
-          u.bio,
-          u.avatar_url,
-          u.points,
-          u.is_suspended,
-          u.suspension_reason,
-          u.suspension_duration_days,
-          u.suspended_until,
-          u.created_at
         LIMIT 1
       `,
       [email],
@@ -558,7 +523,7 @@ export const adminRepository = {
 
     const [rows] = await db.query(`
       ${reportSelect}
-      ORDER BY r.created_at DESC, r.id DESC
+      ORDER BY r.id DESC
     `);
 
     return rows.map(mapReportRow);

@@ -104,6 +104,7 @@ export const createUser = async ({
   avatarUrl,
   passwordHash,
   role,
+  fields = [],
 }) => {
   const db = getDb();
   const [result] = await db.query(
@@ -111,7 +112,7 @@ export const createUser = async ({
     [
       name,
       company || null,
-      title,
+      title || null,
       location,
       email,
       phone,
@@ -122,7 +123,28 @@ export const createUser = async ({
     ],
   );
 
-  return result.insertId;
+  const userId = result.insertId;
+
+  // Initialize wallet account (replaces removed MySQL trigger trig_after_insert_user for TiDB compatibility)
+  await db.query(
+    "INSERT INTO wallet_accounts (owner_id, balance) VALUES (?, 0.00) ON DUPLICATE KEY UPDATE owner_id = owner_id",
+    [userId],
+  );
+
+  // If role is freelancer, save expertise domains
+  if (normalizeRoleFromDb(role) === "freelancer") {
+    const domainList = Array.isArray(fields) && fields.length > 0 ? fields : ["general"];
+    for (const domain of domainList) {
+      if (typeof domain === "string" && domain.trim()) {
+        await db.query(
+          "INSERT IGNORE INTO freelancer_domains (id_freelancer, domain) VALUES (?, ?)",
+          [userId, domain.trim().slice(0, 50)],
+        );
+      }
+    }
+  }
+
+  return userId;
 };
 
 export const findUserByEmail = async (email, { includePassword = false } = {}) => {

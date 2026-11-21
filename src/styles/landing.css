@@ -1182,6 +1182,21 @@
   border-color: #10b981;
 }
 
+select.auth-input.auth-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px;
+  padding-right: 40px;
+}
+select.auth-input.auth-select:focus {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234f6ce8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
 /* ---- Location Autocomplete ---- */
 .location-autocomplete-container {
   position: relative;
@@ -1501,10 +1516,10 @@
 
 /* Phone & Email Proportions (Smaller Phone, Larger Email) */
 .auth-fields-row-phone-email {
-  grid-template-columns: 0.85fr 1.35fr;
+  grid-template-columns: minmax(180px, 205px) 1fr;
   align-items: flex-start;
 }
-@media (max-width: 768px) {
+@media (max-width: 640px) {
   .auth-fields-row-phone-email {
     grid-template-columns: 1fr;
   }

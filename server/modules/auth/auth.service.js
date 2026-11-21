@@ -66,13 +66,14 @@ export const register = async ({
   avatarUrl,
   password,
   role,
+  fields,
 }) => {
   const normalizedEmail = normalizeEmail(email);
   const existingUser = await findAuthUserByEmail(normalizedEmail);
 
   if (existingUser) {
     throw new AppError(
-      "Un utilisateur avec cette adresse email existe deja.",
+      "Un utilisateur avec cette adresse email existe déjà.",
       409,
       "EMAIL_ALREADY_USED",
     );
@@ -82,7 +83,7 @@ export const register = async ({
   const userId = await insertAuthUser({
     name,
     company,
-    title,
+    title: title || null,
     location,
     email: normalizedEmail,
     phone,
@@ -90,6 +91,7 @@ export const register = async ({
     avatarUrl,
     passwordHash,
     role,
+    fields,
   });
   const user = await findAuthUserById(userId);
 

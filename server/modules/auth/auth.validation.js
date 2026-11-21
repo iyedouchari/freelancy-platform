@@ -31,32 +31,31 @@ export const validateRegisterPayload = (body) => {
   const avatarUrl = String(body?.avatarUrl ?? body?.profileImage ?? "").trim();
   const password = String(body?.password || "");
   const role = sanitizeRole(body?.role);
+  const fields = Array.isArray(body?.fields) ? body.fields : [];
 
   if (!name) {
-    throw new AppError("Name is required.", 400, "NAME_REQUIRED");
+    throw new AppError("Le nom complet est requis.", 400, "NAME_REQUIRED");
   }
 
   if (!email || !isEmail(email)) {
-    throw new AppError("A valid email is required.", 400, "EMAIL_INVALID");
+    throw new AppError("Une adresse email valide est requise.", 400, "EMAIL_INVALID");
   }
 
   if (!isStrongEnoughPassword(password)) {
-    throw new AppError("Password must be at least 10 characters long.", 400, "PASSWORD_WEAK");
+    throw new AppError("Le mot de passe doit contenir au moins 10 caractères.", 400, "PASSWORD_WEAK");
   }
 
-  if (!title) {
-    throw new AppError("Professional title is required.", 400, "TITLE_REQUIRED");
-  }
+  // Le champ title (Fonction) a été retiré du formulaire d'inscription et est désormais optionnel.
 
   if (!location) {
-    throw new AppError("Location is required.", 400, "LOCATION_REQUIRED");
+    throw new AppError("La localisation est requise.", 400, "LOCATION_REQUIRED");
   }
 
   if (!phone) {
-    throw new AppError("Phone is required.", 400, "PHONE_REQUIRED");
+    throw new AppError("Le numéro de téléphone est requis.", 400, "PHONE_REQUIRED");
   }
 
-  return { name, company, title, location, email, phone, bio, avatarUrl, password, role };
+  return { name, company, title, location, email, phone, bio, avatarUrl, password, role, fields };
 };
 
 export const validateLoginPayload = (body) => {

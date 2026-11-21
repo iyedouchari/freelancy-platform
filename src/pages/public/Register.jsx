@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { DOMAIN_OPTIONS } from "../../data/domains";
+import { TUNISIAN_GOVERNORATES } from "../../data/tunisianGovernorates";
 import { authService } from "../../services/authService";
 import { showAppFeedback } from "../../utils/appFeedback";
-import { LocationAutocomplete } from "../../components/auth/LocationAutocomplete";
 import { InternationalPhoneInput } from "../../components/auth/InternationalPhoneInput";
 import "../../styles/landing.css";
 
@@ -309,9 +309,7 @@ const Register = () => {
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [isIndependent, setIsIndependent] = useState(false);
-  const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
-  const [isLocationValid, setIsLocationValid] = useState(false);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [isPhoneValid, setIsPhoneValid] = useState(false);
@@ -339,11 +337,11 @@ const Register = () => {
       });
       return;
     }
-    if (!isLocationValid || !location.trim()) {
+    if (!location || !TUNISIAN_GOVERNORATES.includes(location)) {
       showAppFeedback({
         tone: "warning",
-        title: "Localisation invalide",
-        message: "Veuillez sélectionner une ville et un pays réels dans la liste des suggestions.",
+        title: "Localisation requise",
+        message: "Veuillez sélectionner votre gouvernorat parmi les 24 gouvernorats tunisiens.",
       });
       return;
     }
@@ -385,7 +383,6 @@ const Register = () => {
 
     const normalizedName = name.trim();
     const normalizedCompany = isIndependent ? "Indépendant" : company.trim();
-    const normalizedTitle = title.trim();
     const normalizedLocation = location.trim();
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedPhone = phone.trim();
@@ -405,7 +402,6 @@ const Register = () => {
   const handleOnboardingComplete = async (data) => {
     const normalizedName = name.trim();
     const normalizedCompany = isIndependent ? "Indépendant" : company.trim();
-    const normalizedTitle = title.trim();
     const normalizedLocation = location.trim();
     const normalizedEmail = email.trim().toLowerCase();
 
@@ -413,7 +409,6 @@ const Register = () => {
       const registerResult = await authService.register({
         name: normalizedName,
         company: normalizedCompany,
-        title: normalizedTitle,
         location: normalizedLocation,
         email: normalizedEmail,
         phone: phone.trim(),
@@ -421,6 +416,7 @@ const Register = () => {
         role,
         bio: data.bio,
         profileImage: data.profileImage || "",
+        fields: Array.isArray(data?.fields) ? data.fields : [],
       });
 
       localStorage.removeItem("app_role");
@@ -432,7 +428,6 @@ const Register = () => {
         localStorage.setItem("freelancer_fields", JSON.stringify(data.fields));
         localStorage.setItem("freelancer_bio", data.bio);
         localStorage.setItem("freelancer_name", normalizedName);
-        localStorage.setItem("freelancer_title", normalizedTitle);
         localStorage.setItem("freelancer_location", normalizedLocation);
         localStorage.setItem("freelancer_email", normalizedEmail);
         localStorage.setItem("freelancer_phone", phone.trim());
@@ -441,7 +436,6 @@ const Register = () => {
         localStorage.setItem("client_bio", data.bio);
         localStorage.setItem("client_name", normalizedName);
         localStorage.setItem("client_company", normalizedCompany);
-        localStorage.setItem("client_role_title", normalizedTitle);
         localStorage.setItem("client_location", normalizedLocation);
         localStorage.setItem("client_email", normalizedEmail);
         localStorage.setItem("client_phone", phone.trim());
@@ -469,6 +463,11 @@ const Register = () => {
       });
     } catch (error) {
       setErrorMessage(error.message || "Impossible de finaliser l'inscription.");
+      showAppFeedback({
+        tone: "error",
+        title: "Échec de l'inscription",
+        message: error.message || "Impossible de finaliser l'inscription. Veuillez vérifier les informations et réessayer.",
+      });
     }
   };
 
@@ -585,6 +584,8 @@ const Register = () => {
                 <input
                   className="auth-input"
                   type="text"
+                  name="fullName"
+                  autoComplete="name"
                   placeholder="Votre nom et prénom"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -607,6 +608,8 @@ const Register = () => {
                 <input
                   className={`auth-input ${isIndependent ? "is-disabled-soft" : ""}`}
                   type="text"
+                  name="companyName"
+                  autoComplete="off"
                   placeholder={isIndependent ? "Indépendant (sans entreprise)" : "Nom de l'entreprise"}
                   value={isIndependent ? "Indépendant" : company}
                   onChange={(e) => {
@@ -636,41 +639,29 @@ const Register = () => {
               </div>
             </div>
 
-            <div className="auth-fields-row">
-              <div className="auth-field">
-                <label className="auth-label">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="8" r="4" />
-                    <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-                  </svg>
-                  Fonction
-                </label>
-                <input
-                  className="auth-input"
-                  type="text"
-                  placeholder="Ex: Product Owner"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="auth-field">
-                <label className="auth-label">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                    <circle cx="12" cy="9" r="2.5" />
-                  </svg>
-                  Localisation
-                </label>
-                <LocationAutocomplete
-                  value={location}
-                  onChange={(val) => setLocation(val)}
-                  onValidationChange={(valid) => setIsLocationValid(valid)}
-                  hasSubmitted={hasSubmitted}
-                  required
-                />
-              </div>
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="register-location">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                  <circle cx="12" cy="9" r="2.5" />
+                </svg>
+                Localisation (Gouvernorat)
+              </label>
+              <select
+                id="register-location"
+                name="location"
+                className={`auth-input auth-select ${hasSubmitted && (!location || !TUNISIAN_GOVERNORATES.includes(location)) ? "is-invalid" : ""}`}
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                required
+              >
+                <option value="">Sélectionnez votre gouvernorat (Tunisie)</option>
+                {TUNISIAN_GOVERNORATES.map((gov) => (
+                  <option key={gov} value={gov}>
+                    {gov}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="auth-fields-row auth-fields-row-phone-email">

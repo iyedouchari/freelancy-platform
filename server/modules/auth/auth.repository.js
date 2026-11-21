@@ -74,6 +74,7 @@ export const insertAuthUser = async ({
   avatarUrl,
   passwordHash,
   role,
+  fields,
 }) => {
   return createUser({
     name,
@@ -86,6 +87,7 @@ export const insertAuthUser = async ({
     avatarUrl,
     passwordHash,
     role,
+    fields,
   });
 };
 
