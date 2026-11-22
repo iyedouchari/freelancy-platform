@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "../config/api.js";
+import { buildApiUrl } from "../config/api.js";
 
 const API_UNREACHABLE_MESSAGE =
   "Impossible de contacter l'API. Verifie que le serveur backend tourne avec: npm run dev:server";
@@ -24,7 +24,7 @@ const parseErrorMessage = async (response) => {
 const sendRequest = async (path, options = {}) => {
   let response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetch(buildApiUrl(path), {
       headers: getAuthHeaders(),
       ...options,
     });

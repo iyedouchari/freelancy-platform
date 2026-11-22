@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "../config/api.js";
+import { buildApiUrl } from "../config/api.js";
 const REQUEST_TIMEOUT_MS = 20000;
 
 const API_UNREACHABLE_MESSAGE =
@@ -29,7 +29,7 @@ const sendRequest = async (path, options = {}) => {
   const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   let response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetch(buildApiUrl(path), {
       headers: getAuthHeaders(),
       signal: controller.signal,
       ...options,

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { API_ORIGIN } from "../../config/api.js";
+import { API_ORIGIN, buildApiUrl } from "../../config/api.js";
 
 const API_BASE = API_ORIGIN;
 
@@ -66,7 +66,7 @@ export default function Chat({
 
     const loadHistory = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/chat/history/${dealId}`);
+        const res = await fetch(buildApiUrl(`/chat/history/${dealId}`));
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         const nextMessages = Array.isArray(data)
@@ -144,7 +144,7 @@ export default function Chat({
         fileName: file.name,
       });
 
-      const uploadRes = await fetch(`${API_BASE}/api/chat/upload?${params.toString()}`, {
+      const uploadRes = await fetch(buildApiUrl(`/chat/upload?${params.toString()}`), {
         method: "POST",
         headers: {
           "Content-Type": file.type || "application/octet-stream",

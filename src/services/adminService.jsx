@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "../config/api.js";
+import { buildApiUrl } from "../config/api.js";
 
 const getToken = () => localStorage.getItem("auth_token");
 
@@ -28,7 +28,7 @@ const parseJson = async (response) => {
 };
 
 const request = async (path, options = {}) => {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(buildApiUrl(path), {
     ...options,
     cache: "no-store",
     headers: {

@@ -34,7 +34,7 @@ app.use(loggerMiddleware);
 app.use(rateLimitMiddleware({ windowMs: 60_000, max: 100 }));
 app.use("/uploads", express.static(uploadsDir));
 
-app.get("/api/health", (_req, res) => {
+const handleHealth = (_req, res) => {
   return successResponse(res, {
     message: "API is running.",
     data: {
@@ -42,8 +42,11 @@ app.get("/api/health", (_req, res) => {
       timestamp: new Date().toISOString(),
     },
   });
-});
+};
+app.get("/api/health", handleHealth);
+app.get("/health", handleHealth);
 
+// Mount with /api prefix
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/requests", requestRoutes);
@@ -55,6 +58,19 @@ app.use("/api/wallet", walletRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/admin", adminRoutes);
+
+// Alias without /api prefix for route resilience
+app.use("/auth", authRoutes);
+app.use("/users", userRoutes);
+app.use("/requests", requestRoutes);
+app.use("/proposals", proposalRoutes);
+app.use("/deals", dealRoutes);
+app.use("/payments", paymentRoutes);
+app.use("/chat", chatRoutes);
+app.use("/wallet", walletRoutes);
+app.use("/reviews", reviewRoutes);
+app.use("/reports", reportRoutes);
+app.use("/admin", adminRoutes);
 
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);

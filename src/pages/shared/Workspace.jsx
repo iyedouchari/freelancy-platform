@@ -1,4 +1,4 @@
-import { API_BASE_URL, API_ORIGIN } from "../../config/api.js";
+import { API_BASE_URL, API_ORIGIN, buildApiUrl } from "../../config/api.js";
 import { useEffect, useRef, useState } from "react";
 import "../../styles/landing.css";
 import Chat from "./Chat.jsx";
@@ -149,7 +149,7 @@ export default function Workspace({
     }
 
     try {
-      const res = await fetch(`${API_BASE}/api/deals/${resolvedDealId}/deliveries`, {
+      const res = await fetch(buildApiUrl(`/deals/${resolvedDealId}/deliveries`), {
         headers: getAuthHeaders(),
       });
       if (!res.ok) {
@@ -210,7 +210,7 @@ export default function Workspace({
       setError(null);
 
       try {
-        const res = await fetch(`${API_BASE}/api/deals/${resolvedDealId}`, {
+        const res = await fetch(buildApiUrl(`/deals/${resolvedDealId}`), {
           signal: controller.signal,
           headers: getAuthHeaders(),
         });
@@ -362,7 +362,7 @@ export default function Workspace({
         fileName: file.name,
       });
 
-      const uploadRes = await fetch(`${API_BASE}/api/deals/${resolvedDealId}/deliveries/upload?${params.toString()}`, {
+      const uploadRes = await fetch(buildApiUrl(`/deals/${resolvedDealId}/deliveries/upload?${params.toString()}`), {
         method: "POST",
         headers: {
           ...getAuthHeaders(),
@@ -403,7 +403,7 @@ export default function Workspace({
 
     setDeletingDeliveryId(deliveryId);
     try {
-      const res = await fetch(`${API_BASE}/api/deals/${resolvedDealId}/deliveries/${deliveryId}`, {
+      const res = await fetch(buildApiUrl(`/deals/${resolvedDealId}/deliveries/${deliveryId}`), {
         method: "DELETE",
         headers: getAuthHeaders(),
       });

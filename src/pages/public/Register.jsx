@@ -482,11 +482,12 @@ const Register = () => {
         message: ONBOARDING_CONTENT[role]?.successMessage || ONBOARDING_CONTENT.freelancer.successMessage,
       });
     } catch (error) {
-      setErrorMessage(error.message || "Impossible de finaliser l'inscription.");
+      const displayMessage = error?.message || "Impossible de finaliser l'inscription. Veuillez vérifier les informations et réessayer.";
+      setErrorMessage(displayMessage);
       showAppFeedback({
         tone: "error",
         title: "Échec de l'inscription",
-        message: error.message || "Impossible de finaliser l'inscription. Veuillez vérifier les informations et réessayer.",
+        message: displayMessage,
       });
     }
   };

@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "../config/api.js";
+import { buildApiUrl } from "../config/api.js";
 
 const getToken = () => localStorage.getItem("auth_token");
 
@@ -43,7 +43,7 @@ export const reportService = {
     attachmentMimeType,
     attachmentSize,
   }) => {
-    const response = await fetch(`${API_BASE_URL}/reports`, {
+    const response = await fetch(buildApiUrl("/reports"), {
       method: "POST",
       cache: "no-store",
       headers: buildHeaders(),
@@ -68,7 +68,7 @@ export const reportService = {
     }
 
     const params = new URLSearchParams({ fileName: file.name });
-    const response = await fetch(`${API_BASE_URL}/reports/attachments/upload?${params.toString()}`, {
+    const response = await fetch(buildApiUrl(`/reports/attachments/upload?${params.toString()}`), {
       method: "POST",
       cache: "no-store",
       headers: {

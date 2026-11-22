@@ -1,26 +1,29 @@
-import { API_BASE_URL } from "../config/api.js";
+import { buildApiUrl } from "../config/api.js";
 
 const parseErrorMessage = async (response) => {
+  let payload = null;
   try {
-    const payload = await response.json();
-    if (payload?.message) {
-      if (payload.message === "Internal Server Error") {
-        return "Une erreur serveur est survenue. Veuillez réessayer dans un instant.";
-      }
-      return payload.message;
-    }
+    payload = await response.json();
   } catch (_error) {
-    // Ignore invalid JSON and fall back to status-specific message.
+    // Non-JSON response (e.g. gateway error or static page)
+  }
+
+  // If backend provided a specific operational message (other than generic Internal Server Error)
+  if (payload?.message && payload.message !== "Internal Server Error") {
+    return payload.message;
   }
 
   if (response.status === 401) {
     return "Adresse email ou mot de passe incorrect.";
   }
   if (response.status === 403) {
-    return "Accès refusé. Veuillez vérifier vos identifiants.";
+    return "Accès refusé. Compte non autorisé ou suspendu.";
   }
-  if (response.status === 404 || response.status === 405) {
-    return "Service temporairement inaccessible. Veuillez vérifier la connexion au serveur.";
+  if (response.status === 404) {
+    return `Route d'authentification introuvable (HTTP 404). Vérifiez l'URL du serveur (${response.url}).`;
+  }
+  if (response.status === 405) {
+    return `Méthode non autorisée (HTTP 405). Vérifiez l'URL de l'API (${response.url}).`;
   }
   if (response.status === 409) {
     return "Un utilisateur avec cette adresse email existe déjà.";
@@ -29,23 +32,21 @@ const parseErrorMessage = async (response) => {
     return "Trop de tentatives. Veuillez patienter une minute avant de réessayer.";
   }
   if ([502, 503, 504, 524].includes(response.status)) {
-    return "Le serveur est en cours de réveil ou temporairement indisponible. Veuillez patienter quelques secondes et réessayer.";
+    return `Le serveur Render est en cours de réveil ou temporairement indisponible (HTTP ${response.status}). Veuillez patienter 30 secondes et réessayer.`;
   }
   if (response.status >= 500) {
-    return "Une erreur serveur est survenue. Veuillez réessayer dans un instant.";
+    return `Une erreur serveur est survenue (HTTP ${response.status}). ${payload?.message || "Veuillez réessayer dans un instant."}`;
   }
 
-  return "Une erreur est survenue lors de l'authentification.";
+  return `Erreur HTTP ${response.status} lors de l'authentification.`;
 };
 
-const API_UNREACHABLE_MESSAGE =
-  "Impossible de contacter le serveur. Veuillez vérifier votre connexion ou réessayer dans un instant.";
-
 const sendAuthRequest = async (path, payload) => {
+  const url = buildApiUrl(path);
   let response;
 
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetch(url, {
       method: "POST",
       cache: "no-store",
       headers: {
@@ -56,7 +57,9 @@ const sendAuthRequest = async (path, payload) => {
       body: JSON.stringify(payload),
     });
   } catch (error) {
-    throw new Error(`${API_UNREACHABLE_MESSAGE}${error?.message ? ` (${error.message})` : ""}`);
+    throw new Error(
+      `Impossible de contacter le serveur (${error?.message || "Erreur réseau / CORS"}). Vérifiez votre connexion.`
+    );
   }
 
   if (!response.ok) {
@@ -64,8 +67,12 @@ const sendAuthRequest = async (path, payload) => {
     throw new Error(message);
   }
 
-  const body = await response.json();
-  return body?.data || null;
+  try {
+    const body = await response.json();
+    return body?.data || null;
+  } catch (_e) {
+    throw new Error("Réponse inattendue du serveur.");
+  }
 };
 
 export const authService = {
