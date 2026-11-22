@@ -1,11 +1,9 @@
+import { API_BASE_URL, API_ORIGIN } from "../../config/api.js";
 import { useEffect, useMemo, useState } from "react";
 import Footer from "../../components/Footer";
 import Navbar from "../../components/Navbar";
 import { adminService } from "../../services/adminService";
 import "./AdminDashboard.css";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
-const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "");
 
 const adminNavItems = [
   { key: "overview", label: "Utilisateurs", actionProp: "onDashboard" },

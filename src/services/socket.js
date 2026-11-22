@@ -1,7 +1,8 @@
 import { io } from "socket.io-client";
+import { SOCKET_BASE_URL } from "../config/api.js";
 
 // Instance unique partagée dans toute l'application
-const socket = io("http://localhost:4000", {
+const socket = io(SOCKET_BASE_URL, {
 	autoConnect: true,
 	reconnection: true,
 	reconnectionAttempts: Infinity,

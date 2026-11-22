@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
+import { API_ORIGIN } from "../../config/api.js";
 
-const API_BASE = "http://localhost:4000";
+const API_BASE = API_ORIGIN;
 
 function createMessageItem(message, myUserId, username) {
   const isMine = message.senderId?.toString?.() === myUserId?.toString?.()

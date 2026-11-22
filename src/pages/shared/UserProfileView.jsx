@@ -1,9 +1,8 @@
+import { API_BASE_URL, API_ORIGIN } from "../../config/api.js";
 import { useEffect, useMemo, useState } from "react";
 import { reviewService } from "../../services/reviewService";
 import { userService } from "../../services/userService";
 import "./UserProfileView.css";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
 
 function toAbsoluteMediaUrl(value) {
   const input = String(value || "").trim();
@@ -15,7 +14,7 @@ function toAbsoluteMediaUrl(value) {
     return input;
   }
 
-  const apiOrigin = API_BASE_URL.replace(/\/api\/?$/, "");
+  const apiOrigin = API_ORIGIN;
   if (input.startsWith("/")) {
     return `${apiOrigin}${input}`;
   }

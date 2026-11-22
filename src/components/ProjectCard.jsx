@@ -1,6 +1,5 @@
+import { API_BASE_URL, API_ORIGIN } from "../config/api.js";
 import { format } from "../utils/format";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
 
 const toAbsoluteMediaUrl = (value) => {
   const input = String(value || "").trim();
@@ -12,7 +11,7 @@ const toAbsoluteMediaUrl = (value) => {
     return input;
   }
 
-  const apiOrigin = API_BASE_URL.replace(/\/api\/?$/, "");
+  const apiOrigin = API_ORIGIN;
   if (input.startsWith("/")) {
     return `${apiOrigin}${input}`;
   }

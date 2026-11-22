@@ -1,9 +1,12 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
+import { API_BASE_URL } from "../config/api.js";
 
 const parseErrorMessage = async (response) => {
   try {
     const payload = await response.json();
     if (payload?.message) {
+      if (payload.message === "Internal Server Error") {
+        return "Une erreur serveur est survenue. Veuillez réessayer dans un instant.";
+      }
       return payload.message;
     }
   } catch (_error) {
@@ -16,6 +19,9 @@ const parseErrorMessage = async (response) => {
   if (response.status === 403) {
     return "Accès refusé. Veuillez vérifier vos identifiants.";
   }
+  if (response.status === 404 || response.status === 405) {
+    return "Service temporairement inaccessible. Veuillez vérifier la connexion au serveur.";
+  }
   if (response.status === 409) {
     return "Un utilisateur avec cette adresse email existe déjà.";
   }
@@ -24,6 +30,9 @@ const parseErrorMessage = async (response) => {
   }
   if ([502, 503, 504, 524].includes(response.status)) {
     return "Le serveur est en cours de réveil ou temporairement indisponible. Veuillez patienter quelques secondes et réessayer.";
+  }
+  if (response.status >= 500) {
+    return "Une erreur serveur est survenue. Veuillez réessayer dans un instant.";
   }
 
   return "Une erreur est survenue lors de l'authentification.";

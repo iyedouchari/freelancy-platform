@@ -1,3 +1,4 @@
+import { API_BASE_URL, API_ORIGIN } from "../../config/api.js";
 import { useEffect, useRef, useState } from "react";
 import FeedbackCard from "../../components/FeedbackCard";
 import { DOMAIN_OPTIONS } from "../../data/domains";
@@ -7,15 +8,13 @@ import { userService } from "../../services/userService";
 import { showAppFeedback } from "../../utils/appFeedback";
 import "./FreelancerProfile.css";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
-
 const toAbsoluteMediaUrl = (value) => {
   const input = String(value || "").trim();
   if (!input) return "";
   if (input.startsWith("data:")) return input;
   if (input.startsWith("http://") || input.startsWith("https://")) return input;
 
-  const apiOrigin = API_BASE_URL.replace(/\/api\/?$/, "");
+  const apiOrigin = API_ORIGIN;
   if (input.startsWith("/")) {
     return `${apiOrigin}${input}`;
   }
