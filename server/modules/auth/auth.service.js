@@ -95,7 +95,12 @@ export const register = async ({
   });
   const user = await findAuthUserById(userId);
 
-  await sendWelcomeEmail(user);
+  // Send welcome email asynchronously in background so SMTP timeouts never block registration
+  sendWelcomeEmail(user).catch((err) => {
+    console.warn(
+      `[auth.register] Welcome email background notification skipped: ${err?.message || "Unknown error"}`
+    );
+  });
 
   return buildAuthResponse(user);
 };

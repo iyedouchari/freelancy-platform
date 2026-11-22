@@ -8,6 +8,9 @@ const transporter = hasSmtpConfig
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,
       secure: env.SMTP_SECURE,
+      connectionTimeout: 4000,
+      greetingTimeout: 4000,
+      socketTimeout: 4000,
       auth: {
         user: env.SMTP_USER,
         pass: env.SMTP_PASS,

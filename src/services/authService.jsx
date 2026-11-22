@@ -7,14 +7,30 @@ const parseErrorMessage = async (response) => {
       return payload.message;
     }
   } catch (_error) {
-    // Ignore invalid JSON and fall back to generic message.
+    // Ignore invalid JSON and fall back to status-specific message.
+  }
+
+  if (response.status === 401) {
+    return "Adresse email ou mot de passe incorrect.";
+  }
+  if (response.status === 403) {
+    return "Accès refusé. Veuillez vérifier vos identifiants.";
+  }
+  if (response.status === 409) {
+    return "Un utilisateur avec cette adresse email existe déjà.";
+  }
+  if (response.status === 429) {
+    return "Trop de tentatives. Veuillez patienter une minute avant de réessayer.";
+  }
+  if ([502, 503, 504, 524].includes(response.status)) {
+    return "Le serveur est en cours de réveil ou temporairement indisponible. Veuillez patienter quelques secondes et réessayer.";
   }
 
   return "Une erreur est survenue lors de l'authentification.";
 };
 
 const API_UNREACHABLE_MESSAGE =
-  "Impossible de contacter l'API. Verifie que le serveur backend tourne avec: npm run dev:server";
+  "Impossible de contacter le serveur. Veuillez vérifier votre connexion ou réessayer dans un instant.";
 
 const sendAuthRequest = async (path, payload) => {
   let response;
